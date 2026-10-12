@@ -18,6 +18,7 @@ psycopg2-binary
 python-Levenshtein==0.23.0
 pytz==2025.2
 rapidfuzz==3.4.0
+requests==2.31.0
 scipy==1.7.3
 Shapely==1.7.1
 six==1.17.0

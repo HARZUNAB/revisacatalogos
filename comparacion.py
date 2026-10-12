@@ -10,10 +10,10 @@ profundidad y magnitud) a la precisión con la que se manejan en todo el flujo:
     magnitud            -> 1 decimal
 
 La usan compara.py (para decidir qué evento quedó "no actualizado" y escribir
-los informes) y revisa_seiscomp.py (para filtrar datos/atribucion_*.csv y armar
-la tabla). Vive en un módulo propio para que las dos no se separen: antes cada
-archivo tenía su copia y había que cambiarlas a mano, con el riesgo de que un
-día dijeran cosas distintas.
+los informes), revisa_seiscomp.py (para filtrar datos/atribucion_*.csv y armar
+la tabla) y generajson.py (para armar el panel de no actualizados). Vive en un
+módulo propio para que no se separen: antes cada archivo tenía su copia y había
+que cambiarlas a mano, con el riesgo de que un día dijeran cosas distintas.
 
 Comparar por texto, como se hacía antes, marcaba como distinto el mismo valor
 escrito con distinta cantidad de decimales (-31.64 contra -31.639999...), que
@@ -167,3 +167,53 @@ def distancia_km(lat1, lon1, lat2, lon2):
     h = (math.sin(dphi / 2) ** 2
          + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
     return 2 * RADIO_TIERRA_KM * math.asin(min(1.0, math.sqrt(h)))
+
+
+def _a_float(valor):
+    """Float, o infinito si no se puede leer, para no romper el orden por dt."""
+    numero = a_numero(valor)
+    return float("inf") if numero is None else numero
+
+
+def _no_actualizado(fila):
+    """True si el cruce marca el evento local como no actualizado."""
+    return bool(parametros_discrepantes(
+        fila.get("lat_eventquery", ""), fila.get("lon_eventquery", ""),
+        fila.get("prof_eventquery", ""), fila.get("mag_eventquery", ""),
+        fila.get("lat_local", ""), fila.get("lon_local", ""),
+        fila.get("prof_local", ""), fila.get("mag_local", "")))
+
+
+def no_actualizados(filas):
+    """
+    De las filas de 'atribucion_*.csv', los eventos locales no actualizados.
+
+    Un mismo evento local puede aparecer en más de una fila (cayó dentro de la
+    tolerancia de dos eventos publicados): se agrupa por evento local y se deja
+    el mejor cruce (menor dt_seg). Se descartan los grupos que no difieren en
+    ningún parámetro.
+
+    Es la regla única de «no actualizado»: la usan revisa_seiscomp.py para el
+    listado y generajson.py para armar el panel de mapas/perfiles, así no hay
+    dos definiciones que se puedan separar.
+    """
+    mejores = {}
+    for fila in filas:
+        if not _no_actualizado(fila):
+            continue
+        clave = (fila.get("fecha_local", ""), fila.get("lat_local", ""),
+                 fila.get("lon_local", ""))
+        actual = mejores.get(clave)
+        if actual is None or _a_float(fila.get("dt_seg")) < _a_float(
+                actual.get("dt_seg")):
+            mejores[clave] = fila
+    resultado = list(mejores.values())
+    # dist_km la escribe compara.py; con un atribucion de una corrida vieja se
+    # calcula acá para no dejarla vacía.
+    for fila in resultado:
+        if not str(fila.get("dist_km", "")).strip():
+            distancia = distancia_km(
+                fila.get("lat_eventquery"), fila.get("lon_eventquery"),
+                fila.get("lat_local"), fila.get("lon_local"))
+            fila["dist_km"] = "" if distancia is None else round(distancia, 3)
+    return resultado

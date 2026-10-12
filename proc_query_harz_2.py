@@ -123,16 +123,12 @@ if num_datos>0:
 
 	df = pd.DataFrame(listacsv)
 	df.columns=['Fecha_Hora', 'Latitud', 'Longitud', 'Prof.', 'Mag.', 'Tipo_mag.', 'Referencia', 'Percep', "Est_leidas", "Autor", "Estruc_origen", "Estruc_Final", "Est_add", "Est_eli", "Act. web", "Observaciones"]
-	salida=rutas.p_datos('new_'+os.path.basename(sys.argv[1]))
-	df.to_csv(salida)
-
 	df2 = pd.DataFrame(listacsv2)
 	df2.columns=['Fecha_Hora', 'Latitud', 'Longitud', 'Prof.', 'Mag.', 'Tipo_mag.', 'Referencia', 'Percep.']
 	salida2=rutas.p_datos('new_2_'+os.path.basename(sys.argv[1]))
 	df2.to_csv(salida2)
 
 	print('Nuevos archivos generados...')
-	print(salida)
 	print(sys.argv[2])
 	print(salida2)
 	exit()

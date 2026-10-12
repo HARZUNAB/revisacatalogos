@@ -47,7 +47,9 @@ junto a los scripts, y no se mueven con el directorio de ejecución.
 """
 import csv
 import os
+import queue
 import sys
+import threading
 from datetime import datetime
 
 import ajuste
@@ -1587,8 +1589,8 @@ def _construir_arbol_no_picadas(ttk, marco, filas_no_picadas, padre=None,
     Devuelve (contenedor, arbol) —o (None, None) si no hay archivo— para que el
     encabezado de la ventana pueda repintar la tabla al recortar por radio y
     retintarla en vivo al cambiar el umbral «cerca». El control de radio y el
-    botón «Ampliar» NO van acá: viven en el encabezado de la ventana, siempre
-    visibles, porque esta solapa no es la que abre por defecto.
+    botón «Aplicar radio» NO van acá: viven en el encabezado de la ventana,
+    siempre visibles, porque esta solapa no es la que abre por defecto.
 
     Con 'hay_archivo=False' no es que no haya estaciones: es que el CSV no está,
     que es lo que pasa con una exportación vieja. El texto lo dice, porque un
@@ -1726,7 +1728,7 @@ def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
 
 def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                         etiqueta_fuente=None, log=None, hay_no_picadas=True,
-                        ventana_previa=None, al_ampliar=None):
+                        ventana_previa=None, al_ampliar=None, al_mostrar=None):
     """
     Abre (o reusa) la ventana "Estaciones del evento", con dos solapas.
 
@@ -1747,6 +1749,19 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
 
     'ventana_previa' es la ventana que había, o None. Se la devuelve actualizada
     para que el panel la guarde.
+
+    La consulta a la base ("Aplicar radio" con radio mayor al exportado o «Sin
+    límite») corre en un hilo aparte para que la interfaz no se congele si la
+    red o la base tardan, así que se parte en dos callbacks:
+
+      * 'al_ampliar(radio, umbral_cercano)' corre en el hilo y NO debe tocar
+        Tk: solo valida y devuelve la lista de filas.
+      * 'al_mostrar(filas, radio, umbral_cercano)' corre en el hilo principal
+        y presenta el resultado (aviso de cordura, ventana aparte): devuelve
+        cuántas estaciones quedaron, o None si el usuario cancela.
+
+    Si falta 'al_mostrar', no se abre la ventana aparte: solo se informa la
+    cantidad en el estado. Si falta 'al_ampliar', no hay consulta disponible.
     """
     import ttkbootstrap as _t
     resumen = _resumen_fases(filas_fases)
@@ -1813,8 +1828,26 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
     if radio_exportado is not None:
         ent_radio.insert(0, "%g" % radio_exportado)
     ent_radio.pack(side="left", padx=(4, 8))
-    _ayuda_emergente(ent_radio, "Recorta la lista ya exportada; no consulta la"
-                     " base.")
+    var_sin_limite = _t.BooleanVar(value=False)
+
+    def _alternar_sin_limite(_evento=None):
+        if var_sin_limite.get():
+            ent_radio.configure(state="disabled")
+        else:
+            ent_radio.configure(state="normal")
+
+    chk_limite = _t.Checkbutton(distancias, text="Sin límite",
+                                variable=var_sin_limite,
+                                command=_alternar_sin_limite)
+    chk_limite.pack(side="left", padx=(0, 8))
+    _ayuda_emergente(ent_radio, "Radio de recorte local. Si supera el de la "
+                     "exportación (400 km por defecto), «Aplicar radio» consulta "
+                 "la base de metadatos y abre el resultado en otra ventana.")
+    _ayuda_emergente(chk_limite, "Ignora el radio: consulta la base sin tope "
+                     "de distancia y muestra el resultado en otra ventana.")
+    boton_aplicar = _t.Button(distancias, text="Aplicar radio", bootstyle="secondary-outline")
+    boton_aplicar.pack(side="left", padx=(0, 10))
+    _t.Label(distancias, text="  |  ").pack(side="left")
     _t.Label(distancias, text="Resaltar cerca ≤ (km):").pack(side="left")
     ent_cerca = _t.Entry(distancias, width=6)
     ent_cerca.insert(0, "%g" % umbral_cercano)
@@ -1828,10 +1861,8 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                               variable=var_solo)
     chk_solo.pack(side="left", padx=(0, 8))
     _ayuda_emergente(chk_solo, "Muestra solo las estaciones dentro del umbral"
-                     " «cerca».")
-    boton_aplicar = _t.Button(distancias, text="Aplicar",
-                              bootstyle="secondary-outline")
-    boton_aplicar.pack(side="left")
+                     " «cerca». Al tildarlo se aplica el recorte inmediato (solo "
+                     "local).")
 
     if not hay_no_picadas:
         _t.Label(ventana, text="Aviso: esta exportación no trae el archivo de"
@@ -1919,7 +1950,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                 umbral_cercano=umbral_cercano)
             datos["arbol"] = arbol
 
-    def _aplicar(_evento=None):
+    def _aplicar_local(_evento=None):
         nonlocal umbral_cercano
         radio = _leer_radio()
         if radio is None:
@@ -1934,6 +1965,22 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
         datos["solo"] = bool(var_solo.get())
         _reconstruir()
         _actualizar_estado()
+
+    def _aplicar_radio(_evento=None):
+        if var_sin_limite.get():
+            _consultar_base(None)
+            return
+        radio = _leer_radio()
+        if radio is None:
+            estado_control.config(text="Radio inválido.")
+            return
+        if not hay_no_picadas:
+            _consultar_base(radio)
+            return
+        if radio_exportado is None or radio <= radio_exportado:
+            _aplicar_local(_evento)
+        else:
+            _consultar_base(radio)
 
     def _retinte_inmediato(_evento=None):
         nonlocal umbral_cercano
@@ -1958,53 +2005,90 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                 pass
         _retinte["after"] = ventana.after(300, _retinte_inmediato)
 
-    def _ampliar(todo=False):
-        if al_ampliar is None:
+    _consulta = {"activa": False, "cola": queue.Queue()}
+
+    def _drenar_consulta():
+        """Atiende el resultado de la consulta a la base (que corre en un hilo).
+
+        El hilo no puede tocar Tk, así que deposita el resultado (o la
+        excepción) en una cola y acá, en el hilo principal, se presenta.
+        """
+        if not ventana.winfo_exists():
             return
-        if todo:
-            radio = None
-        else:
-            radio = _leer_radio()
-            if radio is None:
-                estado_control.config(text="Radio inválido.")
-                return
+        try:
+            while True:
+                filas, exc, radio = _consulta["cola"].get_nowait()
+                _consulta["activa"] = False
+                boton_aplicar.configure(state="normal")
+                if exc is not None:
+                    estado_control.config(
+                        text="No se pudo consultar la base: %s" % exc)
+                    continue
+                if al_mostrar is None:
+                    cantidad = len(filas)
+                else:
+                    try:
+                        cantidad = al_mostrar(filas, radio, umbral_cercano)
+                    except Exception as exc:
+                        estado_control.config(
+                            text="No se pudo mostrar la ampliación: %s" % exc)
+                        continue
+                if cantidad is None:
+                    estado_control.config(text="Consulta a la base cancelada.")
+                elif radio is None:
+                    estado_control.config(
+                        text="Consulta a la base (sin límite): %d estaciones"
+                             % cantidad)
+                else:
+                    estado_control.config(
+                        text="Consulta a la base (≤ %g km): %d estaciones"
+                             % (radio, cantidad))
+        except queue.Empty:
+            pass
+        if _consulta["activa"] and ventana.winfo_exists():
+            # La consulta sigue corriendo: revisar de nuevo en un rato.
+            ventana.after(100, _drenar_consulta)
+
+    def _consultar_base(radio):
+        """Lanza la consulta a la base en un hilo aparte.
+
+        La red o la base pueden tardar (o colgarse): si la consulta corriera
+        en el hilo principal, la interfaz entera se congelaría y, con un
+        diálogo modal abierto, la sesión entera de X podría quedar bloqueada.
+        Por eso corre en un hilo y el resultado vuelve por una cola.
+        """
+        if al_ampliar is None:
+            estado_control.config(text="No hay consulta a la base disponible.")
+            return
+        if _consulta["activa"]:
+            estado_control.config(
+                text="Ya hay una consulta a la base en curso…")
+            return
+        # El umbral se lee acá, en el hilo principal: la casilla puede cambiar
+        # mientras la consulta corre, y el hilo no la mira.
+        umbral = umbral_cercano
         estado_control.config(text="Consultando la base…")
         ventana.update_idletasks()
-        boton_ampliar.configure(state="disabled")
-        boton_todo.configure(state="disabled")
-        try:
-            cantidad = al_ampliar(radio, umbral_cercano)
-            if cantidad is None:
-                estado_control.config(text="Ampliación cancelada.")
-            elif radio is None:
-                estado_control.config(
-                    text="Ampliado sin límite: %d estaciones." % cantidad)
-            else:
-                estado_control.config(text="Ampliado a %g km: %d estaciones."
-                                      % (radio, cantidad))
-        except Exception as exc:
-            estado_control.config(text="No se pudo ampliar: %s" % exc)
-        finally:
-            boton_ampliar.configure(state="normal")
-            boton_todo.configure(state="normal")
+        boton_aplicar.configure(state="disabled")
+        _consulta["activa"] = True
 
-    boton_aplicar.configure(command=_aplicar)
-    chk_solo.configure(command=_aplicar)
-    ent_radio.bind("<Return>", _aplicar)
+        def _en_hilo():
+            # Nada de Tk acá: solo datos puros.
+            try:
+                filas = al_ampliar(radio, umbral)
+            except Exception as exc:
+                _consulta["cola"].put((None, exc, radio))
+            else:
+                _consulta["cola"].put((filas, None, radio))
+
+        threading.Thread(target=_en_hilo, daemon=True).start()
+        ventana.after(100, _drenar_consulta)
+
+    boton_aplicar.configure(command=_aplicar_radio)
+    chk_solo.configure(command=_aplicar_local)
+    ent_radio.bind("<Return>", _aplicar_radio)
     ent_cerca.bind("<Return>", _retinte_inmediato)
     ent_cerca.bind("<KeyRelease>", _programar_retinte)
-
-    boton_ampliar = _t.Button(distancias, text="Ampliar (consulta a la base)",
-                              bootstyle="primary-outline",
-                              command=lambda: _ampliar())
-    boton_ampliar.pack(side="left", padx=(8, 0))
-    boton_todo = _t.Button(distancias, text="Todo (sin límite)",
-                           bootstyle="primary-outline",
-                           command=lambda: _ampliar(todo=True))
-    boton_todo.pack(side="left", padx=(6, 0))
-    if al_ampliar is None:
-        boton_ampliar.configure(state="disabled")
-        boton_todo.configure(state="disabled")
 
     _actualizar_estado()
 
@@ -2571,16 +2655,13 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
         no_picadas = [] if not hay_no_picadas else _leer_fases_de_evento(
             ruta_no_picadas, indice_no_picadas, campos_no_picadas, id_evento)
 
-        def _ampliar_contra_base(radio, umbral_cercano=UMBRAL_CERCANO_KM):
+        def _consultar_contra_base(radio, umbral_cercano=UMBRAL_CERCANO_KM):
             """
             Recalcula las estaciones sin arribos de este evento contra la base.
 
-            Se llama desde el botón «Ampliar» de la solapa «Sin arribos» cuando
-            el radio pedido supera el corte exportado. Consulta el inventario
-            vigente a la hora del evento y la actividad de las estaciones, y
-            muestra el resultado en una ventana aparte, descargable. Devuelve
-            cuántas estaciones quedaron (o None si el usuario cancela por el
-            aviso de cordura), para que el encabezado lo muestre.
+            Corre en un hilo aparte (lo lanza _consultar_base de la ventana de
+            estaciones): NO debe tocar Tk. Devuelve la lista de filas listas
+            para mostrar y descargar; si algo falta, levanta RuntimeError.
             """
             base_datos = _texto(evento.get("base_datos"))
             if base_datos == VACIO:
@@ -2601,14 +2682,31 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             filas, _descartadas = ex.no_picadas_de_evento_desde_base(
                 base_datos, instante, id_evento, evento.get("id_origen"),
                 latitud, longitud, picadas, radio_km=radio)
+            return filas
+
+        def _mostrar_ampliacion(filas, radio, umbral_cercano=UMBRAL_CERCANO_KM):
+            """
+            Presenta la ampliación contra la base en una ventana aparte.
+
+            Corre en el hilo principal (lo llama _drenar_consulta de la ventana
+            de estaciones): acá sí se puede tocar Tk. Pide confirmación si el
+            resultado es enorme y abre la ventana aparte, descargable. Devuelve
+            cuántas estaciones quedaron (o None si el usuario cancela por el
+            aviso de cordura), para que el encabezado lo muestre.
+            """
+            base_datos = _texto(evento.get("base_datos"))
             if len(filas) > UMBRAL_AVISO_AMPLIADO:
                 from ttkbootstrap.dialogs import Messagebox
                 texto = ("La ampliación trajo %d estaciones%s.\n\n¿Mostrar la"
                          " lista?" % (len(filas),
                                       "" if radio is not None else " (sin"
                                                                    " límite)"))
+                # El padre tiene que estar visible: un grab sobre una ventana
+                # sin mapear puede dejar la sesión entera bloqueada. Si no lo
+                # está, se pregunta igual contra la raíz (siempre mapeada).
+                padre = contenedor if contenedor.winfo_viewable() else None
                 if Messagebox.show_question(
-                        texto, "Ampliación grande", parent=contenedor,
+                        texto, "Ampliación grande", parent=padre,
                         buttons=["Mostrar:primary", "Cancelar"]) != "Mostrar":
                     return None
             ventana_ampliada["ventana"] = _ventana_sin_arribos_ampliada(
@@ -2624,7 +2722,8 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
                 etiqueta_fuente=etiqueta_fuente, log=log,
                 hay_no_picadas=hay_no_picadas,
                 ventana_previa=ventana_estaciones.get("ventana"),
-                al_ampliar=_ampliar_contra_base)
+                al_ampliar=_consultar_contra_base,
+                al_mostrar=_mostrar_ampliacion)
         except Exception as exc:
             # La ventana es un extra: si falla, el detalle que ya se está
             # viendo tiene que seguir siendo utilizable. Se avisa en la
@@ -3041,31 +3140,17 @@ def _no_actualizados(fuente, cwd=None):
         filas = _leer_csv(ruta)
     except OSError:
         return None
-    mejores = {}
-    for fila in filas:
-        if not _no_actualizado(fila):
-            continue
-        clave = (fila.get("fecha_local", ""), fila.get("lat_local", ""),
-                 fila.get("lon_local", ""))
-        actual = mejores.get(clave)
-        if actual is None or _a_float(fila.get("dt_seg")) < _a_float(
-                actual.get("dt_seg")):
-            mejores[clave] = fila
+    # El agrupado y el filtro de «no actualizado» viven en comparacion.py, para
+    # que el listado y el panel de mapas/perfiles no puedan separarse.
+    resultado = comparacion.no_actualizados(filas)
     # Se anota qué parámetros discreparon, con el mismo helper que usa
     # compara.py para decidir el flag: la columna no puede contradecir al
     # informe.
-    for fila in mejores.values():
+    for fila in resultado:
         fila["discrepancias"] = ", ".join(
             ETIQUETAS_DISCREPANCIA.get(c, c)
             for c in _discrepancias(fila)) or VACIO
-        # La columna dist_km la escribe compara.py; con un atribucion de una
-        # corrida vieja se calcula acá para no dejarla vacía.
-        if not str(fila.get("dist_km", "")).strip():
-            distancia = comparacion.distancia_km(
-                fila.get("lat_eventquery"), fila.get("lon_eventquery"),
-                fila.get("lat_local"), fila.get("lon_local"))
-            fila["dist_km"] = "" if distancia is None else round(distancia, 3)
-    return list(mejores.values())
+    return resultado
 
 
 def _discrepancias(fila):
@@ -3075,17 +3160,6 @@ def _discrepancias(fila):
         fila.get("prof_eventquery", ""), fila.get("mag_eventquery", ""),
         fila.get("lat_local", ""), fila.get("lon_local", ""),
         fila.get("prof_local", ""), fila.get("mag_local", ""))
-
-
-def _no_actualizado(fila):
-    """Si este cruce marca el evento como no actualizado.
-
-    Mismo criterio que usa comparar() en compara.py, vía comparacion.py:
-    difieren la latitud, la longitud, la profundidad o la magnitud. Las
-    coordenadas se comparan con la tolerancia de redondeo del publicado
-    (TOLERANCIA_COORDENADA); profundidad y magnitud, exactas a 1 decimal.
-    """
-    return bool(_discrepancias(fila))
 
 
 def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):

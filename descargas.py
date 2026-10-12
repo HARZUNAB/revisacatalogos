@@ -85,6 +85,12 @@ def encima_de(padre, ventana=None, modal=True):
     'modal=False': se suben y se les da el foco la primera vez, pero sin capturar
     la entrada, así el teclado y el mouse siguen en la lista.
 
+    El grab solo se toma si la ventana ya está mapeada: un grab sobre una
+    ventana sin mapear (o sobre una pila gráfica frágil, p. ej. nvidia con
+    AnyDesk) puede dejar la sesión entera bloqueada hasta matar el proceso. Si
+    no está mapeada, el diálogo se muestra igual, solo que sin capturar la
+    entrada.
+
     ventana puede venir None (los messagebox devuelven None al cerrarse): en ese
     caso solo se sube el foco a la ventana principal, que es lo que hace falta
     para que el mensaje que ya se mostró quede a la vista.
@@ -100,7 +106,9 @@ def encima_de(padre, ventana=None, modal=True):
             # el teclado sobre la lista.
             objetivo.focus_force()
         if ventana is not None and modal:
-            ventana.grab_set()
+            ventana.update_idletasks()
+            if ventana.winfo_viewable():
+                ventana.grab_set()
     except Exception:
         # Si el gestor de ventanas no colabora, el diálogo igual funciona: es
         # mejor un Toplevel detrás que no tener diálogo.

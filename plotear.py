@@ -118,20 +118,45 @@ COLOR_PERCIBIDO = "#c00000"
 # percibidos o seisan).
 COLOR_NO_PERCIBIDO = "#ffff00"
 
-# COLOR_PUBLICADO: color de relleno del evento del catálogo publicado cuando se
-# compara contra la solución local (rol="publicado"; ver abrir_eventos). El
-# local usa COLOR_NO_PERCIBIDO.
-COLOR_PUBLICADO = "#1f77b4"
+# COLOR_PUBLICADO: color del anillo del evento del catálogo publicado cuando se
+# compara contra la solución local (rol="publicado"; ver abrir_eventos). El local
+# usa COLOR_NO_PERCIBIDO. Es negro (no celeste) para que el anillo se distinga
+# sobre el azul del mar; el centro blanco del anillo lo sigue diferenciando.
+COLOR_PUBLICADO = "#000000"
+
+# COLOR_AGENCIA: color de cada agencia externa (EMSC/USGS/GFZ) en el panel de
+# «Comparar agencias». Se evitan el rojo (percibidos), el amarillo (no
+# percibidos) y el violeta (borde de sospechosos) para no confundir.
+COLOR_AGENCIA = {
+    "EMSC": "#2ca02c",
+    "USGS": "#ff7f0e",
+    "GFZ": "#17becf",
+}
+AGENCIA_ETIQUETA = {
+    "EMSC": "EMSC",
+    "USGS": "USGS (NEIC)",
+    "GFZ": "GFZ",
+}
 
 # COLOR_BORDE_SOSPECHOSO: color del borde de los eventos marcados como
 # posiblemente mal localizados (campo sospechoso=True de generajson.py).
-# El relleno conserva el color por percibido/no percibido; el borde violeta
-# marca la sospecha sin tapar esa información.
+# El relleno conserva el color por fuente; el aro violeta (grueso) marca la
+# sospecha sin tapar esa información y sin atarse a una fuente.
 COLOR_BORDE_SOSPECHOSO = "#7b1196"
+GROSOR_BORDE_SOSPECHOSO = 3.0
+
+# COLOR_NEUTRO: relleno gris del ítem de leyenda del sospechoso. El aro violeta
+# es lo que define la sospecha, así que la muestra no se asocia a un relleno.
+COLOR_NEUTRO = "#bfbfbf"
 
 # COLOR_RESALTADO: color del anillo que indica el evento seleccionado con un
 # clic en el mapa (no se usa para clasificar eventos).
 COLOR_RESALTADO = "#000080"
+
+# COLOR_SUPERPUESTO: aro que marca soluciones superpuestas (dos fuentes en la
+# misma ubicación). Es la única marca extra para ese caso: no se agregan colores
+# ni formas por fuente.
+COLOR_SUPERPUESTO = "#ff00ff"
 
 # COLOR_SLAB: color de la línea del slab en el perfil.
 COLOR_SLAB = "black"
@@ -289,6 +314,9 @@ def _color_evento(fuente, evento):
     rol = evento.get('rol')
     if rol == 'publicado':
         return COLOR_PUBLICADO
+    agencia = evento.get('agencia')
+    if agencia in COLOR_AGENCIA:
+        return COLOR_AGENCIA[agencia]
     if rol == 'local':
         return COLOR_NO_PERCIBIDO
     if fuente == "eventquery" and evento.get('percibido') == "S":
@@ -303,7 +331,7 @@ def _bordes_eventos(eventos):
     for ev in eventos:
         sospechoso = bool(ev.get('sospechoso'))
         bordes.append(COLOR_BORDE_SOSPECHOSO if sospechoso else 'black')
-        grosores.append(2.2 if sospechoso else 1.2)
+        grosores.append(GROSOR_BORDE_SOSPECHOSO if sospechoso else 1.2)
     return bordes, grosores
 
 
@@ -329,11 +357,11 @@ def _estilo_marcadores(fuente, eventos):
             caras.append(_color_evento(fuente, ev))
             sospechoso = bool(ev.get('sospechoso'))
             bordes.append(COLOR_BORDE_SOSPECHOSO if sospechoso else 'black')
-            grosores.append(2.2 if sospechoso else 1.2)
+            grosores.append(GROSOR_BORDE_SOSPECHOSO if sospechoso else 1.2)
     return caras, bordes, grosores
 
 
-def _handles_eventos(fuente, roles=None):
+def _handles_eventos(fuente, roles=None, agencias=None, superpuestos=False):
     """
     Handles de leyenda con los colores de los sismos según fuente.
     eventquery distingue no percibido/percibido; seisan usa un solo
@@ -341,19 +369,45 @@ def _handles_eventos(fuente, roles=None):
     relleno según percibido/no percibido) y el anillo de selección.
 
     Si 'roles' trae 'local'/'publicado' (comparación de un no actualizado), la
-    leyenda nombra el catálogo local y el publicado en su lugar.
+    leyenda nombra el catálogo local y el publicado en su lugar. Con 'agencias'
+    (panel de «Comparar agencias») la leyenda lista el publicado y cada agencia.
+    'superpuestos' agrega el ítem del aro de soluciones superpuestas.
     """
     from matplotlib.lines import Line2D
     handle_sospechoso = Line2D([0], [0], marker='o', color='w',
-                               markerfacecolor=COLOR_NO_PERCIBIDO,
+                               markerfacecolor=COLOR_NEUTRO,
                                markeredgecolor=COLOR_BORDE_SOSPECHOSO,
-                               markeredgewidth=2.2, markersize=8,
+                               markeredgewidth=GROSOR_BORDE_SOSPECHOSO,
+                               markersize=9,
                                label="Sospechoso (borde violeta)")
     handle_seleccion = Line2D([0], [0], marker='o', color='w',
                               markerfacecolor='none',
                               markeredgecolor=COLOR_RESALTADO,
                               markeredgewidth=2.2, markersize=8,
                               label="Evento seleccionado")
+    handle_superpuesto = Line2D([0], [0], marker='o', color='w',
+                                markerfacecolor='none',
+                                markeredgecolor=COLOR_SUPERPUESTO,
+                                markeredgewidth=2.0, markersize=11,
+                                label="Soluciones superpuestas")
+    extra = [handle_superpuesto] if superpuestos else []
+    if agencias:
+        handles = [
+            Line2D([0], [0], marker='o', color='w',
+                   markerfacecolor=COLOR_PERCIBIDO, markeredgecolor='black',
+                   markersize=8, label="Percibido CSN"),
+            Line2D([0], [0], marker='o', color='w',
+                   markerfacecolor=COLOR_NO_PERCIBIDO, markeredgecolor='black',
+                   markersize=8, label="No percibido CSN"),
+        ]
+        for ag in agencias:
+            if ag in COLOR_AGENCIA:
+                handles.append(Line2D(
+                    [0], [0], marker='o', color='w',
+                    markerfacecolor=COLOR_AGENCIA[ag], markeredgecolor='black',
+                    markersize=8, label=AGENCIA_ETIQUETA.get(ag, ag)))
+        handles.extend(extra + [handle_sospechoso, handle_seleccion])
+        return handles
     if roles:
         etiqueta = _ETIQUETA_FUENTE.get(fuente, fuente)
         handles = []
@@ -367,7 +421,7 @@ def _handles_eventos(fuente, roles=None):
                 [0], [0], marker='o', color='w',
                 markerfacecolor='white', markeredgecolor=COLOR_PUBLICADO,
                 markeredgewidth=2.0, markersize=8, label="Publicado"))
-        handles.extend([handle_sospechoso, handle_seleccion])
+        handles.extend(extra + [handle_sospechoso, handle_seleccion])
         return handles
     if fuente == "eventquery":
         handles = [
@@ -388,6 +442,7 @@ def _handles_eventos(fuente, roles=None):
             handle_sospechoso,
             handle_seleccion,
         ]
+    handles.extend(extra)
     return handles
 
 
@@ -396,40 +451,132 @@ def _roles_presentes(eventos):
     return {e.get('rol') for e in eventos if e.get('rol')}
 
 
-def _par_comparacion(eventos):
-    """(local, publicado) si están ambos roles; (None, None) si no."""
-    local = next((e for e in eventos if e.get('rol') == 'local'), None)
-    publicado = next((e for e in eventos if e.get('rol') == 'publicado'), None)
-    return local, publicado
+def _agencias_presentes(eventos):
+    """Agencias externas presentes en la lista, en orden estable."""
+    vistas = []
+    for e in eventos:
+        ag = e.get('agencia')
+        if ag and ag not in vistas:
+            vistas.append(ag)
+    return vistas
 
 
-def _dibujar_diferencia(ax_planta, ax_perfil, local, publicado):
+def _fuente_de(evento):
+    """Nombre de la fuente: la agencia, o 'CSN' para lo nuestro."""
+    return evento.get('agencia') or 'CSN'
+
+
+def _coincidentes_planta(eventos):
     """
-    Dibuja la línea local↔publicado en planta y perfil, y etiqueta el Δ.
+    Coordenadas (lat, lon) donde hay más de una solución de fuentes distintas.
 
-    Es la comparación de «No actualizados»: ver en el mapa cuánto difiere la
-    localización hipocentral (no solo el km de la fila).
+    Es la superposición: una agencia toma como propia la solución de otra. Se
+    redondea a 3 decimales para no marcar los cruces normales (a km).
     """
-    # Línea en la planta.
-    try:
-        ax_planta.plot(
-            [float(local['longitud']), float(publicado['longitud'])],
-            [float(local['latitud']), float(publicado['latitud'])],
-            color=COLOR_PUBLICADO, linestyle='--', lw=1.0, alpha=0.8,
-            zorder=4, transform=ccrs.PlateCarree())
-    except (TypeError, ValueError, KeyError):
-        pass
-    # Línea en el perfil.
-    if ax_perfil is not None:
+    vistos = {}
+    for ev in eventos:
+        lat = _a_numero_o_none(ev.get('latitud'))
+        lon = _a_numero_o_none(ev.get('longitud'))
+        if lat is None or lon is None:
+            continue
+        clave = (round(lat, 3), round(lon, 3))
+        vistos.setdefault(clave, set()).add(_fuente_de(ev))
+    return [c for c, fuentes in vistos.items() if len(fuentes) > 1]
+
+
+def _coincidentes_perfil(eventos):
+    """Coordenadas (along, prof) con más de una solución de fuentes distintas."""
+    vistos = {}
+    for ev in eventos:
+        along = _a_numero_o_none(ev.get('along_km'))
+        prof = _a_numero_o_none(ev.get('prof'))
+        if along is None or prof is None:
+            continue
+        clave = (round(along, 1), round(prof, 1))
+        vistos.setdefault(clave, set()).add(_fuente_de(ev))
+    return [c for c, fuentes in vistos.items() if len(fuentes) > 1]
+
+
+def _dibujar_superpuestos_planta(ax, coords):
+    """Aro magenta sobre cada ubicación superpuesta en la planta."""
+    for lat, lon in coords:
         try:
-            ax_perfil.plot(
-                [float(local['along_km']), float(publicado['along_km'])],
-                [-float(local['prof']), -float(publicado['prof'])],
-                color=COLOR_PUBLICADO, linestyle='--', lw=1.0, alpha=0.8,
-                zorder=8)
-        except (TypeError, ValueError, KeyError):
+            ax.scatter([lon], [lat], s=300, facecolors='none',
+                       edgecolors=COLOR_SUPERPUESTO, linewidths=2, zorder=7,
+                       transform=ccrs.PlateCarree())
+        except Exception:
             pass
-    # Etiqueta Δ ubicación / Δ profundidad, sobre el punto publicado.
+
+
+def _dibujar_superpuestos_perfil(ax, coords):
+    """Aro magenta sobre cada ubicación superpuesta en el perfil."""
+    for along, prof in coords:
+        try:
+            ax.scatter([along], [-prof], s=300, facecolors='none',
+                       edgecolors=COLOR_SUPERPUESTO, linewidths=2, zorder=9)
+        except Exception:
+            pass
+
+
+def _clave_ubicacion(evento, en_perfil):
+    """Clave de ubicación (por canvas) para agrupar superposiciones."""
+    if en_perfil:
+        along = _a_numero_o_none(evento.get('along_km'))
+        prof = _a_numero_o_none(evento.get('prof'))
+        if along is None or prof is None:
+            return None
+        return (round(along, 1), round(prof, 1))
+    lat = _a_numero_o_none(evento.get('latitud'))
+    lon = _a_numero_o_none(evento.get('longitud'))
+    if lat is None or lon is None:
+        return None
+    return (round(lat, 3), round(lon, 3))
+
+
+def _superpuestos_de(evento, eventos, en_perfil):
+    """Eventos que comparten ubicación con 'evento' (incluido él)."""
+    clave = _clave_ubicacion(evento, en_perfil)
+    if clave is None:
+        return [evento]
+    grupo = [e for e in eventos if _clave_ubicacion(e, en_perfil) == clave]
+    return grupo or [evento]
+
+
+def _linea_fuente(evento, referencia=None):
+    """Una fuente con sus claves y, si hay referencia, su Δ respecto de ella."""
+    fuente = evento.get('agencia') or 'CSN'
+    linea = "%s   prof %s km   mag %s (%s)" % (
+        fuente, _numero_evento(evento.get('prof'), 1),
+        _numero_evento(evento.get('magnitud'), 1), evento.get('tipo', ''))
+    if referencia is not None and evento is not referencia:
+        delta = _texto_diferencia(referencia, evento)
+        if delta:
+            linea += "\n     " + " · ".join(delta)
+    return linea
+
+
+def _texto_superposicion(grupo, referencia=None):
+    """Viñeta con todas las fuentes superpuestas (y el Δ de cada una)."""
+    unicos = []
+    vistos = set()
+    for ev in grupo:
+        nombre = ev.get('agencia') or 'CSN'
+        if nombre in vistos:
+            continue
+        vistos.add(nombre)
+        unicos.append(ev)
+    fuentes = [e.get('agencia') or 'CSN' for e in unicos]
+    encab = ("Soluciones superpuestas (%d): %s"
+             % (len(unicos), " ≡ ".join(fuentes)))
+    return "\n".join([encab] + [_linea_fuente(e, referencia) for e in unicos])
+
+
+def _texto_diferencia(local, publicado):
+    """
+    Líneas del Δ de una pareja local↔publicado: ubicación, profundidad y
+    magnitud (esta solo si difiere, con el tipo si cambia). Lista vacía si no
+    hay ningún dato comparable.
+    """
     partes = []
     try:
         import comparacion
@@ -457,16 +604,52 @@ def _dibujar_diferencia(ax_planta, ax_perfil, local, publicado):
             partes.append(texto_mag)
     except (TypeError, ValueError, KeyError):
         pass
-    if partes:
-        # Esquina inferior derecha (coordenadas de ejes): no tapa los puntos ni
-        # la referencia geográfica, que va abajo a la izquierda.
+    return partes
+
+
+def _dibujar_diferencia(ax_planta, ax_perfil, local, publicado, etiquetar=True):
+    """
+    Dibuja la línea local↔publicado en planta y perfil y, si 'etiquetar', el Δ.
+
+    Con 'etiquetar' (comparación de un evento suelto, un solo par) el Δ sale
+    abajo a la derecha. En el panel de no actualizados se llama con
+    'etiquetar=False': solo la línea; el Δ aparece al hacer clic en el evento.
+    """
+    # Con agencia, la línea lleva el color de esa agencia; si no, el azul del
+    # publicado (comparación local vs publicado).
+    color = COLOR_AGENCIA.get(publicado.get('agencia'), COLOR_PUBLICADO)
+    # Línea en la planta.
+    try:
+        ax_planta.plot(
+            [float(local['longitud']), float(publicado['longitud'])],
+            [float(local['latitud']), float(publicado['latitud'])],
+            color=color, linestyle='--', lw=1.0, alpha=0.8,
+            zorder=4, transform=ccrs.PlateCarree())
+    except (TypeError, ValueError, KeyError):
+        pass
+    # Línea en el perfil.
+    if ax_perfil is not None:
         try:
-            ax_planta.text(0.985, 0.02, "\n".join(partes), fontsize=8, zorder=14,
-                           transform=ax_planta.transAxes, ha='right',
-                           va='bottom',
-                           bbox=dict(boxstyle="round", fc="white", alpha=0.85))
-        except Exception:
+            ax_perfil.plot(
+                [float(local['along_km']), float(publicado['along_km'])],
+                [-float(local['prof']), -float(publicado['prof'])],
+                color=color, linestyle='--', lw=1.0, alpha=0.8,
+                zorder=8)
+        except (TypeError, ValueError, KeyError):
             pass
+    if not etiquetar:
+        return
+    partes = _texto_diferencia(local, publicado)
+    if not partes:
+        return
+    # Esquina inferior derecha (coordenadas de ejes): no tapa los puntos ni la
+    # referencia geográfica, que va abajo a la izquierda.
+    try:
+        ax_planta.text(0.985, 0.02, "\n".join(partes), fontsize=8, zorder=14,
+                       transform=ax_planta.transAxes, ha='right', va='bottom',
+                       bbox=dict(boxstyle="round", fc="white", alpha=0.85))
+    except Exception:
+        pass
 
 
 # =========================================================================
@@ -1171,6 +1354,32 @@ def _raiz_tk():
         return None
 
 
+def _avisar_sin_datos(texto, padre=None):
+    """Avisa por interfaz (una línea) que no hay datos para plotear.
+
+    Se usa en las acciones que no producen figura. Si no hay ventana con la que
+    dialogar, cae a la consola (p. ej. uso por línea de comandos).
+
+    No usa messagebox modal: un grab de X sobre una pila gráfica frágil
+    (nvidia + AnyDesk, p. ej.) puede dejar la sesión entera bloqueada hasta
+    matar el proceso. Es una ventana común, sin grab.
+    """
+    try:
+        import tkinter as tk
+        top = tk.Toplevel(padre)
+        top.title("Sin datos")
+        tk.Label(top, text=texto, padx=20, pady=12).pack()
+        tk.Button(top, text="Aceptar", command=top.destroy).pack(pady=(0, 12))
+        if padre is not None:
+            try:
+                top.transient(padre)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    print("[plotear] %s" % texto)
+
+
 def _texto_extencion(lon_min, lon_max, lat_min, lat_max):
     """Devuelve un str con la extensión geográfica en grados y km."""
     lat_med = (lat_min + lat_max) / 2.0
@@ -1481,15 +1690,34 @@ def _ubicacion_vineta(ax, x, y):
 
 
 def _resaltar_evento(ax, ev, lon=None, lat=None, x_km=None, prof_km=None,
-                     anotar=True):
+                     anotar=True, grupo=None, referencia=None):
     """
     Dibuja un anillo grande resaltando el evento seleccionado y, si 'anotar',
     una viñeta con sus parámetros cerca del círculo.
+
+    Si 'grupo' trae más de una fuente superpuesta, la viñeta las lista todas
+    (con su Δ respecto de 'referencia', si se pasa).
     """
     # Elimina resaltados y viñetas previos en el mismo axes
     _limpiar_resaltado(ax)
 
-    contenido = _texto_parametros_evento(ev)
+    if grupo and len(grupo) > 1:
+        contenido = _texto_superposicion(grupo, referencia)
+    else:
+        contenido = _texto_parametros_evento(ev)
+        # En el panel de no actualizados el evento trae su par publicado; en el
+        # de comparar agencias, la referencia (nuestro publicado) va en
+        # '_referencia'. El Δ va acá, así aparece solo en el evento clickeado.
+        par = ev.get('publicado')
+        if isinstance(par, dict):
+            delta = _texto_diferencia(ev, par)
+            if delta:
+                contenido += "\n" + "\n".join(delta)
+        ref = ev.get('_referencia')
+        if isinstance(ref, dict):
+            delta = _texto_diferencia(ref, ev)
+            if delta:
+                contenido += "\n" + "\n".join(delta)
 
     if lon is not None and lat is not None:
         sc = ax.scatter([lon], [lat], s=250, facecolors='none',
@@ -1526,16 +1754,18 @@ def _resaltar_evento(ax, ev, lon=None, lat=None, x_km=None, prof_km=None,
         anot._es_anotacion = True
 
 
-def _resaltar_en_axes(ax, ev, anotar=False):
+def _resaltar_en_axes(ax, ev, anotar=False, grupo=None, referencia=None):
     """Resalta 'ev' en 'ax' (planta cartopy o perfil rectilineo).
 
     'anotar' controla si además del anillo se dibuja la viñeta con los
-    parámetros del evento (solo en el mapa clicado).
+    parámetros del evento (solo en el mapa clicado). 'grupo'/'referencia' se
+    usan para la viñeta de soluciones superpuestas.
     """
     if ax.name.startswith('cartopy'):
         try:
             _resaltar_evento(ax, ev, lon=float(ev['longitud']),
-                             lat=float(ev['latitud']), anotar=anotar)
+                             lat=float(ev['latitud']), anotar=anotar,
+                             grupo=grupo, referencia=referencia)
             _desplegar_referencia_geo(ax, ev)
         except (TypeError, ValueError, KeyError):
             pass
@@ -1543,7 +1773,7 @@ def _resaltar_en_axes(ax, ev, anotar=False):
         try:
             _resaltar_evento(ax, ev, x_km=float(ev.get('along_km')),
                              prof_km=float(ev['prof']) * -1,
-                             anotar=anotar)
+                             anotar=anotar, grupo=grupo, referencia=referencia)
         except (TypeError, ValueError, KeyError):
             pass
 
@@ -1615,7 +1845,15 @@ def _conectar_seleccion_eventos(fig, ax, scatter, eventos_plot,
         if idx >= len(eventos_plot):
             return
         ev = eventos_plot[idx]
-        _resaltar_en_axes(ax, ev, anotar=True)
+        # Grupo de soluciones superpuestas en este mapa (mismo criterio que el
+        # aro): así el clic muestra todas las fuentes, no solo una.
+        en_perfil = not ax.name.startswith('cartopy')
+        grupo = _superpuestos_de(ev, eventos_plot, en_perfil)
+        referencia = ev.get('_referencia')
+        if referencia is None and ev.get('rol') in ('publicado', 'referencia'):
+            referencia = ev
+        _resaltar_en_axes(ax, ev, anotar=True, grupo=grupo,
+                          referencia=referencia)
         if contraparte is not None:
             ax2, eventos2 = contraparte
             if ax2 is not None:
@@ -2034,10 +2272,16 @@ def _layout_nacional(fig, ax, ax_txt, lon_min, lon_max, lat_min, lat_max,
     fs = 11
     ancho_pulg = max(1.0, ancho_columna * W)
     chars = max(10, int(ancho_pulg / (0.6 * fs / 72.0)))
-    partes = [p for p in (titulo, subtitulo) if p]
-    texto_izq = "\n".join(textwrap.fill(p, width=chars) for p in partes)
-    ax_txt.text(0.0, 0.5, texto_izq, ha='left', va='center',
-                fontsize=fs, fontweight='bold')
+    titulo_env = textwrap.fill(titulo, width=chars) if titulo else ""
+    subtitulo_env = textwrap.fill(subtitulo, width=chars) if subtitulo else ""
+    # Título en negrita y subtítulo (fuente/conteos) en texto normal y más
+    # chico, apilados y centrados en la columna.
+    ax_txt.text(0.0, 0.53, titulo_env, ha='left', va='bottom',
+                transform=ax_txt.transAxes, fontsize=fs, fontweight='bold')
+    if subtitulo_env:
+        ax_txt.text(0.0, 0.47, subtitulo_env, ha='left', va='top',
+                    transform=ax_txt.transAxes, fontsize=9,
+                    fontweight='normal')
 
 
 def _aviso_analista_inferido(fig, eventos, fuente):
@@ -2067,9 +2311,39 @@ def _aviso_analista_inferido(fig, eventos, fuente):
              color='#555555', zorder=30)
 
 
+def _titular_ventana(fig, titulo):
+    """
+    Pone el título de la ventana de la figura.
+
+    matplotlib titula las ventanas "Figure 1", "Figure 2"… por número. Acá se
+    reemplaza por un nombre que describe lo que muestra. Es texto plano de la
+    barra del SO: sin conteos ni formato.
+    """
+    mgr = getattr(fig.canvas, "manager", None)
+    if mgr is not None and titulo:
+        try:
+            mgr.set_window_title(titulo)
+        except Exception:
+            pass
+
+
+def _titulo_subtitulo_fig(fig, titulo, subtitulo):
+    """
+    Dibuja el título en negrita y el subtítulo en texto normal y más chico.
+
+    matplotlib no admite formato mixto en un solo texto: el suptitle lleva la
+    identidad (perfil, territorio, comparación) y fig.text, debajo, la fuente y
+    los conteos.
+    """
+    fig.suptitle(titulo, fontsize=12, fontweight='bold', y=0.98)
+    if subtitulo:
+        fig.text(0.5, 0.945, subtitulo, ha='center', va='top',
+                 fontsize=9, fontweight='normal')
+
+
 def plotear_planta(eventos, fuente, perfil=None, n_asignados=None, totales=None,
                    territorio=None, bloquear=True, mostrar_json=True,
-                   con_boton_detener=True):
+                   con_boton_detener=True, delta_auto=False):
     """
     Crea una ventana con la vista en planta (relieve + localidades + eventos).
     Si se pasa 'perfil', el área visible se deriva del recorrido del slab;
@@ -2094,8 +2368,13 @@ def plotear_planta(eventos, fuente, perfil=None, n_asignados=None, totales=None,
         if ev.get('sospechoso'):
             sospechosos += 1
 
-    if eventos:
-        extent = _extent_planta_por_eventos(eventos, perfil, territorio=territorio)
+    # Pares local↔publicado (No actualizados) y lista plana para dibujar.
+    pares = _pares_comparacion(eventos, perfil)
+    eventos_plot = _expandir_pares(eventos, perfil)
+
+    if eventos_plot:
+        extent = _extent_planta_por_eventos(eventos_plot, perfil,
+                                             territorio=territorio)
     elif territorio is not None:
         extent = _extent_territorio(territorio)
     else:
@@ -2103,23 +2382,40 @@ def plotear_planta(eventos, fuente, perfil=None, n_asignados=None, totales=None,
     if extent is None:
         return percibidos, 0
     lon_min, lon_max, lat_min, lat_max = extent
+    etiqueta_fuente = _ETIQUETA_FUENTE.get(fuente, fuente)
+    plural_ev = "evento" if total_eventos == 1 else "eventos"
+    plural_sosp = "sospechoso" if sospechosos == 1 else "sospechosos"
+    sufijo_perc = (" · %d percibidos" % percibidos
+                   if fuente == "eventquery" and percibidos else "")
     if perfil is not None:
         titulo = "Vista en Planta - Perfil %s" % perfil["id"]
         nombre_popup = "Perfil %s" % perfil["id"]
+        titulo_fig = "Perfil %s" % perfil["id"]
+        titulo_ventana = ("Planta · Perfil %s · %s"
+                          % (perfil["id"], etiqueta_fuente))
+        if n_asignados is None:
+            n_asignados = total_eventos
+        conteo = ("%s · %d eventos asignados%s · %d sospechosos%s"
+                  % (etiqueta_fuente, n_asignados,
+                     (" (de %d totales)" % totales) if totales else "",
+                     sospechosos, sufijo_perc))
     elif territorio is not None:
         nombre_popup = "Territorio %s" % territorio
-        # Título compacto para los mapas de territorio (sin suptitle ni
-        # redundancias). La extensión geográfica la muestran las grillas.
-        plural_ev = "evento" if total_eventos == 1 else "eventos"
-        plural_sosp = "sospechoso" if sospechosos == 1 else "sospechosos"
-        titulo = ("Territorio %s — %d %s · %d %s"
-                  % (territorio, total_eventos, plural_ev,
-                     sospechosos, plural_sosp))
-        if fuente == "eventquery" and percibidos:
-            titulo += " · %d percibidos" % percibidos
+        titulo = "Territorio %s" % territorio
+        titulo_fig = titulo
+        titulo_ventana = ("Planta · Territorio %s · %s"
+                          % (territorio, etiqueta_fuente))
+        conteo = ("%s · %d %s · %d %s%s"
+                  % (etiqueta_fuente, total_eventos, plural_ev,
+                     sospechosos, plural_sosp, sufijo_perc))
     else:
         titulo = "Vista en Planta - Eventos sin perfil asignado"
         nombre_popup = "Eventos sin perfil"
+        titulo_fig = "Eventos sin perfil"
+        titulo_ventana = "Planta · Eventos sin perfil · %s" % etiqueta_fuente
+        conteo = ("%s · %d %s · %d %s%s"
+                  % (etiqueta_fuente, total_eventos, plural_ev,
+                     sospechosos, plural_sosp, sufijo_perc))
     subtitulo = _texto_extencion(lon_min, lon_max, lat_min, lat_max)
 
     layout_nacional = (territorio == "Nacional")
@@ -2143,28 +2439,35 @@ def plotear_planta(eventos, fuente, perfil=None, n_asignados=None, totales=None,
         ax_txt = fig.add_axes([0.02, 0.10, 0.30, 0.84])
         ax_txt.axis('off')
         _layout_nacional(fig, ax, ax_txt, lon_min, lon_max, lat_min, lat_max,
-                         titulo, "")
+                         titulo_fig, conteo)
         fig.canvas.mpl_connect(
             'resize_event',
             lambda ev: _layout_nacional(fig, ax, ax_txt,
                                         lon_min, lon_max, lat_min, lat_max,
-                                        titulo, ""))
+                                        titulo_fig, conteo))
     else:
         fig = plt.figure(figsize=FIG_SIZE, dpi=DPI)
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
     _base_mapa_planta(ax, lon_min, lon_max, lat_min, lat_max)
     _localidades_planta(ax, lon_min, lon_max, lat_min, lat_max, territorio=territorio)
-    scatter, eventos_plot = _marcadores_planta(ax, eventos, fuente)
-    handles_leyenda = _handles_eventos(fuente, _roles_presentes(eventos))
-    local, publicado = _par_comparacion(eventos)
-    if local is not None and publicado is not None:
-        _dibujar_diferencia(ax, None, local, publicado)
+    scatter, eventos_plot = _marcadores_planta(ax, eventos_plot, fuente)
+    coinc = _coincidentes_planta(eventos_plot)
+    _dibujar_superpuestos_planta(ax, coinc)
+    handles_leyenda = _handles_eventos(
+        fuente, _roles_presentes(eventos_plot),
+        _agencias_presentes(eventos_plot), superpuestos=bool(coinc))
+    # El Δ automático es solo para la comparación de un evento suelto.
+    for local, publicado in pares:
+        _dibujar_diferencia(ax, None, local, publicado,
+                            etiquetar=(delta_auto and len(pares) == 1))
     if scatter is not None:
         _conectar_seleccion_eventos(fig, ax, scatter, eventos_plot)
     if layout_nacional:
         # La disposición y el título izquierdo los gestiona _layout_nacional.
         pass
-    else:
+    elif territorio is None:
+        # En territorio el título de la figura ya lo pone el suptitle; no se
+        # duplica en el eje.
         texto_titulo = titulo
         if perfil is not None:
             texto_titulo = "%s\n%s" % (titulo, subtitulo)
@@ -2172,52 +2475,45 @@ def plotear_planta(eventos, fuente, perfil=None, n_asignados=None, totales=None,
     if mostrar_json:
         mostrar_json_en_popup(nombre_popup, eventos, fuente, percibidos,
                               total_eventos)
-    if territorio is not None:
-        # Los mapas de territorio usan un único título compacto (sin suptitle).
-        pass
-    else:
-        if n_asignados is None:
-            n_asignados = total_eventos
-        sufijo = ""
-        if fuente == "eventquery" and percibidos:
-            sufijo = " — %d percibidos" % percibidos
-        if totales:
-            fig.suptitle("%s — %d eventos asignados (de %d totales) — %d sospechosos%s"
-                         % (nombre_popup, n_asignados, totales, sospechosos, sufijo),
-                         fontsize=12, fontweight='bold', y=0.98)
-        elif n_asignados:
-            fig.suptitle("%s — %d eventos asignados — %d sospechosos%s"
-                         % (nombre_popup, n_asignados, sospechosos, sufijo),
-                         fontsize=12, fontweight='bold', y=0.98)
+    if not layout_nacional:
+        # Nacional dibuja título/subtítulo dentro de la columna de texto.
+        _titulo_subtitulo_fig(fig, titulo_fig, conteo)
     fig.legend(handles=handles_leyenda, loc='lower center',
                bbox_to_anchor=(0.5, 0.02),
                ncol=(2 if layout_nacional else len(handles_leyenda)),
                fontsize=8, frameon=True)
     _aviso_analista_inferido(fig, eventos, fuente)
     if not layout_nacional:
-        plt.tight_layout(rect=[0, 0.10, 1, 0.94])
+        plt.tight_layout(rect=[0, 0.10, 1, 0.90])
     if con_boton_detener:
         _agregar_boton_detener(fig)
     _indicador_modo_interaccion(fig)
+    _titular_ventana(fig, titulo_ventana)
     _mostrar_figura(bloquear)
     return percibidos, total_eventos
 
 
 def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
                    totales=None, bloquear=True, mostrar_json=True,
-                   con_boton_detener=True, titulo=None):
+                   con_boton_detener=True, titulo=None, subtitulo=None,
+                   delta_auto=False):
     """
     Crea una figura con dos subplots: vista en planta (izquierda) y perfil
     de subducción (derecha), con etiquetas de id y selección interactiva.
     n_asignados/totales: conteos de generajson.py para mostrar en la ventana.
     'titulo' reemplaza el suptitle por defecto (lo usa la comparación local vs
-    publicado). Devuelve (percibidos, total_eventos).
+    publicado); 'subtitulo' es su línea de fuente/fecha en texto normal y más
+    chico. Devuelve (percibidos, total_eventos).
     """
     total_eventos = 0
     percibidos = 0
     sospechosos = 0
 
-    extent = _extent_planta_por_eventos(eventos, perfil)
+    # Pares local↔publicado (No actualizados) y lista plana para dibujar.
+    pares = _pares_comparacion(eventos, perfil)
+    eventos_plot = _expandir_pares(eventos, perfil)
+
+    extent = _extent_planta_por_eventos(eventos_plot, perfil)
     if extent is None:
         return percibidos, 0
     lon_min, lon_max, lat_min, lat_max = extent
@@ -2228,9 +2524,13 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
     ax_planta = fig.add_subplot(1, 2, 1, projection=ccrs.PlateCarree())
     _base_mapa_planta(ax_planta, lon_min, lon_max, lat_min, lat_max)
     _localidades_planta(ax_planta, lon_min, lon_max, lat_min, lat_max)
-    scatter, eventos_plot = _marcadores_planta(ax_planta, eventos, fuente)
+    scatter, eventos_plot = _marcadores_planta(ax_planta, eventos_plot, fuente)
+    coinc_planta = _coincidentes_planta(eventos_plot)
+    _dibujar_superpuestos_planta(ax_planta, coinc_planta)
     handles_leyenda = _handles_eventos(
-        fuente, _roles_presentes(eventos)) + [_handle_sismicidad()]
+        fuente, _roles_presentes(eventos_plot),
+        _agencias_presentes(eventos_plot),
+        superpuestos=bool(coinc_planta)) + [_handle_sismicidad()]
     ax_planta.set_title("Vista en Planta - Perfil %s %s\n%s"
                         % (perfil["id"], "(%s)" % _progreso if _progreso else "",
                            _texto_extencion(lon_min, lon_max, lat_min,
@@ -2257,7 +2557,7 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
                            zorder=4, label="Contacto Placas")
 
     n_validos_perfil = 0
-    for e in eventos:
+    for e in eventos_plot:
         try:
             float(e['prof'])
             float(e.get('along_km'))
@@ -2275,13 +2575,21 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
     grosores = []
     eventos_perfil = []
     textos = []
-    for evento in eventos:
+    for evento in eventos_plot:
         try:
             prof_punto = float(evento['prof']) * -1  # negativa hacia abajo
             x_km = float(evento.get('along_km'))
         except (TypeError, ValueError, KeyError):
             continue
-        total_eventos += 1
+        # Los conteos del panel son de los eventos de referencia; la publicada
+        # (No actualizados) y las agencias (Comparar agencias) son los pares.
+        if evento.get('rol') not in ('publicado', 'agencia'):
+            total_eventos += 1
+            if evento.get('sospechoso'):
+                sospechosos += 1
+            if fuente == "eventquery" and evento.get('percibido') == "S":
+                percibidos += 1
+                _registrar_percibido(evento)
         caras_e, bordes_e, grosores_e = _estilo_marcadores(fuente, [evento])
         xs.append(x_km)
         ys.append(prof_punto)
@@ -2289,17 +2597,11 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
         bordes.append(bordes_e[0])
         grosores.append(grosores_e[0])
         eventos_perfil.append(evento)
-        if evento.get('sospechoso'):
-            sospechosos += 1
 
         if evento.get('id') is not None and etiquetas_perfil:
             t = ax_perfil.text(x_km, prof_punto, str(evento.get('id', '')),
                                fontsize=7, zorder=11)
             textos.append(t)
-
-        if fuente == "eventquery" and evento.get('percibido') == "S":
-            percibidos += 1
-            _registrar_percibido(evento)
 
     scatter_perf = None
     if xs:
@@ -2317,6 +2619,9 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
             except Exception:
                 pass
 
+    # Aro de soluciones superpuestas en el perfil (mismo evento, misma prof).
+    _dibujar_superpuestos_perfil(ax_perfil, _coincidentes_perfil(eventos_perfil))
+
     # Seleccion cruzada: al hacer clic en un mapa se resalta el mismo evento
     # (mismo anillo, tamano y color) tambien en el otro mapa.
     if scatter is not None:
@@ -2328,10 +2633,12 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
             fig, ax_perfil, scatter_perf, eventos_perfil,
             contraparte=(ax_planta, eventos_plot))
 
-    # Comparación local vs publicado: línea que une ambos hipocentros.
-    local, publicado = _par_comparacion(eventos)
-    if local is not None and publicado is not None:
-        _dibujar_diferencia(ax_planta, ax_perfil, local, publicado)
+    # Comparación local vs publicado: la línea va por cada par. El Δ automático
+    # es solo para la comparación de un evento suelto (un par); en el panel sale
+    # al hacer clic.
+    for local, publicado in pares:
+        _dibujar_diferencia(ax_planta, ax_perfil, local, publicado,
+                            etiquetar=(delta_auto and len(pares) == 1))
 
     minX = float(sp.min())
     maxX = float(sp.max())
@@ -2352,33 +2659,38 @@ def plotear_perfil(eventos, perfil, fuente, percibidos, n_asignados=None,
                               percibidos, total_eventos)
     if n_asignados is None:
         n_asignados = total_eventos
-    sufijo = ""
-    if fuente == "eventquery" and percibidos:
-        sufijo = " — %d percibidos" % percibidos
+    etiqueta_fuente = _ETIQUETA_FUENTE.get(fuente, fuente)
+    sufijo = (" · %d percibidos" % percibidos
+              if fuente == "eventquery" and percibidos else "")
     if titulo:
-        fig.suptitle(titulo, fontsize=12, fontweight='bold', y=0.98)
-    elif totales:
-        fig.suptitle("Perfil %s — %d eventos asignados (de %d totales) — %d sospechosos%s"
-                     % (perfil["id"], n_asignados, totales, sospechosos, sufijo),
-                     fontsize=12, fontweight='bold', y=0.98)
+        titulo_fig = titulo
+        conteo = subtitulo or ""
+        titulo_ventana = "Comparación · %s vs publicado" % etiqueta_fuente
     else:
-        fig.suptitle("Perfil %s — %d eventos asignados — %d sospechosos%s"
-                     % (perfil["id"], n_asignados, sospechosos, sufijo),
-                     fontsize=12, fontweight='bold', y=0.98)
+        titulo_fig = "Perfil %s" % perfil["id"]
+        titulo_ventana = ("Planta y perfil · Perfil %s · %s"
+                          % (perfil["id"], etiqueta_fuente))
+        conteo = ("%s · %d eventos asignados%s · %d sospechosos%s"
+                  % (etiqueta_fuente, n_asignados,
+                     (" (de %d totales)" % totales) if totales else "",
+                     sospechosos, sufijo))
+    _titulo_subtitulo_fig(fig, titulo_fig, conteo)
     fig.legend(handles=handles_leyenda, loc='lower center',
                bbox_to_anchor=(0.5, 0.02), ncol=len(handles_leyenda),
                fontsize=8, frameon=True)
-    plt.tight_layout(rect=[0, 0.10, 1, 0.94])
+    plt.tight_layout(rect=[0, 0.10, 1, 0.90])
     if con_boton_detener:
         _agregar_boton_detener(fig)
     _indicador_modo_interaccion(fig)
+    _titular_ventana(fig, titulo_ventana)
     _mostrar_figura(bloquear)
     return percibidos, total_eventos
 
 
 def plotear_ventana(eventos, perfil, fuente, percibidos, n_asignados=None,
                     totales=None, bloquear=True, mostrar_json=True,
-                    con_boton_detener=True, titulo=None):
+                    con_boton_detener=True, titulo=None, subtitulo=None,
+                    delta_auto=False):
     """
     Abre la ventana de un perfil (planta + perfil). Se mantiene este alias
     para no cambiar el resto del flujo. Devuelve (percibidos, total_eventos).
@@ -2386,7 +2698,8 @@ def plotear_ventana(eventos, perfil, fuente, percibidos, n_asignados=None,
     return plotear_perfil(eventos, perfil, fuente, percibidos,
                           n_asignados, totales, bloquear=bloquear,
                           mostrar_json=mostrar_json,
-                          con_boton_detener=con_boton_detener, titulo=titulo)
+                          con_boton_detener=con_boton_detener, titulo=titulo,
+                          subtitulo=subtitulo, delta_auto=delta_auto)
 
 
 # Cache de perfiles detectados en grillas/. detectar_perfiles() lee todas las
@@ -2412,6 +2725,107 @@ def _a_numero_o_none(valor):
         return float(str(valor).strip())
     except (TypeError, ValueError):
         return None
+
+
+def _completar_along(evento, perfil):
+    """Le pone along_km/perp_km al evento contra 'perfil', si le faltan."""
+    if perfil is None or evento.get('along_km') is not None:
+        return
+    lat = _a_numero_o_none(evento.get('latitud'))
+    lon = _a_numero_o_none(evento.get('longitud'))
+    if lat is None or lon is None:
+        return
+    try:
+        import asigna_perfiles as ap
+        perp, along = ap.distancia_al_perfil(lon, lat, perfil)
+        evento['along_km'] = along
+        evento['perp_km'] = perp
+    except Exception:
+        pass
+
+
+def _pares_comparacion(eventos, perfil=None):
+    """
+    Lista de (local, publicado) de un set de eventos.
+
+    Dos orígenes: eventos con 'publicado' anidado (panel de «No actualizados») y
+    listas con roles 'local'/'publicado' (comparación de un evento suelto). Con
+    'perfil' completa el along_km del publicado cuando falta, midiéndolo contra
+    esa sección para que la línea del par caiga en el perfil correcto.
+    """
+    pares = []
+    for ev in eventos:
+        ags = ev.get('agencias')
+        if isinstance(ags, list) and ags:
+            referencia = dict(ev)
+            referencia.pop('agencias', None)
+            referencia['rol'] = 'publicado'
+            for a in ags:
+                sol = dict(a)
+                sol['rol'] = 'agencia'
+                _completar_along(sol, perfil)
+                pares.append((referencia, sol))
+            continue
+        pub = ev.get('publicado')
+        if isinstance(pub, dict):
+            local = dict(ev)
+            local['rol'] = 'local'
+            publicado = dict(pub)
+            publicado['rol'] = 'publicado'
+            _completar_along(publicado, perfil)
+            pares.append((local, publicado))
+    if not pares:
+        local = next((e for e in eventos if e.get('rol') == 'local'), None)
+        publicado = next((e for e in eventos if e.get('rol') == 'publicado'),
+                         None)
+        if local is not None and publicado is not None:
+            pares.append((local, publicado))
+    return pares
+
+
+def _expandir_pares(eventos, perfil=None):
+    """
+    Lista plana para dibujar. Expande 'publicado' anidado y 'agencias' (lista):
+    la referencia va como anillo (rol 'publicado') y las agencias como puntos
+    con su color. Los sets ya role-tagged se devuelven tal cual.
+    """
+    hay = any(
+        isinstance(ev.get('publicado'), dict)
+        or (isinstance(ev.get('agencias'), list) and ev.get('agencias'))
+        for ev in eventos)
+    if not hay:
+        return list(eventos)
+    plano = []
+    for ev in eventos:
+        ags = ev.get('agencias')
+        if isinstance(ags, list) and ags:
+            referencia = dict(ev)
+            referencia.pop('agencias', None)
+            # Rol propio: nuestra solución (publicado) se dibuja rellena por
+            # percibido (rojo/amarillo), no como el anillo 'publicado'.
+            referencia['rol'] = 'referencia'
+            plano.append(referencia)
+            for a in ags:
+                sol = dict(a)
+                sol['rol'] = 'agencia'
+                sol['_referencia'] = referencia
+                _completar_along(sol, perfil)
+                plano.append(sol)
+            continue
+        pub = ev.get('publicado')
+        if not isinstance(pub, dict):
+            plano.append(ev)
+            continue
+        # La copia local conserva 'publicado' a propósito: al hacer clic se
+        # arma el Δ de la pareja en la viñeta.
+        local = dict(ev)
+        local['rol'] = 'local'
+        publicado = dict(pub)
+        publicado['rol'] = 'publicado'
+        _completar_along(publicado, perfil)
+        plano.append(local)
+        plano.append(publicado)
+    return plano
 
 
 def abrir_eventos(eventos, fuente, perfiles=None):
@@ -2482,27 +2896,54 @@ def abrir_eventos(eventos, fuente, perfiles=None):
         except Exception:
             ev.setdefault("sospechoso", False)
 
-    # Título de la comparación local vs publicado.
+    # Título de la comparación local vs publicado: la identidad va en el
+    # suptitle y la fuente/fecha, en texto normal y más chico, en el subtítulo.
     titulo = None
+    subtitulo = None
     pub = next((e for e in eventos if e.get('rol') == 'publicado'), None)
     if local.get('rol') == 'local' and pub is not None:
         etiqueta = _ETIQUETA_FUENTE.get(fuente, fuente)
         fecha = local.get('fecha hora') or ''
-        titulo = ("%s vs publicado%s"
-                  % (etiqueta, (" — %s" % fecha) if fecha else ""))
+        titulo = "Comparación local vs publicado"
+        subtitulo = ("%s · %s" % (etiqueta, fecha)) if fecha else etiqueta
 
     if perfil_obj is not None and all(e.get("prof") is not None
                                       for e in eventos):
         return plotear_perfil(eventos, perfil_obj, fuente, 0,
                               mostrar_json=False, con_boton_detener=False,
-                              bloquear=False, titulo=titulo)
+                              bloquear=False, titulo=titulo,
+                              subtitulo=subtitulo, delta_auto=True)
     return plotear_planta(eventos, fuente, mostrar_json=False,
-                          con_boton_detener=False, bloquear=False)
+                          con_boton_detener=False, bloquear=False,
+                          delta_auto=True)
 
 
 def abrir_evento(evento, fuente, perfiles=None):
     """Abre planta + perfil de UN evento suelto (delega en abrir_eventos)."""
     return abrir_eventos([evento], fuente, perfiles=perfiles)
+
+
+def abrir_comparacion(evento, fuente="eventquery", perfiles=None):
+    """
+    Abre planta + perfil de un evento con sus soluciones de agencia.
+
+    El evento trae 'agencias' (lista; ver agencias.py) y 'perfil' asignado por
+    generajson. Se reusa plotear_perfil, que ya dibuja cada agencia con su color
+    y el Δ al hacer clic. Sin perfil (o sin profundidad) cae a la planta.
+    """
+    if perfiles is None:
+        perfiles = _perfiles_cacheados()
+    perfil = None
+    pid = evento.get('perfil')
+    if pid is not None:
+        perfil = next((p for p in perfiles if p.get('id') == pid), None)
+    tiene_prof = _a_numero_o_none(evento.get('prof')) is not None
+    if perfil is not None and tiene_prof:
+        return plotear_perfil([evento], perfil, fuente, 0,
+                              mostrar_json=False, con_boton_detener=False,
+                              bloquear=False)
+    return plotear_planta([evento], fuente, mostrar_json=False,
+                          con_boton_detener=False, bloquear=False)
 
 
 def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
@@ -2715,6 +3156,13 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             return
         pid = filas[idx]
         perfil = perfiles_por_id[pid]
+        # Sin ningún evento con coordenadas, el detalle no se puede dibujar:
+        # se avisa por interfaz en vez de no hacer nada.
+        if not any(_a_numero_o_none(e.get('latitud')) is not None
+                   and _a_numero_o_none(e.get('longitud')) is not None
+                   for e in grupos[pid]):
+            _avisar_sin_datos("Este perfil no tiene eventos ploteables.", raiz)
+            return
         _registrar_progreso("Perfil %s" % pid)
         p_, _ = plotear_ventana(grupos[pid], perfil, fuente,
                                 estado['percibidos'],
@@ -2872,14 +3320,14 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         if not estado['activo']:
             return
         if not sin_perfil:
-            print("No hay eventos sin perfil.")
+            _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
             return
         nacional, insular, antartico = _categorizar_por_territorio(sin_perfil)
         items = [(nombre, evs) for nombre, evs in [
             ("Nacional", nacional), ("Insular", insular),
             ("Antártico", antartico)] if evs]
         if not items:
-            print("No hay eventos sin perfil.")
+            _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
             return
         # Si ya está abierto, se trae al frente en vez de duplicarlo.
         if terr_state.get('panel') is not None:

@@ -9,13 +9,18 @@ perfil y las coordenadas calculadas para el ploteo.
 
 Uso:
     python3 generajson.py <archivo_csv> <fuente> [--umbral=KM] [--k=K] [--umbral-perp=KM] [--margen-borde=KM] [--salida=NOMBRE]
+    python3 generajson.py --pares=seisan|seiscomp [--salida=NOMBRE]   # No actualizados
 
     archivo_csv : archivo .csv con los eventos (p. ej. salida_collect.csv o
                   new_2_*.csv)
-    fuente      : "seisan" | "seiscomp" | "eventquery"
+    fuente      : "seisan" | "seiscomp" | "eventquery" | "agencia"
     --salida=NOMBRE : nombre base de los archivos de salida (default: la misma
                   'fuente'). Sirve para que los «no publicados» reusen el parseo
                   de su fuente sin pisar eventos_<fuente>.json.
+    --pares=seisan|seiscomp : modo «No actualizados». No lee un CSV posicional
+                  sino datos/atribucion_<fuente>.csv, y genera eventos con la
+                  solución local y la publicada anidada en 'publicado'. En este
+                  modo <archivo_csv> y <fuente> no se pasan.
 
 Las tres fuentes se leen por POSICIÓN, y el archivo tiene que llevar el índice
 de la fila como columna 0 (es lo que escribe pandas con to_csv() por defecto),
@@ -53,19 +58,22 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import asigna_perfiles as ap
+import comparacion
 import sismicidad
 import rutas
 import prog
 
 
 def parsear_extra_args(args):
-    """Extrae --umbral=KM, --k=K, --umbral-perp=KM, --margen-borde=KM
-    y --salida=NOMBRE."""
+    """Extrae --umbral=KM, --k=K, --umbral-perp=KM, --margen-borde=KM,
+    --salida=NOMBRE, --pares=seisan|seiscomp y --agencia=NOMBRE."""
     umbral = None
     k_peso = None
     umbral_perp = None
     margen_borde = None
     salida = None
+    pares = None
+    agencia = None
     for arg in args:
         if arg.startswith("--umbral="):
             umbral = float(arg.split("=", 1)[1])
@@ -77,7 +85,11 @@ def parsear_extra_args(args):
             margen_borde = float(arg.split("=", 1)[1])
         elif arg.startswith("--salida="):
             salida = arg.split("=", 1)[1]
-    return umbral, k_peso, umbral_perp, margen_borde, salida
+        elif arg.startswith("--pares="):
+            pares = arg.split("=", 1)[1]
+        elif arg.startswith("--agencia="):
+            agencia = arg.split("=", 1)[1]
+    return umbral, k_peso, umbral_perp, margen_borde, salida, pares, agencia
 
 
 def _distancia_aprox_km(lat1, lon1, lat2, lon2):
@@ -210,7 +222,8 @@ def _texto_calidad_cruce(ev):
 
 
 def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
-                 umbral_perp=None, margen_borde=None, salida=None):
+                 umbral_perp=None, margen_borde=None, salida=None,
+                 agencia=None):
     """
     Procesa el .csv, asigna perfiles y escribe eventos_<vista>.json.
 
@@ -305,6 +318,22 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
                     'magnitud': fila[5],
                     'tipo': fila[6],
                     'analista': fila[7] if len(fila) > 7 else "",
+                }
+            elif fuente == "agencia":
+                # Catálogo de una agencia externa (EMSC/USGS/GFZ): la columna 7
+                # es la referencia (región) y la 8, la agencia.
+                evento = {
+                    'id': int(fila[0]) + 1,
+                    'fecha hora': fila[1],
+                    'latitud': latitud,
+                    'longitud': longitud,
+                    'prof': prof,
+                    'magnitud': fila[5],
+                    'tipo': fila[6],
+                    'referencia': fila[7] if len(fila) > 7 else "",
+                    # --agencia normaliza el nombre (EMSC/USGS/GFZ) sin depender
+                    # de lo que traiga la columna de la agencia.
+                    'agencia': agencia or (fila[8] if len(fila) > 8 else ""),
                 }
             else:
                 evento = {
@@ -421,6 +450,16 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
     else:
         sospechosos_csv = '(no generado: use RV_ENTREGABLES=1)'
  
+    return _resumen_y_conteo(eventos, vista, perfiles, sospechosos_csv)
+
+
+def _resumen_y_conteo(eventos, vista, perfiles, sospechosos_csv='(no generado)'):
+    """
+    Reporta el resumen por consola y escribe conteo_perfiles_<vista>.json.
+
+    Lo comparten el flujo normal (procesar_csv) y el de pares (procesar_pares).
+    Devuelve (total_eventos, con_perfil, sin_perfil).
+    """
     total_eventos = len(eventos)
     with_perfil = sum(1 for ev in eventos if ev.get('perfil') is not None)
     sin_perfil = total_eventos - with_perfil
@@ -489,22 +528,131 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
     return total_eventos, with_perfil, sin_perfil
 
 
+def procesar_pares(fuente, salida=None, umbral=None, k_peso=None,
+                   umbral_perp=None, margen_borde=None):
+    """
+    Arma el panel de «No actualizados»: los eventos locales que difieren de lo
+    publicado, cada uno con su solución publicada anidada en 'publicado'.
+
+    Lee datos/atribucion_<fuente>.csv (lo escribe compara.py) y aplica la misma
+    regla de no actualizado que el listado (comparacion.no_actualizados). El
+    perfil se asigna con la solución LOCAL y la publicada se cuelga con su
+    along_km contra esa misma sección, para que plotear.py dibuje el par.
+    'salida' es el nombre base (vista) de los JSON de salida.
+    """
+    if umbral is None:
+        umbral = ap.UMBRAL_DIST_KM
+    if k_peso is None:
+        k_peso = ap.K_PESO_PROFUNDIDAD
+    if umbral_perp is None:
+        umbral_perp = ap.UMBRAL_PERP_KM
+    if margen_borde is None:
+        margen_borde = ap.MARGEN_BORDE_KM
+
+    vista = salida or ("%s_noact" % fuente)
+    ruta = rutas.p_datos("atribucion_%s.csv" % fuente)
+    if not os.path.isfile(ruta):
+        print('[generajson] No está %s; no se genera el panel de no '
+              'actualizados.' % ruta)
+        return None
+
+    with open(ruta, encoding="utf-8", newline="") as f:
+        filas = list(csv.DictReader(f))
+    pares = comparacion.no_actualizados(filas)
+
+    eventos = []
+    filas_ok = []
+    for i, fila in enumerate(pares):
+        lat = comparacion.a_numero(fila.get("lat_local"))
+        lon = comparacion.a_numero(fila.get("lon_local"))
+        if lat is None or lon is None:
+            continue
+        eventos.append({
+            'id': i + 1,
+            'fecha hora': fila.get("fecha_local", ""),
+            'latitud': lat,
+            'longitud': lon,
+            'prof': fila.get("prof_local", ""),
+            'magnitud': fila.get("mag_local", ""),
+            'tipo': fila.get("tipo_mag_local", ""),
+            'analista': fila.get("analista", ""),
+            'archivo_origen': os.path.basename(ruta),
+            'n_fila_origen': i + 1,
+            'lon': lon,
+            'lat': lat,
+        })
+        filas_ok.append(fila)
+
+    perfiles = ap.detectar_perfiles()
+    eventos = ap.asignar_eventos(eventos, umbral=umbral, k_peso=k_peso,
+                                 umbral_perp=umbral_perp,
+                                 margen_borde=margen_borde,
+                                 perfiles=perfiles)
+    perfiles_por_id = {p["id"]: p for p in perfiles}
+    for ev, fila in zip(eventos, filas_ok):
+        ev['sospechoso'] = sismicidad.es_sospechoso(ev)
+        publicado = {
+            'fecha hora': fila.get("fecha_eventquery", ""),
+            'latitud': comparacion.a_numero(fila.get("lat_eventquery")),
+            'longitud': comparacion.a_numero(fila.get("lon_eventquery")),
+            'prof': fila.get("prof_eventquery", ""),
+            'magnitud': fila.get("mag_eventquery", ""),
+            'tipo': fila.get("tipo_mag_eventquery", ""),
+            'dt_seg': fila.get("dt_seg", ""),
+            'dist_km': fila.get("dist_km", ""),
+        }
+        # La publicada se mide contra la MISMA sección que la local, que es lo
+        # que permite dibujar la línea del par sobre el perfil.
+        perfil = perfiles_por_id.get(ev.get('perfil'))
+        if (perfil is not None and publicado['latitud'] is not None
+                and publicado['longitud'] is not None):
+            try:
+                perp, along = ap.distancia_al_perfil(publicado['longitud'],
+                                                     publicado['latitud'],
+                                                     perfil)
+                publicado['along_km'] = along
+                publicado['perp_km'] = perp
+            except Exception:
+                pass
+        ev['publicado'] = publicado
+    for ev in eventos:
+        ev.pop('lon', None)
+        ev.pop('lat', None)
+
+    salida_json = rutas.p_datos('eventos_%s.json' % vista)
+    with open(salida_json, 'w') as jsonfile:
+        json.dump(eventos, jsonfile, indent=4)
+
+    return _resumen_y_conteo(eventos, vista, perfiles)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    args = sys.argv[1:]
+    (umbral_usr, k_usr, umbral_perp_usr, margen_usr, salida_usr, pares_usr,
+     agencia_usr) = parsear_extra_args(args)
+
+    if pares_usr:
+        # Modo «No actualizados»: el insumo es datos/atribucion_<fuente>.csv.
+        resultado = procesar_pares(pares_usr, salida=salida_usr,
+                                   umbral=umbral_usr, k_peso=k_usr,
+                                   umbral_perp=umbral_perp_usr,
+                                   margen_borde=margen_usr)
+        if resultado is not None:
+            print('Archivo JSON generado:',
+                  'eventos_%s.json' % (salida_usr or ("%s_noact" % pares_usr)))
+        sys.exit(0)
+
+    if len(args) < 2:
         print(__doc__)
         sys.exit(1)
 
-    archivo_csv = sys.argv[1]
-    fuente = sys.argv[2]
-    umbral_usr, k_usr, umbral_perp_usr, margen_usr, salida_usr = \
-        parsear_extra_args(sys.argv[3:])
-    vista = salida_usr or fuente
-
+    archivo_csv = args[0]
+    fuente = args[1]
     if not os.path.isfile(archivo_csv):
         print("Error: no se encontró el archivo '%s'." % archivo_csv)
         sys.exit(1)
 
     procesar_csv(archivo_csv, fuente, umbral=umbral_usr, k_peso=k_usr,
                  umbral_perp=umbral_perp_usr, margen_borde=margen_usr,
-                 salida=salida_usr)
-    print('Archivo JSON generado:', 'eventos_%s.json' % vista)
+                 salida=salida_usr, agencia=agencia_usr)
+    print('Archivo JSON generado:', 'eventos_%s.json' % (salida_usr or fuente))

@@ -247,7 +247,8 @@ erDiagram
   `sensorlocation`, `stream`, y los bindings `configstation`/`configmodule`.
 - **Seleccionar un evento / abrir la ventana Estaciones**: ninguna. Todo sale de
   los CSV (`<salida>.csv`, `_fases.csv`, `_no_picadas.csv`).
-- **Ampliar el radio de un evento** («Ampliar» / «Todo (sin límite)»):
+- **Ampliar el radio de un evento** («Aplicar radio» con radio mayor al
+  exportado / «Sin límite»):
   - Inventario: `network`, `station`, `sensorlocation`, `stream`.
   - Bindings: `configstation`, `configmodule`.
   - Actividad: `event`, `publicobject`, `origin`, `arrival`, `pick`.

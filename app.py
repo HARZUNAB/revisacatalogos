@@ -46,13 +46,17 @@ Uso:
 """
 
 import csv
+import datetime
 import json
 import os
 import shutil
 import sys
 import queue
 import threading
+import traceback
 import subprocess
+
+import rutas
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -147,6 +151,14 @@ VISTAS = [
      "etiqueta": "No publicados de SeisComp",
      "entrada": os.path.join("datos",
                              "no_pub_desde_2_5_seiscomp_estricto.csv")},
+    # Paneles de «No actualizados»: la solución local con la publicada anidada
+    # (ver generajson.py --pares). Entra por el atribucion_<fuente>.csv.
+    {"clave": "seisan_noact", "fuente": "seisan",
+     "tab": "Seisan", "etiqueta": "No actualizados de Seisan",
+     "entrada": os.path.join("datos", "atribucion_seisan.csv")},
+    {"clave": "seiscomp_noact", "fuente": "seiscomp",
+     "tab": "SeisComp", "etiqueta": "No actualizados de SeisComp",
+     "entrada": os.path.join("datos", "atribucion_seiscomp.csv")},
 ]
 VISTAS_POR_CLAVE = {v["clave"]: v for v in VISTAS}
 
@@ -160,10 +172,9 @@ VISTAS_POR_CLAVE = {v["clave"]: v for v in VISTAS}
 # explica con su propio botón. El orden de las páginas dentro de cada grupo es
 # el que usa el cuaderno.
 #
-# Cada pestaña se identifica con un prefijo porque hay dos SeisComp distintos:
-# el panel de análisis (panel:seiscomp) y el catálogo crudo (cat:seiscomp). Con
-# la clave de la vista sola no se distinguían y el botón del grupo «Panel de
-# mapas y perfiles» terminaba apuntando al catálogo.
+# Cada pestaña de este cuaderno es un panel de análisis (prefijo panel:); el
+# catálogo crudo y el listado de no actualizados ya no van acá: se consultan
+# desde los botones «Catálogos» y «No actualizados» de la barra lateral.
 GRUPOS_PESTANAS = [
     {"titulo": None, "pestanas": ["log"]},
     {"titulo": "Panel de mapas y perfiles",
@@ -171,9 +182,7 @@ GRUPOS_PESTANAS = [
     {"titulo": "No publicados",
      "pestanas": ["panel:seisan_nopub", "panel:seiscomp_nopub"]},
     {"titulo": "No actualizados",
-     "pestanas": ["noact:seisan", "noact:seiscomp"]},
-    {"titulo": "Catálogo",
-     "pestanas": ["cat:seiscomp", "cat:seisan", "cat:eventquery"]},
+     "pestanas": ["panel:seisan_noact", "panel:seiscomp_noact"]},
 ]
 
 # De "fuente" (lo que se clickea en la barra) a la vista del panel.
@@ -183,6 +192,8 @@ FUENTE_A_VISTA = {
     "seiscomp": "seiscomp",
     "nopub": "seisan_nopub",
     "nopub_seiscomp": "seiscomp_nopub",
+    "noact": "seisan_noact",
+    "noact_seiscomp": "seiscomp_noact",
 }
 VISTA_A_FUENTE = {v: k for k, v in FUENTE_A_VISTA.items()}
 
@@ -222,6 +233,14 @@ FUENTE_PLAN = {
         {"nombre": "Generando JSON (no publicados)",
          "scripts": ("generajson.py",), "peso": 1.0},
     ],
+    "noact": [
+        {"nombre": "Generando panel de no actualizados",
+         "scripts": ("generajson.py",), "peso": 1.0},
+    ],
+    "noact_seiscomp": [
+        {"nombre": "Generando panel de no actualizados de SeisComp",
+         "scripts": ("generajson.py",), "peso": 1.0},
+    ],
     "eventquery": [
         {"nombre": "Concatenando eventquery", "scripts": (), "peso": 0.15},
         {"nombre": "Generando JSON (eventquery)", "scripts": ("generajson.py",),
@@ -238,9 +257,9 @@ FUENTE_PLAN = {
 # Plan del botón maestro «Procesar catálogos». El análisis va primero (con la
 # conversión de SeisComp en el lugar real donde corre: antes de su atribución,
 # ver _asegurar_parametros_seiscomp) y después la generación de los paneles.
-# Los pesos suman 1.0. Las cinco corridas de generajson.py se distinguen con
-# 'discriminador' (su archivo de entrada), porque con el nombre del script solo
-# se ganaría siempre la primera.
+# Los pesos suman 1.0. Las corridas de generajson.py se distinguen con
+# 'discriminador' (su archivo de entrada, o el nombre de la vista en el modo
+# --pares), porque con el nombre del script solo se ganaría siempre la primera.
 PROCESAR_PLAN = [
     {"nombre": "Procesando query",
      "scripts": ("proc_query_harz_2.py",), "peso": 0.075},
@@ -260,21 +279,48 @@ PROCESAR_PLAN = [
     {"nombre": "Revisando repetidos",
      "scripts": ("repetidos.py",), "peso": 0.115},
     {"nombre": "Generando panel de Seisan",
-     "scripts": ("generajson.py",), "peso": 0.06,
+     "scripts": ("generajson.py",), "peso": 0.045,
      "discriminador": "salida_collect.csv"},
     {"nombre": "Generando panel de eventquery",
-     "scripts": ("generajson.py",), "peso": 0.06,
+     "scripts": ("generajson.py",), "peso": 0.045,
      "discriminador": "todos_eventquery.csv"},
     {"nombre": "Generando panel de SeisComp",
-     "scripts": ("generajson.py",), "peso": 0.06,
+     "scripts": ("generajson.py",), "peso": 0.045,
      "discriminador": "seiscomp_parametros.csv"},
     {"nombre": "Generando panel de no publicados",
-     "scripts": ("generajson.py",), "peso": 0.035,
+     "scripts": ("generajson.py",), "peso": 0.03,
      "discriminador": "no_pub_desde_2_5_estricto.csv"},
     {"nombre": "Generando panel de no publicados de SeisComp",
-     "scripts": ("generajson.py",), "peso": 0.035,
+     "scripts": ("generajson.py",), "peso": 0.03,
      "discriminador": "no_pub_desde_2_5_seiscomp_estricto.csv"},
+    {"nombre": "Generando panel de no actualizados",
+     "scripts": ("generajson.py",), "peso": 0.0275,
+     "discriminador": "seisan_noact"},
+    {"nombre": "Generando panel de no actualizados de SeisComp",
+     "scripts": ("generajson.py",), "peso": 0.0275,
+     "discriminador": "seiscomp_noact"},
 ]
+
+# Agencias externas soportadas: nombre visible -> sufijo del CSV que deja
+# consultaapi.py (consultaapi_<sufijo>.csv).
+AGENCIAS_EXTERNAS = {"EMSC": "EMSC", "USGS": "NEIC", "GFZ": "GFZ"}
+
+# Etapas del botón «Comparar agencias». consultaapi.py baja las agencias;
+# generajson.py arma el JSON de cada una (perfil más cercano) y agencias.py
+# compara contra nuestro publicado. Los pesos suman 1.0.
+AGENCIAS_PLAN = [
+    {"nombre": "Consultando agencias externas",
+     "scripts": ("consultaapi.py",), "peso": 0.35},
+    {"nombre": "Generando JSON de agencias",
+     "scripts": ("generajson.py",), "peso": 0.45},
+    {"nombre": "Comparando con lo publicado",
+     "scripts": ("agencias.py",), "peso": 0.20},
+]
+
+# Minutos que se considera válida una comparación hecha en modo «hasta ahora»
+# (tiempo real) antes de volver a consultar las APIs. Alinea con la latencia de
+# EMSC/USGS, que es de minutos.
+TTL_AGENCIAS_MIN = 15
 
 # Etiqueta y estilo de cada estado de catálogo, para los chips y el aviso.
 # - ok: al día.
@@ -407,13 +453,15 @@ class App:
 
         self._separador(barra)
         self._encabezado(barra, "CONSULTAR")
-        # Repetidos, no publicados y no actualizados son listados de
-        # texto/tabla, no los mapas de las pestañas. Los dos últimos abren una
-        # ventana con una pestaña por fuente (SeisComp primero); acá va una
-        # sola opción por listado.
+        # Catálogos y los listados son ventanas de consulta, no los paneles del
+        # cuaderno. Las de no publicados/no actualizados abren una pestaña por
+        # fuente (SeisComp primero).
+        self._boton(barra, "Catálogos", self._ver_catalogos, gated=True)
         self._boton(barra, "Repetidos", self._ver_repetidos, gated=True)
         self._boton(barra, "No publicados", self._ver_no_publicados, gated=True)
         self._boton(barra, "No actualizados", self._ver_no_actualizados,
+                    gated=True)
+        self._boton(barra, "Comparar agencias", self._comparar_agencias,
                     gated=True)
 
         self._separador(barra)
@@ -488,44 +536,23 @@ class App:
             }
 
         # Catálogos crudos (sin análisis de perfiles): una pestaña por fuente.
-        # El orden es el que usa GRUPOS_PESTANAS. Cada uno lleva su placeholder
-        # y se arma solo al abrir la pestaña: antes los llenaba solo
-        # _poblar_catalogos, que corre al terminar un análisis, así que al
-        # reabrir la aplicación sobre una carpeta ya analizada las tres
-        # pestañas quedaban vacías pidiendo repetir el análisis.
+        # Ya no viven en el cuaderno principal: se abren desde el botón
+        # «Catálogos» de la barra lateral, en su propia ventana (ver
+        # _ver_catalogos). Los frames se crean ahí a demanda; hasta entonces
+        # quedan en None y _construir_catalogo no se llama.
         self.catalogos = {}
         for clave, titulo in (("seiscomp", "SeisComp"), ("seisan", "Seisan"),
                               ("eventquery", "eventquery")):
-            marco = ttk.Frame(self.cuaderno)
-            self.cuaderno.add(marco, text=titulo)
-            etiqueta = ttk.Label(
-                marco, justify=CENTER,
-                text=("No hay datos de %s para mostrar.\n\n"
-                      "Pulse «Procesar catálogos» para generarlos."
-                      % titulo))
-            etiqueta.pack(expand=YES)
-            self.catalogos[clave] = {"frame": marco, "titulo": titulo,
+            self.catalogos[clave] = {"frame": None, "titulo": titulo,
                                      "construido": False, "firma": None}
-        # Atajos que ya usaban _marco_de y _abrir_revisor.
-        self.seiscomp_frame = self.catalogos["seiscomp"]["frame"]
-        self.seisan_frame = self.catalogos["seisan"]["frame"]
-        self.eventquery_frame = self.catalogos["eventquery"]["frame"]
-
-        # Listado de los eventos que sí están publicados pero cuyos parámetros
-        # no coinciden con la solución local. Lo arma la corrida del análisis
-        # (compara.py) y acá solo se muestra; se construye al abrir la pestaña.
-        self.noact = {}
-        for fuente, etiqueta in (("seisan", "Seisan"),
-                                 ("seiscomp", "SeisComp")):
-            marco = ttk.Frame(self.cuaderno)
-            self.cuaderno.add(marco, text=etiqueta)
-            etiqueta_noact = ttk.Label(
-                marco, justify=CENTER,
-                text=("Todavía no hay nada para mostrar.\n\n"
-                      "Pulse «Procesar catálogos» para generarlo."))
-            etiqueta_noact.pack(expand=YES)
-            self.noact[fuente] = {"frame": marco, "etiqueta": etiqueta_noact,
-                                  "construido": False}
+        # Ventana y cuaderno de catálogos (se crean al pulsar «Catálogos»).
+        self.marco_catalogos = None
+        self.cuaderno_catalogos = None
+        # Atajos que usan _abrir_revisor y _abrir_catalogo; se apuntan al crear
+        # la ventana de catálogos.
+        self.seiscomp_frame = None
+        self.seisan_frame = None
+        self.eventquery_frame = None
 
         # Ahora que ya existen todas las páginas, se arma la barra de pestañas
         # agrupadas y recién después se empaqueta el cuaderno: la barra va
@@ -567,6 +594,47 @@ class App:
         # no se toca; el ajuste importa cuando aparece algo más ancho, como el
         # panel de análisis o un catálogo.
         self._ajustar_ventana()
+        self._avisar_entorno_grafico()
+
+    def _avisar_entorno_grafico(self):
+        """
+        Avisa en el registro si el entorno gráfico puede congelar la sesión.
+
+        Un grab de X sobre una pila gráfica frágil (nvidia con fallas de modeset,
+        AnyDesk inyectando entrada) puede dejar la sesión entera bloqueada hasta
+        matar el proceso. Es best-effort: jamás rompe el arranque.
+        """
+        try:
+            anydesk = False
+            for pid in os.listdir("/proc"):
+                if not pid.isdigit():
+                    continue
+                try:
+                    with open(os.path.join("/proc", pid, "comm"),
+                              "r") as archivo:
+                        if archivo.read().strip() == "anydesk":
+                            anydesk = True
+                            break
+                except OSError:
+                    continue
+            if anydesk:
+                self._log("aviso: AnyDesk está activo; si la pantalla se "
+                          "congela, cerralo (la sesión gráfica y nvidia "
+                          "pueden interferir).")
+        except Exception:
+            pass
+        try:
+            salida = subprocess.run(
+                ["journalctl", "-k", "--since", "-2 hours", "--no-pager",
+                 "--quiet"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                universal_newlines=True, timeout=10)
+            if "Failed to grab modeset" in (salida.stdout or ""):
+                self._log("aviso: el kernel reportó fallas de modeset de "
+                          "nvidia en las últimas 2 horas; si la pantalla se "
+                          "congela, reiniciá la sesión gráfica.")
+        except Exception:
+            pass
 
     def _ajustar_ventana(self):
         """
@@ -584,6 +652,15 @@ class App:
             return
         self._tamanio = tuple(nuevo)
         self._log("Ventana ajustada a %dx%d px." % nuevo)
+
+    def _ajustar_catalogos(self, minimo=(900, 560)):
+        """Agranda la ventana de catálogos a su contenido, si está creada."""
+        if self.marco_catalogos is None:
+            return
+        try:
+            ajuste.ajustar(self.marco_catalogos, minimo=minimo)
+        except Exception:
+            pass
 
     def _alinear_pestanas(self, _evento=None):
         """Baja la barra de pestañas hasta la altura del botón de procesar.
@@ -634,12 +711,6 @@ class App:
         if clave == "log":
             return self.marco_log
         tipo, _, nombre = clave.partition(":")
-        if tipo == "cat":
-            return {"seiscomp": self.seiscomp_frame,
-                    "seisan": self.seisan_frame,
-                    "eventquery": self.eventquery_frame}[nombre]
-        if tipo == "noact":
-            return self.noact[nombre]["frame"]
         panel = self.paneles.get(nombre)
         return panel["frame"] if panel else None
 
@@ -648,9 +719,6 @@ class App:
         if clave == "log":
             return "Registro"
         tipo, _, nombre = clave.partition(":")
-        if tipo in ("cat", "noact"):
-            return {"seiscomp": "SeisComp", "seisan": "Seisan",
-                    "eventquery": "eventquery"}[nombre]
         vista = VISTAS_POR_CLAVE.get(nombre)
         return vista["tab"] if vista else nombre
 
@@ -700,6 +768,20 @@ class App:
 
     # ------------------------------------------------------------- logging
     def _log(self, texto):
+        # Además del cuadro Tk, queda en informes/app.log con hora: sin esto,
+        # un cuelgue deja todo en la nada (el texto Tk se pierde al cerrar).
+        try:
+            ruta = os.path.join("informes", "app.log")
+            if os.path.isfile(ruta) and os.path.getsize(ruta) > 5 * 1024 * 1024:
+                anterior = ruta + ".1"
+                if os.path.isfile(anterior):
+                    os.remove(anterior)
+                os.rename(ruta, anterior)
+            with open(ruta, "a", encoding="utf-8") as f:
+                f.write("[%s] %s\n"
+                        % (datetime.datetime.now().strftime("%H:%M:%S"), texto))
+        except OSError:
+            pass
         self.cola.put(("log", texto))
 
     def _drenar(self):
@@ -716,9 +798,13 @@ class App:
                     if callable(dato):
                         try:
                             dato()
-                        except Exception as e:
-                            self._log("[error] %s" % e)
-                    self._aplicar_progreso(1.0, "Listo")
+                        except Exception:
+                            self._log("[error] " + traceback.format_exc())
+                    try:
+                        self._aplicar_progreso(1.0, "Listo")
+                    except Exception:
+                        self._log("[error progreso] "
+                                  + traceback.format_exc())
                 elif tipo == "prog":
                     self._aplicar_progreso(dato[0], dato[1])
                 elif tipo == "msg":
@@ -726,7 +812,13 @@ class App:
                                          parent=self.raiz)
         except queue.Empty:
             pass
-        self._after_drenar = self.raiz.after(100, self._drenar)
+        except Exception:
+            # Si el drenaje revienta, la app quedaría muda para siempre: se
+            # anota y se sigue. El after se re-agenda en finally, pase lo que
+            # pase.
+            self._log("[error drenar] " + traceback.format_exc())
+        finally:
+            self._after_drenar = self.raiz.after(100, self._drenar)
 
     def _set_ocupado(self, valor):
         self.ocupado = valor
@@ -1359,7 +1451,7 @@ class App:
                 return
 
     # ------------------------------------------------------------ procesos
-    def _popen(self, args):
+    def _popen(self, args, cwd=None):
         args = list(args)
         script = args[0] if args and args[0].endswith(".py") else None
         if script:
@@ -1370,7 +1462,7 @@ class App:
         env = dict(os.environ)
         env["RV_PROG"] = "1"
         try:
-            p = subprocess.Popen(args, cwd=self.cwd,
+            p = subprocess.Popen(args, cwd=(cwd or self.cwd),
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT,
                                  universal_newlines=True, bufsize=1,
@@ -1405,8 +1497,8 @@ class App:
         def envolver():
             try:
                 tarea()
-            except Exception as e:
-                self._log("[error] %s" % e)
+            except Exception:
+                self._log("[error] " + traceback.format_exc())
             finally:
                 self.cola.put(("fin", on_fin))
 
@@ -1421,6 +1513,15 @@ class App:
         envoltorios (_accion_procesar y _accion_fuente).
         """
         self._log("***** Se comienza el análisis de los datos *****")
+        # Borra derivados de ventanas anteriores para evitar mezclas en
+        # _concatenar_eventquery (que junta TODOS los new_2_*.csv).
+        carpeta_datos = "datos"
+        try:
+            for nombre in os.listdir(carpeta_datos):
+                if nombre.startswith("new_") and nombre.endswith(".csv"):
+                    os.remove(os.path.join(carpeta_datos, nombre))
+        except OSError:
+            pass
         self._popen([_script("proc_query_harz_2.py"),
                      self.archivo, self.salida])
         self._popen([_script("revisaselect.py")])
@@ -1471,6 +1572,7 @@ class App:
         except OSError:
             pass
         self._log("***** Análisis terminado *****")
+        self._limpiar_trabajo_y_ploteo()
 
     def _accion_procesar(self, confirmar=True):
         """
@@ -1512,7 +1614,7 @@ class App:
             # de eventquery necesita. Si no hay exportación, _procesar_fuente lo
             # avisa y sigue.
             for fuente in ("seiscomp", "seisan", "eventquery", "nopub",
-                           "nopub_seiscomp"):
+                           "nopub_seiscomp", "noact", "noact_seiscomp"):
                 vista_clave = FUENTE_A_VISTA.get(fuente)
                 if vista_clave and self._vista_procesada(vista_clave):
                     self._log("La fuente %s ya estaba procesada; se omite."
@@ -1558,6 +1660,14 @@ class App:
         # tiene que volver a armarse. forzar=True porque es el único punto
         # donde se garantiza que lo demás ya está en disco.
         self._concatenar_eventquery(forzar=True)
+        if self.cuaderno_catalogos is None:
+            # La ventana de catálogos todavía no se abrió. No se construyen
+            # widgets Tk desde el hilo de trabajo: se invalidan y se arman al
+            # abrirla (ver _ver_catalogos).
+            for panel in self.catalogos.values():
+                panel["construido"] = False
+                panel["firma"] = None
+            return
         for clave in ("seisan", "eventquery", "seiscomp"):
             self._construir_catalogo(clave, seleccionar=False)
 
@@ -1625,6 +1735,17 @@ class App:
             # --salida evita que el JSON de los no publicados pise el de la
             # fuente principal: comparten parseo, no archivo de salida.
             self._popen([_script("generajson.py"), archivo, origen,
+                         "--salida=%s" % vista_clave])
+        elif fuente in ("noact", "noact_seiscomp"):
+            # Los «no actualizados» salen del atribucion_<fuente>.csv que dejó
+            # compara.py: generajson arma el par local + publicado.
+            origen = "seiscomp" if fuente == "noact_seiscomp" else "seisan"
+            archivo = os.path.join("datos", "atribucion_%s.csv" % origen)
+            if not os.path.isfile(archivo):
+                self._log("No hay %s; no se genera el panel de no actualizados."
+                          % archivo)
+                return False
+            self._popen([_script("generajson.py"), "--pares=%s" % origen,
                          "--salida=%s" % vista_clave])
         else:
             return False
@@ -1765,9 +1886,9 @@ class App:
         if not ok:
             self._log("No se pudo abrir el catálogo de %s." % etiqueta)
             return
-        if seleccionar:
-            self.cuaderno.select(marco)
-        self._ajustar_ventana()
+        if seleccionar and self.cuaderno_catalogos is not None:
+            self.cuaderno_catalogos.select(marco)
+        self._ajustar_catalogos()
         self._log("Catálogo abierto: %s" % os.path.basename(ruta))
 
     def _al_cambiar_pestana(self, _evento=None):
@@ -1782,16 +1903,6 @@ class App:
         """
         self._marcar_pestana_activa()
         actual = self.cuaderno.select()
-        for clave, panel in self.catalogos.items():
-            if str(panel["frame"]) != actual:
-                continue
-            self._construir_catalogo(clave)
-            break
-        for fuente, panel in self.noact.items():
-            if str(panel["frame"]) != actual:
-                continue
-            self._abrir_no_actualizados(fuente)
-            break
         for clave, panel in self.paneles.items():
             if str(panel["frame"]) != actual:
                 continue
@@ -1881,26 +1992,20 @@ class App:
         self._ajustar_ventana()
         self._log("Panel abierto (%s)." % clave)
 
-    def _abrir_no_actualizados(self, fuente, contenedor=None):
+    def _abrir_no_actualizados(self, fuente, contenedor):
         """
         Muestra el listado de eventos no actualizados de una fuente.
 
         No calcula nada: los datos salen de datos/atribucion_<fuente>.csv, que
-        escribe la corrida del análisis. Como el botón de la fuente queda
-        apagado cuando ya está procesada, la pestaña es la única forma de ver
-        el listado al reabrir la aplicación sobre una carpeta ya analizada.
+        escribe la corrida del análisis, y se llenan en 'contenedor' (el marco de
+        una pestaña de la ventana lateral «No actualizados»).
 
         Distingue los tres estados posibles, porque un mismo "no se puede
         mostrar" significa cosas distintas: que el análisis nunca corrió, que
-        corrió sin encontrar cruces, o que hay datos. Si se pasa 'contenedor'
-        se llena ese marco (ventana de consulta); si no, la pestaña del
-        cuaderno principal, con su caché por mtime.
+        corrió sin encontrar cruces, o que hay datos.
         """
-        panel = self.noact.get(fuente)
         if contenedor is None:
-            if panel is None:
-                return
-            contenedor = panel["frame"]
+            return
         etiqueta = {"seisan": "Seisan", "seiscomp": "SeisComp"}[fuente]
         csv_noact = os.path.join("datos", "atribucion_%s.csv" % fuente)
         # El informe .txt se escribe siempre que corre la comparación (aunque
@@ -1909,11 +2014,9 @@ class App:
             "informes", "no_act_%sestricto.txt"
             % ("" if fuente == "seisan" else "seiscomp_"))
 
+        for w in list(contenedor.winfo_children()):
+            w.destroy()
         if not os.path.isfile(csv_noact):
-            for w in list(contenedor.winfo_children()):
-                w.destroy()
-            if panel is not None:
-                panel["construido"] = False
             texto = ("Todavía no hay nada para mostrar.\n\nPulse "
                      "«Procesar catálogos» para generarlo."
                      if not os.path.isfile(informe) else
@@ -1924,15 +2027,6 @@ class App:
                 expand=YES)
             return
 
-        mtime = os.path.getmtime(csv_noact)
-        if (panel is not None and panel["construido"]
-                and panel.get("mtime") == mtime
-                and contenedor.winfo_children()):
-            return
-        for w in list(contenedor.winfo_children()):
-            w.destroy()
-        if panel is not None:
-            panel["construido"] = False
         rs = self._importar_revisor()
         if rs is None:
             return
@@ -1946,11 +2040,6 @@ class App:
             ttk.Label(contenedor, justify=CENTER,
                       text="No se pudo leer el listado de %s." % etiqueta
                       ).pack(expand=YES)
-            return
-        if panel is not None:
-            panel["construido"] = True
-            panel["mtime"] = mtime
-        self._ajustar_ventana()
 
     def _ver_no_actualizados(self):
         """
@@ -1987,6 +2076,649 @@ class App:
 
         cuaderno.bind("<<NotebookTabChanged>>", _al_cambiar)
         _construir("seiscomp")
+
+    def _ver_catalogos(self):
+        """
+        Abre (o trae al frente) la ventana con los catálogos crudos.
+
+        Una pestaña por fuente (SeisComp, Seisan, eventquery; SeisComp por
+        defecto). Cada pestaña se arma recién al seleccionarla, reutilizando
+        _construir_catalogo con su caché por firma. Al cerrar se oculta
+        (withdraw) en vez de destruirse, para conservar los frames y que
+        _poblar_catalogos pueda rehacerlos tras un análisis nuevo.
+        """
+        if self.marco_catalogos is None:
+            top = ttk.Toplevel(title="Catálogos", master=self.raiz)
+            top.geometry("1000x600")
+            top.minsize(700, 460)
+            self.marco_catalogos = top
+            cuaderno = ttk.Notebook(top)
+            cuaderno.pack(fill=BOTH, expand=YES)
+            self.cuaderno_catalogos = cuaderno
+            for clave, titulo in (("seiscomp", "SeisComp"),
+                                  ("seisan", "Seisan"),
+                                  ("eventquery", "eventquery")):
+                marco = ttk.Frame(cuaderno)
+                cuaderno.add(marco, text=titulo)
+                etiqueta = ttk.Label(
+                    marco, justify=CENTER,
+                    text=("No hay datos de %s para mostrar.\n\n"
+                          "Pulse «Procesar catálogos» para generarlos."
+                          % titulo))
+                etiqueta.pack(expand=YES)
+                self.catalogos[clave]["frame"] = marco
+                self.catalogos[clave]["construido"] = False
+            self.seiscomp_frame = self.catalogos["seiscomp"]["frame"]
+            self.seisan_frame = self.catalogos["seisan"]["frame"]
+            self.eventquery_frame = self.catalogos["eventquery"]["frame"]
+
+            def _al_cambiar(_evento=None):
+                actual = cuaderno.select()
+                for clave, panel in self.catalogos.items():
+                    if str(panel["frame"]) == actual:
+                        self._construir_catalogo(clave)
+                        break
+
+            cuaderno.bind("<<NotebookTabChanged>>", _al_cambiar)
+            top.protocol("WM_DELETE_WINDOW", top.withdraw)
+            self._construir_catalogo("seiscomp")
+        else:
+            self.marco_catalogos.deiconify()
+            self.marco_catalogos.lift()
+            # Los datos pueden haber cambiado desde la última visita; la caché
+            # por firma decide si hay que rehacer la pestaña activa.
+            actual = self.cuaderno_catalogos.select()
+            for clave, panel in self.catalogos.items():
+                if panel["frame"] is not None and str(panel["frame"]) == actual:
+                    self._construir_catalogo(clave)
+                    break
+        self._ajustar_catalogos()
+
+    # ------------------------------------------------ comparar agencias
+    def _periodo_iso(self, valor14):
+        """'AAAAMMDDHHMMSS' -> 'AAAA-MM-DDTHH:MM:SS' (o el valor tal cual)."""
+        try:
+            return datetime.datetime.strptime(
+                str(valor14), "%Y%m%d%H%M%S").strftime("%Y-%m-%dT%H:%M:%S")
+        except (TypeError, ValueError):
+            return str(valor14)
+
+    def _ruta_estado_agencias(self):
+        return os.path.join("datos", "agencias", "estado.json")
+
+    def _leer_estado_agencias(self):
+        try:
+            with open(self._ruta_estado_agencias()) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return {}
+
+    def _escribir_estado_agencias(self, minmag, agencias, modo, periodo_efectivo,
+                                  referencia="eventquery"):
+        """Guarda con qué modo, período, magnitud, agencias y referencia se comparó."""
+        estado = {
+            "consulta": {
+                "modo": modo,
+                "periodo": list(periodo_efectivo),
+                "minmag": minmag,
+                "agencias": list(agencias),
+                "referencia": referencia,
+                "timestamp": datetime.datetime.utcnow().strftime(
+                    "%Y-%m-%d %H:%M:%S"),
+            },
+            "comparacion": {"minmag": minmag, "agencias": list(agencias),
+                            "referencia": referencia},
+        }
+        ruta = self._ruta_estado_agencias()
+        try:
+            os.makedirs(os.path.dirname(ruta), exist_ok=True)
+            with open(ruta, "w") as f:
+                json.dump(estado, f, indent=2)
+        except OSError as e:
+            self._log("[error] no se pudo guardar el estado de agencias: %s" % e)
+
+    def _dentro_de_ttl(self, consulta):
+        """True si la consulta «hasta ahora» todavía está dentro del TTL."""
+        ts = consulta.get("timestamp")
+        if not ts:
+            return False
+        try:
+            t = datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            return False
+        edad = (datetime.datetime.utcnow() - t).total_seconds()
+        return edad < TTL_AGENCIAS_MIN * 60
+
+    def _mas_nuevo_que(self, destino, entradas):
+        """True si 'destino' existe y es más nuevo que todas las 'entradas'
+        (que además tienen que existir)."""
+        if not os.path.isfile(destino):
+            return False
+        try:
+            marca = os.path.getmtime(destino)
+        except OSError:
+            return False
+        for e in entradas:
+            if not os.path.isfile(e) or os.path.getmtime(e) > marca:
+                return False
+        return True
+
+    def _consulta_agencias_al_dia(self, minmag, agencias, modo, periodo_efectivo):
+        """True si los CSV de agencia ya corresponden al modo, período y mag."""
+        inicio, fin = self.periodo
+        consulta = (self._leer_estado_agencias().get("consulta") or {})
+        if consulta.get("modo") != modo:
+            return False
+        if consulta.get("minmag") != minmag:
+            return False
+        if modo == "ventana":
+            if (consulta.get("periodo") or [None, None]) != [inicio, fin]:
+                return False
+        elif not self._dentro_de_ttl(consulta):
+            return False
+        for ag in agencias:
+            csv = os.path.join("datos", "agencias",
+                               "consultaapi_%s.csv" % AGENCIAS_EXTERNAS[ag])
+            if not os.path.isfile(csv):
+                return False
+        return True
+
+    def _comparacion_al_dia(self, minmag, agencias, modo, referencia):
+        """True si la comparación ya está hecha y no cambió ningún insumo."""
+        inicio, fin = self.periodo
+        estado = self._leer_estado_agencias()
+        comp = (estado.get("comparacion") or {})
+        consulta = (estado.get("consulta") or {})
+        if comp.get("minmag") != minmag:
+            return False
+        if sorted(comp.get("agencias") or []) != sorted(agencias):
+            return False
+        if comp.get("referencia") != referencia:
+            return False
+        if consulta.get("modo") != modo:
+            return False
+        if modo == "ventana":
+            if (consulta.get("periodo") or [None, None]) != [inicio, fin]:
+                return False
+        elif not self._dentro_de_ttl(consulta):
+            return False
+        entradas = [os.path.join("datos", "eventos_%s.json" % referencia)]
+        entradas += [os.path.join("datos", "eventos_agencia_%s.json" % ag)
+                     for ag in agencias]
+        return self._mas_nuevo_que(
+            os.path.join("datos", "comparacion_agencias.json"), entradas)
+
+    def _pedir_parametros_agencias(self):
+        """Diálogo: magnitud, agencias y opción de reconsultar (últimos valores)."""
+        comp = (self._leer_estado_agencias().get("comparacion") or {})
+        mag_prev = comp.get("minmag")
+        ags_prev = comp.get("agencias") or list(AGENCIAS_EXTERNAS)
+
+        top = ttk.Toplevel(title="Comparar agencias", master=self.raiz)
+        marco = ttk.Frame(top, padding=12)
+        marco.pack(fill=BOTH, expand=YES)
+        ttk.Label(marco, bootstyle="primary",
+                  text="Se compara contra catálogo de eventos publicados "
+                       "extraído (eventquery).",
+                  font=("", 10, "bold"), wraplength=420, justify=LEFT
+                  ).grid(row=0, column=0, columnspan=2, sticky=W, pady=(0, 8))
+
+        ttk.Label(marco, text="Magnitud mínima:").grid(
+            row=1, column=0, sticky=W, pady=(0, 6))
+        ent_mag = ttk.Entry(marco, width=10)
+        ent_mag.insert(0, "%g" % mag_prev if mag_prev is not None else "4.0")
+        ent_mag.grid(row=1, column=1, sticky=W, pady=(0, 6))
+
+        ttk.Label(marco, text="Agencias:").grid(row=2, column=0, sticky=NW)
+        marco_ag = ttk.Frame(marco)
+        marco_ag.grid(row=2, column=1, sticky=W)
+        vars_ag = {}
+        for ag in AGENCIAS_EXTERNAS:
+            var = BooleanVar(value=(ag in ags_prev))
+            vars_ag[ag] = var
+            ttk.Checkbutton(marco_ag, text=ag, variable=var,
+                            bootstyle="round-toggle").pack(anchor=W)
+
+        var_ahora = BooleanVar(value=False)
+        var_refrescar = BooleanVar(value=False)
+        var_eventquery = BooleanVar(value=False)
+
+        def _al_cambiar_ahora():
+            # «Hasta ahora» implica reconsultar agencias y actualizar el
+            # eventquery; se marcan solas, pero el usuario puede destildarlas.
+            if var_ahora.get():
+                var_refrescar.set(True)
+                var_eventquery.set(True)
+
+        ttk.Checkbutton(marco, text="Consultar hasta el momento actual",
+                        variable=var_ahora, command=_al_cambiar_ahora,
+                        bootstyle="round-toggle").grid(
+            row=3, column=0, columnspan=2, sticky=W, pady=(8, 0))
+        ttk.Label(marco, bootstyle="secondary",
+                  wraplength=420, justify=LEFT,
+                  text="Si no se marca, se usa la ventana del análisis. "
+                       "Los datos muy recientes pueden ser preliminares; GFZ "
+                       "llega con ~1 día."
+                  ).grid(row=4, column=0, columnspan=2, sticky=W, pady=(4, 0))
+
+        ttk.Checkbutton(marco, text="Volver a consultar las agencias",
+                        variable=var_refrescar,
+                        bootstyle="round-toggle").grid(
+            row=5, column=0, columnspan=2, sticky=W, pady=(8, 0))
+        ttk.Checkbutton(
+            marco, text="Actualizar el catálogo publicado (eventquery)",
+            variable=var_eventquery, bootstyle="round-toggle").grid(
+            row=6, column=0, columnspan=2, sticky=W, pady=(4, 0))
+        ttk.Label(marco, bootstyle="secondary", wraplength=420, justify=LEFT,
+                  text="Actualizar eventquery requiere la contraseña del "
+                       "servidor y re-baja el catálogo hasta la hora actual. "
+                       "La referencia fresca es solo para esta comparación; el "
+                       "resto del análisis sigue en la ventana cargada."
+                  ).grid(row=7, column=0, columnspan=2, sticky=W, pady=(2, 0))
+
+        resultado = {"valor": None}
+
+        def aceptar(_evento=None):
+            try:
+                minmag = float(ent_mag.get().strip())
+            except ValueError:
+                return
+            agencias = [ag for ag, v in vars_ag.items() if v.get()]
+            if not agencias:
+                return
+            modo = "ahora" if var_ahora.get() else "ventana"
+            resultado["valor"] = (minmag, agencias, bool(var_refrescar.get()),
+                                  modo, bool(var_eventquery.get()))
+            top.destroy()
+
+        def cancelar(_evento=None):
+            top.destroy()
+
+        botones = ttk.Frame(marco)
+        botones.grid(row=8, column=0, columnspan=2, sticky=E, pady=(10, 0))
+        ttk.Button(botones, text="Comparar", command=aceptar,
+                   bootstyle="primary").pack(side=RIGHT)
+        ttk.Button(botones, text="Cancelar", command=cancelar,
+                   bootstyle="secondary").pack(side=RIGHT, padx=(0, 6))
+        ent_mag.bind("<Return>", aceptar)
+        top.bind("<Escape>", cancelar)
+        self.raiz.wait_window(top)
+        return resultado["valor"]
+
+    def _actualizar_eventquery(self, contrasena, ini14, fin14):
+        """
+        Baja y reprocesa el eventquery para la ventana pedida.
+
+        Todo el paso intermedio (descarga, proc_query) se hace en
+        trabajo/agencias/ para que sus new_* / new_2_* NO caigan en datos/ y no
+        los mezcle _concatenar_eventquery. Deja una referencia aislada en
+        datos/eventos_eventquery_ahora.json (no toca el eventquery del análisis).
+        Devuelve True si quedó lista.
+        """
+        import traer_catalogos as tc
+        aislado = os.path.join("trabajo", "agencias")
+        os.makedirs(aislado, exist_ok=True)
+        try:
+            with tc.Conexion(contrasena, log=self._log) as conexion:
+                tc.verificar_conexion(conexion, log=self._log,
+                                      progreso=self._progreso_local)
+                ruta = tc.traer_eventquery(
+                    ini14, fin14, conexion, cwd=aislado, log=self._log,
+                    progreso=self._progreso_local, forzar=True)
+        except Exception as e:
+            self._log("[error] no se pudo bajar eventquery: %s" % e)
+            return False
+        if not ruta or not os.path.isfile(ruta):
+            self._log("No se obtuvo el catálogo de eventquery.")
+            return False
+        dat = os.path.join(aislado, "eventquery_ahora.dat")
+        # proc_query escribe sus new_* / new_2_* en <cwd>/datos; con cwd aislado,
+        # quedan en trabajo/agencias/datos y no tocan los del análisis. Las rutas
+        # van absolutas porque el proceso corre en otro cwd.
+        if self._popen([_script("proc_query_harz_2.py"), os.path.abspath(ruta),
+                        os.path.abspath(dat)], cwd=aislado):
+            self._log("Falló el procesamiento de eventquery.")
+            return False
+        new2 = os.path.abspath(
+            os.path.join(aislado, "datos", "new_2_" + os.path.basename(ruta)))
+        if not os.path.isfile(new2):
+            self._log("No se generó %s." % new2)
+            return False
+        # generajson con el cwd normal: necesita grillas/ y escribe el JSON en
+        # datos/ (no en la carpeta aislada).
+        if self._popen([_script("generajson.py"), new2, "eventquery",
+                        "--salida=eventquery_ahora"]):
+            self._log("Falló la generación del JSON de eventquery.")
+            return False
+        return os.path.isfile(
+            os.path.join("datos", "eventos_eventquery_ahora.json"))
+
+    def _comparar_agencias(self):
+        """
+        Consulta agencias externas (EMSC/USGS/GFZ) y las compara con nuestro
+        publicado. Reutiliza lo ya procesado si ningún catálogo cambió; si no,
+        corre solo las etapas necesarias. Al terminar abre la ventana.
+        """
+        inicio, fin = self.periodo
+        if not (inicio and fin):
+            Messagebox.show_info(
+                "No hay un período de análisis cargado. Abra la aplicación con "
+                "una ventana de catálogos.", "Comparar agencias",
+                parent=self.raiz)
+            return
+        params = self._pedir_parametros_agencias()
+        if params is None:
+            self._log("Comparación de agencias cancelada.")
+            return
+        minmag, agencias, refrescar, modo, actualizar = params
+
+        # Referencia: la del análisis, o la recién bajada si se pide actualizar
+        # eventquery en modo "hasta ahora".
+        referencia = ("eventquery_ahora"
+                      if (modo == "ahora" and actualizar) else "eventquery")
+
+        # Camino rápido: ya está todo procesado y no se pidió refrescar.
+        if not refrescar and self._comparacion_al_dia(minmag, agencias, modo,
+                                                      referencia):
+            self._log("La comparación de agencias ya está al día; se muestra "
+                      "lo procesado.")
+            self._ver_comparacion_agencias()
+            return
+
+        # La actualización de eventquery necesita la contraseña del servidor.
+        contrasena = None
+        if modo == "ahora" and actualizar:
+            contrasena = self._pedir_contrasena()
+            if not contrasena:
+                self._log("Comparación de agencias cancelada (sin contraseña).")
+                return
+
+        def _ventana_efectiva():
+            """(ini_iso, fin_iso, ini14, fin14): del análisis o 'hasta ahora'."""
+            if modo == "ahora":
+                fin_dt = datetime.datetime.utcnow()
+                dur = (datetime.datetime.strptime(fin, "%Y%m%d%H%M%S")
+                       - datetime.datetime.strptime(inicio, "%Y%m%d%H%M%S"))
+                ini_dt = fin_dt - dur
+                return (ini_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+                        fin_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+                        ini_dt.strftime("%Y%m%d%H%M%S"),
+                        fin_dt.strftime("%Y%m%d%H%M%S"))
+            return (self._periodo_iso(inicio), self._periodo_iso(fin),
+                    inicio, fin)
+
+        def tarea():
+            nonlocal referencia
+            ini_iso, fin_iso, ini14, fin14 = _ventana_efectiva()
+            self._log("***** Comparando con agencias (%s a %s): referencia = "
+                      "catálogo de eventos publicados extraído (eventquery) "
+                      "*****" % (ini_iso, fin_iso))
+            if modo == "ahora" and actualizar:
+                self._log("Se actualiza el eventquery hasta ahora; la "
+                          "referencia fresca es solo para esta comparación (el "
+                          "resto del análisis no cambia).")
+                if self._actualizar_eventquery(contrasena, ini14, fin14):
+                    referencia = "eventquery_ahora"
+                else:
+                    referencia = "eventquery"
+                    self._log("No se pudo actualizar eventquery; se comparará "
+                              "contra el catálogo del análisis.")
+            if refrescar or not self._consulta_agencias_al_dia(
+                    minmag, agencias, modo, [ini14, fin14]):
+                self._log("Consultando agencias externas…")
+                self._popen([_script("consultaapi.py"), ini_iso, fin_iso,
+                             "%g" % minmag])
+            else:
+                self._log("Se reutilizan los catálogos de agencias ya "
+                          "consultados.")
+            for ag in agencias:
+                cs = os.path.join(
+                    "datos", "agencias",
+                    "consultaapi_%s.csv" % AGENCIAS_EXTERNAS[ag])
+                js = os.path.join("datos", "eventos_agencia_%s.json" % ag)
+                if not os.path.isfile(cs):
+                    self._log("No se obtuvo el catálogo de %s; se omite." % ag)
+                    continue
+                if refrescar or not self._mas_nuevo_que(js, [cs]):
+                    self._popen([_script("generajson.py"), cs, "agencia",
+                                 "--agencia=%s" % ag,
+                                 "--salida=agencia_%s" % ag])
+                else:
+                    self._log("Se reutiliza el JSON de %s." % ag)
+            self._popen([_script("agencias.py"), "%g" % minmag]
+                        + list(agencias)
+                        + ["--referencia=%s" % referencia])
+            self._escribir_estado_agencias(minmag, agencias, modo,
+                                           [ini14, fin14], referencia)
+
+        def al_terminar():
+            self._log("Comparación de agencias terminada; mostrando "
+                      "resultados.")
+            try:
+                self._actualizar_gate()
+                self._ver_comparacion_agencias()
+            finally:
+                # Limpieza de trabajo/agencias/ tras la comparación: en
+                # finally para que un error de la ventana no la deje tirada.
+                try:
+                    shutil.rmtree(rutas.p_trabajo("agencias"))
+                    self._log("trabajo/agencias/ limpio.")
+                except OSError:
+                    pass
+
+        self._iniciar(tarea, on_fin=al_terminar, plan=AGENCIAS_PLAN)
+
+    def _leer_csv_datos(self, nombre):
+        """Lee un CSV de datos/ como (encabezados, filas), o None si no hay."""
+        ruta = os.path.join("datos", nombre)
+        if not os.path.isfile(ruta):
+            return None
+        with open(ruta, encoding="utf-8-sig", newline="") as f:
+            filas = list(csv.reader(f))
+        if len(filas) < 2:
+            return None
+        return filas[0], filas[1:]
+
+    def _descargar_comparacion(self, padre):
+        """Baja los dos layouts de la comparación en un solo paso."""
+        import descargas
+        archivos = [("comparacion_agencias.csv", "comparacion agencias"),
+                    ("comparacion_agencias_larga.csv",
+                     "comparacion agencias larga")]
+        datos = []
+        for nombre, etiqueta in archivos:
+            par = self._leer_csv_datos(nombre)
+            if par is not None:
+                datos.append((etiqueta, par[0], par[1]))
+        if not datos:
+            self._log("No hay comparación para descargar.")
+            return
+        formato = descargas.preguntar_formato(padre, "Formato de descarga")
+        if formato is None:
+            return
+        escritos = []
+        for etiqueta, encab, filas in datos:
+            ruta = descargas.exportar_tabla(encab, filas, etiqueta,
+                                            formato=formato)
+            if ruta:
+                escritos.append(ruta)
+        if escritos:
+            descargas._avisar_exito(padre, escritos[0])
+            self._log("Descargado: %s"
+                      % ", ".join(os.path.basename(r) for r in escritos))
+
+    def _descargar_sin_contraparte(self, padre):
+        import descargas
+        par = self._leer_csv_datos("agencias_sin_contraparte.csv")
+        if par is None:
+            self._log("No hay eventos de agencia sin contraparte para "
+                      "descargar.")
+            return
+        descargas.descargar_tabla(padre, par[0], par[1],
+                                  "agencias sin contraparte")
+
+    def _armar_listado(self, padre, nombre_json, al_plotear):
+        """Listado por evento (Treeview) con scroll, orden, tope y doble clic."""
+        TOPE = 2000
+        ruta = os.path.join("datos", nombre_json)
+        try:
+            with open(ruta, encoding="utf-8") as f:
+                data = json.load(f)
+            encab = data.get("encabezados") or []
+            filas = data.get("filas") or []
+        except (OSError, ValueError):
+            encab, filas = [], []
+        if not encab or not filas:
+            ttk.Label(padre, text="No hay eventos para listar.",
+                      bootstyle="secondary").pack(anchor=W, padx=6, pady=4)
+            return
+        if len(filas) > TOPE:
+            ttk.Label(
+                padre, bootstyle="warning", wraplength=900, justify=LEFT,
+                text="Mostrando %d de %d eventos — usá «Descargar» para el "
+                     "listado completo." % (TOPE, len(filas))
+            ).pack(anchor=W, padx=6, pady=(4, 0))
+            filas = filas[:TOPE]
+
+        claves = ["c%d" % i for i in range(len(encab))]
+        anchos = {"Fecha_Hora": 150, "Latitud": 80, "Longitud": 80,
+                  "Prof.": 70, "Mag.": 60, "Agencias": 220, "Δmáx (km)": 90}
+        marco = ttk.Frame(padre)
+        marco.pack(fill=BOTH, expand=YES, padx=6, pady=4)
+        arbol = ttk.Treeview(marco, columns=claves, show="headings", height=8)
+        mostradas = list(filas)
+        estado_orden = {"col": None, "desc": False}
+
+        def _clave(fila, idx):
+            cols = fila.get("cols") or []
+            val = cols[idx] if idx < len(cols) else ""
+            try:
+                return (0, float(val), "")
+            except (TypeError, ValueError):
+                return (1, 0.0, str(val).lower())
+
+        def _llenar():
+            arbol.delete(*arbol.get_children())
+            for i, fila in enumerate(mostradas):
+                arbol.insert("", END, iid=str(i), values=fila.get("cols", []))
+
+        def _ordenar(idx):
+            if estado_orden["col"] == idx:
+                estado_orden["desc"] = not estado_orden["desc"]
+            else:
+                estado_orden["col"] = idx
+                estado_orden["desc"] = False
+            mostradas.sort(key=lambda f: _clave(f, idx),
+                           reverse=estado_orden["desc"])
+            _llenar()
+
+        def _plotear_sel(_evento=None):
+            sel = arbol.selection()
+            if not sel:
+                return
+            try:
+                fila = mostradas[int(sel[0])]
+            except (ValueError, IndexError):
+                return
+            al_plotear(fila)
+
+        for i, (clave, titulo) in enumerate(zip(claves, encab)):
+            arbol.heading(clave, text=titulo,
+                          command=lambda i=i: _ordenar(i))
+            arbol.column(clave, width=anchos.get(titulo, 100), minwidth=50,
+                         stretch=False)
+        barra_v = ttk.Scrollbar(marco, orient="vertical", command=arbol.yview)
+        barra_h = ttk.Scrollbar(marco, orient="horizontal", command=arbol.xview)
+        arbol.configure(yscrollcommand=barra_v.set, xscrollcommand=barra_h.set)
+        barra_v.pack(side=RIGHT, fill=Y)
+        barra_h.pack(side=BOTTOM, fill=X)
+        arbol.pack(side=LEFT, fill=BOTH, expand=YES)
+        arbol.bind("<Double-1>", _plotear_sel)
+        _llenar()
+
+    def _plotear_comparacion(self, fila):
+        """Doble clic en el listado de comparación: plotea evento + agencias."""
+        import plotear
+        try:
+            plotear.abrir_comparacion(fila.get("evento") or {}, "eventquery")
+        except Exception as e:
+            self._log("[error] no se pudo plotear la comparación: %s" % e)
+
+    def _plotear_grupo(self, fila):
+        """Doble clic en sin contraparte: plotea las agencias asociadas."""
+        import plotear
+        try:
+            plotear.abrir_eventos(fila.get("eventos") or [], "agencia")
+        except Exception as e:
+            self._log("[error] no se pudo plotear el grupo de agencias: %s" % e)
+
+    def _ver_comparacion_agencias(self):
+        """Ventana con mapas y listado: comparación y sin contraparte con CSN."""
+        ruta_cmp = os.path.join("datos", "comparacion_agencias.json")
+        ruta_sp = os.path.join("datos", "agencias_sin_par.json")
+        if not os.path.isfile(ruta_cmp):
+            Messagebox.show_info("Todavía no hay resultados de comparación de "
+                                 "agencias.", "Comparar agencias",
+                                 parent=self.raiz)
+            return
+        self._log("Abriendo ventana «Comparar agencias»…")
+        import plotear
+        top = ttk.Toplevel(title="Comparar agencias", master=self.raiz)
+        top.geometry("1040x700")
+        cuaderno = ttk.Notebook(top)
+        cuaderno.pack(fill=BOTH, expand=YES)
+
+        def _agregar_tab(texto, ruta_json, fuente, vista, etiqueta,
+                         nombre_listado_json, al_plotear, descargar):
+            marco = ttk.Frame(cuaderno)
+            cuaderno.add(marco, text=texto)
+            barra = ttk.Frame(marco, padding=(4, 4))
+            barra.pack(side=TOP, fill=X)
+            ttk.Button(barra, text="Descargar", bootstyle="primary-outline",
+                       command=descargar).pack(side=RIGHT)
+            paned = ttk.PanedWindow(marco, orient=VERTICAL)
+            paned.pack(side=TOP, fill=BOTH, expand=YES)
+            panel = ttk.Frame(paned)
+            listado = ttk.Frame(paned)
+            paned.add(panel, weight=3)
+            paned.add(listado, weight=1)
+            abierto = False
+            if os.path.isfile(ruta_json):
+                try:
+                    abierto = plotear.abrir_panel(panel, ruta_json, fuente,
+                                                  etiqueta_fuente=etiqueta,
+                                                  vista=vista)
+                except Exception:
+                    # Un panel que revienta no debe tumbar la ventana entera
+                    # (ni el cleanup de trabajo/agencias/).
+                    self._log("[error panel %s] %s"
+                              % (texto, traceback.format_exc()))
+            if not abierto:
+                ttk.Label(panel, justify=CENTER,
+                          text="No hay datos para mostrar en esta pestaña."
+                          ).pack(expand=YES)
+            self._armar_listado(listado, nombre_listado_json, al_plotear)
+
+        _agregar_tab("Comparación", ruta_cmp, "eventquery",
+                     "comparacion_agencias", "Comparación con agencias",
+                     "comparacion_agencias_listado.json",
+                     self._plotear_comparacion,
+                     lambda: self._descargar_comparacion(top))
+        _agregar_tab("Agencias sin contraparte con CSN", ruta_sp, "agencia",
+                     "agencias_sin_par", "Agencias sin contraparte con CSN",
+                     "agencias_sin_par_listado.json",
+                     self._plotear_grupo,
+                     lambda: self._descargar_sin_contraparte(top))
+
+        # La ventana crece (solo lo necesario, acotado a la pantalla) para que
+        # el mapa y el listado inferior entren enteros; si no, el listado queda
+        # cortado hasta agrandar la ventana a mano.
+        top.minsize(880, 480)
+        try:
+            ajuste.ajustar(top, minimo=(1040, 700))
+        except Exception:
+            self._log("[error ajuste] " + traceback.format_exc())
+        self._log("Ventana «Comparar agencias» lista.")
 
     def _concatenar_eventquery(self, forzar=False):
         """
@@ -2173,6 +2905,23 @@ class App:
             os.remove(ruta)
         except OSError:
             pass
+
+    def _limpiar_trabajo_y_ploteo(self):
+        """Borra los intermedios de trabajo/ y los logs de ploteo/ para evitar acumulación.
+        No toca el caché (datos/, informes/, catálogos crudos)."""
+        # Limpieza de trabajo/
+        try:
+            shutil.rmtree(rutas.p_trabajo(""))
+        except OSError:
+            pass
+        # Limpieza de logs de ploteo/
+        for f in (rutas.p_ploteo("percibidos.txt"),
+                  rutas.p_ploteo("resumen_sesion.log"),
+                  rutas.p_ploteo("resumen_historico.log")):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
 
     # --------------------------------------------------- ver repetidos
     def _abrir_descargas(self):
@@ -2634,13 +3383,11 @@ class App:
             self._log("No se pudo abrir la revisión de SeisComp "
                       "(faltan archivos o no hay interfaz).")
             return
-        if seleccionar:
-            self.cuaderno.select(self.seiscomp_frame)
-        # La lista de eventos de SeisComp pide ~1340 px de ancho, más que el
-        # tamaño inicial; sin esto las últimas columnas quedan fuera y hay que
-        # agrandar la ventana a mano. El detalle vive en su propia ventana, así
-        # que lo que se mide acá es solo la lista.
-        self._ajustar_ventana()
+        if seleccionar and self.cuaderno_catalogos is not None:
+            self.cuaderno_catalogos.select(self.seiscomp_frame)
+        # La lista de eventos de SeisComp pide ~1340 px de ancho; se ajusta la
+        # ventana de catálogos, que ahora es la que lo contiene.
+        self._ajustar_catalogos()
         self._log("Revisión de SeisComp abierta (%s)."
                   % os.path.basename(par["eventos"]))
         self._anunciar_cobertura(par)

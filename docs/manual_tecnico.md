@@ -91,7 +91,9 @@ app.py ──► ventana principal (orquesta subprocesos)
 | `ajuste.py` | Ajuste de tamaño de ventanas (solo crecen). | — | — | — |
 | `traequery.py` | Bajada interactiva de eventquery (legado). | input() | CSV | — |
 | `supervisor.sh` | Lanzador con entorno virtual. | `requirements.txt` | — | — |
-| `seiscomp.sh` | Extracción SeisComp + revisión en un comando. | `catalogo.csv` | CSV por ventana | — |
+| `agencias.py` | Consulta APIs de EMSC/USGS/GFZ y normaliza respuestas. | Referencia local publicada | Listado de eventos por agencia | — |
+| `consultaapi.py` | Cliente HTTP (timeout, reintentos) para catálogos remotos. | Config | JSON de eventos | — |
+| `agencias.py` / `consultaapi.py` | Comparación de agencias (UI de `app.py` + plotear). | Agencias seleccionadas | Tabla «Agencias sin contraparte» y mapas | — |
 
 > `entregables` (CSV/TXT) solo se escriben con `RV_ENTREGABLES=1`.
 
@@ -105,7 +107,7 @@ directorio de trabajo):
 | Carpeta | Contenido |
 |---|---|
 | `datos/` | CSV/JSON de trabajo: `salida_collect.csv`, `new_2_*.csv`, `excluidos.csv`, `seiscomp_parametros.csv`, `atribucion_*.csv`, `no_pub_desde_2_5_*.csv`, `eventos_<vista>.json`, `conteo_perfiles_<vista>.json`. |
-| `informes/` | Reportes de texto: `no_pub_*.txt`, `no_act_*.txt`, `rep_*.txt`, `excluidos.txt`, `revisar.txt`. |
+| `informes/` | Reportes de texto: `no_pub_*.txt`, `no_act_*.txt`, `rep_*.txt`, `excluidos.txt`, `revisar.txt`, `app.log` (trazabilidad de la app; rotación > 5 MB → `.log.1`). |
 | `ploteo/` | Bitácora de la sesión: `percibidos.txt`. |
 | `trabajo/` | Intermedios, que se renombran o borran al terminar cada etapa. |
 | `descargas/` | Entregables a mano (los botones «Descargar») y los automáticos con `RV_ENTREGABLES=1`. |
@@ -186,10 +188,8 @@ escriben como `--clave=valor`.
 
 ### Base de SeisComp (PostgreSQL) — `exporta_ventana_seiscomp.py`
 
-- Los parámetros de conexión salen de la línea `database` del `global.cfg` de
-  SeisComp. Se busca en `$SEISCOMP_ROOT/etc/global.cfg` o
-  `~/seiscomp/etc/global.cfg`.
-- `NEWPT_DATA_DIR` fija el directorio de salida de los datos (gana sobre todo).
+- `connect_timeout=10` y `statement_timeout` de **60 segundos** para evitar que
+  consultas largas bloqueen el hilo principal (configurados al abrir la conexión).
 - Esquema detallado: `esquema_seiscomp.md`; script importable en MySQL Workbench:
   `esquema_seiscomp_mysql.sql`.
 

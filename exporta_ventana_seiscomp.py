@@ -159,6 +159,13 @@ except ImportError:
 
 FORMATO = "%Y%m%d%H%M%S"
 TIMEOUT_CONEXION = 10
+# Tope por consulta, en milisegundos. connect_timeout solo cubre que la
+# conexión se establezca; si el servidor acepta pero una consulta se cuelga
+# (p. ej. la red se cae a mitad de camino), sin esto el cursor espera para
+# siempre y, si la consulta corre en el hilo principal, la interfaz entera se
+# congela. Todas las consultas son ventanas de tiempo indexadas y andan en
+# segundos: 60 s es holgado y aun así limita el daño.
+STATEMENT_TIMEOUT_MS = 60000
 
 # Cuántas filas de fase se traen por vez desde el servidor. Es el tamaño del
 # lote de escritura: con esto la memoria no depende del tamaño de la ventana.
@@ -741,6 +748,7 @@ def conectar(config=None):
         host=config["host"], database=config["database"],
         user=config["user"], password=config["password"],
         connect_timeout=config["connect_timeout"],
+        options="-c statement_timeout=%d" % STATEMENT_TIMEOUT_MS,
     )
 
 
@@ -1349,7 +1357,7 @@ def _no_picadas_de_evento(instante, id_evento, id_origen, latitud, longitud,
 
     Con radio_km=None no hay corte de distancia: entran todas las estaciones del
     inventario con la cadena de épocas vigente a la hora del evento (la opción
-    «Todo (sin límite)» del revisor). La fila queda con radio_km=None.
+    «Sin límite» del revisor). La fila queda con radio_km=None.
     """
     if not _coordenada_valida(latitud, longitud) or (
             radio_km is not None and radio_km <= 0):

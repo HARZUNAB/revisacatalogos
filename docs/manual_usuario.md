@@ -134,9 +134,21 @@ final.
 
 **CONSULTAR**
 
-- **«Ver repetidos»**: abre los informes de eventos repetidos.
-- **«No publicados de Seisan»** / **«No publicados de SeisComp»**: abre el
-  listado de eventos publicados que el sistema no publicó (magnitud ≥ 2.5).
+- **«Catálogos»**: abre una ventana con una pestaña por fuente (**SeisComp**,
+  **Seisan**, **eventquery**) y el listado crudo de eventos de cada una.
+- **«Repetidos»**: abre los informes de eventos repetidos.
+- **«No publicados»**: abre el listado de eventos publicados que el sistema no
+  publicó (magnitud ≥ 2.5), en una pestaña por fuente (SeisComp, Seisan).
+- **«No actualizados»**: abre el listado de eventos publicados cuyos parámetros
+  difieren de la solución local, en una pestaña por fuente (SeisComp, Seisan).
+- **«Comparar agencias»**: consulta los catálogos de **EMSC**, **USGS** y
+  **GFZ** (por API, para los cuadrantes continental/insular, Rapa Nui y
+  antártico) y los compara con **nuestro catálogo publicado**. Pide una
+  **magnitud mínima** y qué agencias consultar; al terminar abre una ventana con
+  la **Comparación** (nuestros eventos con las soluciones de las agencias
+  superpuestas, color por fuente, y el Δ de ubicación/profundidad/magnitud al
+  hacer clic) y **Agencias sin contraparte** (eventos de agencia que no
+  aparecen en lo nuestro).
 
 **DESCARGAS**
 
@@ -161,7 +173,8 @@ final.
 
 Las pestañas se agrupan en filas: **Registro**; **Panel de mapas y perfiles**
 (Seisan, eventquery, SeisComp); **No publicados** (Seisan, SeisComp); **No
-actualizados** (Seisan, SeisComp); **Catálogo** (SeisComp, Seisan, eventquery).
+actualizados** (Seisan, SeisComp). Los **Catálogos** ya no están en la barra:
+se abren desde **«Catálogos»**, en la barra lateral.
 
 - **Registro**: bitácora de lo que hace la app. Es lo primero que conviene
   mirar al terminar una etapa.
@@ -169,8 +182,12 @@ actualizados** (Seisan, SeisComp); **Catálogo** (SeisComp, Seisan, eventquery).
   subducción** de cada fuente (Seisan, eventquery y SeisComp). Cada pestaña
   muestra la tabla de perfiles y el perfil de referencia; con doble clic en una
   fila se abre el detalle (mapa en planta y perfil).
-- **No publicados** / **No actualizados**: listados de control de calidad.
-- **Catálogo**: el listado crudo de eventos de cada fuente.
+- **No publicados** / **No actualizados**: son **paneles de mapas y perfiles**
+  con los eventos de control de calidad (los no publicados y los publicados
+  cuyos parámetros no coinciden). El mini-mapa muestra la solución local; al
+  abrir el detalle de un perfil, los **no actualizados** muestran además la
+  solución publicada (anillo negro con centro blanco) con el Δ. El listado completo en tabla está
+  en las ventanas laterales **«No publicados»** y **«No actualizados»**.
 
 Al pie hay una **barra de progreso** con la etapa en curso (por ejemplo,
 `40 % · Comparando publicados v/s procesados`).
@@ -184,7 +201,7 @@ Al pie hay una **barra de progreso** con la etapa en curso (por ejemplo,
 Pulse **«Procesar catálogos»** y siga el avance. Al terminar, en el **Registro**
 figura cuántos eventos quedaron con perfil y cuántos sin perfil, con el motivo.
 
-### Ver repetidos
+### Repetidos
 
 Abre una tabla con los informes de repeticiones por fuente y filtro (amplio y
 estricto). El panel de abajo muestra el informe seleccionado y **«Descargar
@@ -233,6 +250,81 @@ mapa la diferencia hipocentral, no solo el km de la tabla:
 
 ![Comparación local vs publicado](img/15_comparacion.png)
 
+Además del listado, el grupo **No actualizados** de la barra de pestañas abre un
+**panel de mapas y perfiles** de los eventos locales que quedaron desactualizados.
+Su mini-mapa muestra la solución local; al abrir el detalle de un perfil se
+dibujan **las dos soluciones** (local y publicada) con una línea y el Δ por cada
+evento.
+
+### Comparar agencias
+
+**«Comparar agencias»** (barra lateral) consulta por API los catálogos de
+**EMSC**, **USGS** y **GFZ** para los cuadrantes continental/insular, Rapa Nui y
+antártico, y los compara con **nuestro catálogo publicado**. El diálogo pide la
+**magnitud mínima** (que filtra nuestro catálogo y se usa como mínimo en la
+consulta a las agencias) y qué agencias consultar.
+
+La **referencia es fija** hoy: el **catálogo de eventos publicados extraído
+(eventquery)**; la comparación se hace solo contra ese catálogo. El diálogo lo
+recuerda con una línea («Se compara contra catálogo de eventos publicados
+extraído (eventquery)»).
+
+Por defecto se consulta la **ventana del análisis**. Con la casilla **«Consultar
+hasta el momento actual»** se pide **hasta ahora** (tiempo real); al marcarla se
+activan solas (y se pueden destildar) **«Volver a consultar las agencias»** y
+**«Actualizar el catálogo publicado (eventquery)»**. Actualizar eventquery pide
+la **contraseña del servidor** y vuelve a bajar el catálogo hasta la hora actual
+cuando corresponde; si esa bajada falla, se avisa y se compara contra el
+eventquery del análisis. La referencia fresca se usa **solo para esta
+comparación**: el resto del análisis (No publicados, No actualizados, etc.) sigue
+calculado sobre la ventana cargada y **no se altera**. Ojo: las soluciones muy recientes pueden ser
+**preliminares** (luego las agencias las revisan) y **GFZ llega con ~1 día** de
+atraso; EMSC y USGS están casi en tiempo real. En modo tiempo real, si volvés a
+abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
+se vuelve a consultar.
+
+Al terminar se abre una ventana con dos pestañas, cada una con el **mapa** (panel
+de perfiles) y, debajo, un **listado por evento** con las columnas
+`Fecha_Hora · Latitud · Longitud · Prof. · Mag. · Agencias · Δmáx (km)`:
+
+- **Comparación**: **nuestros eventos publicados**; en el detalle (planta +
+  perfil) se ven, con un **color por fuente**, la solución nuestra y las de las
+  agencias que reportaron el mismo evento. Nuestra solución va **rellena**
+  (**rojo** si fue **percibida**, **amarillo** si no), con borde negro, para
+  distinguirse del mar; las agencias usan su propio color. Al hacer clic en un
+  evento, su viñeta muestra los **Δ (ubicación, profundidad y magnitud)** de cada
+  agencia. El listado trae una fila por evento con las fuentes asociadas
+  (`CSN + EMSC + …`).
+- **Agencias sin contraparte con CSN**: eventos de las agencias que **no**
+  aparecen en nuestro publicado (posibles sismos que no publicamos), agrupando
+  en una fila las soluciones de **distintas agencias** que son el mismo evento.
+
+Con **doble clic** en una fila de estos listados se abre (en ventana aparte) la
+**planta + perfil** del evento con las fuentes que indica la columna **Agencias**
+(en la comparación, nuestra solución + cada agencia; en sin contraparte, las
+agencias asociadas).
+
+Cuando dos soluciones caen **en la misma ubicación** (una agencia adoptando la de
+otra), se marcan con un **aro magenta** («Soluciones superpuestas» en la leyenda)
+en la planta y en el perfil; en el listado, esas fuentes aparecen unidas por
+**`≡`** (p. ej. `CSN + EMSC≡USGS`). Al **hacer clic** sobre una superposición, la
+viñeta lista **todas** las fuentes con su profundidad, magnitud y tipo, y —en la
+comparación— el **Δ de cada una** respecto de nuestro publicado.
+
+Si el listado supera las **2000** filas, se muestra un aviso («Mostrando 2000 de
+N — usá «Descargar» para el listado completo») y la descarga trae todo. Cuando no
+hay datos para plotear, la app lo **avisa por pantalla** (no solo por consola).
+
+Ambas pestañas tienen un botón **«Descargar»**: la de **Comparación** baja en un
+paso los dos formatos de la lista (una fila por par, y una fila por solución)
+según `descargas/`; la de **Agencias sin contraparte** baja su propio listado.
+
+La comparación se **reutiliza** si ningún catálogo cambió: al volver a abrirla
+con la misma ventana, magnitud y agencias, se muestra al instante lo ya
+procesado. Solo se vuelve a consultar/calcular cuando cambió algún catálogo
+(nuestro publicado o el de alguna agencia) o cuando se tilde **«Volver a
+consultar las agencias»**.
+
 ---
 
 ## 6. El panel de análisis
@@ -259,8 +351,9 @@ Los perfiles con sospechosos se muestran en rojo.
 ### Mini-perfil
 
 Dibuja el perfil seleccionado: topografía, el contacto de placas (*slab*) y los
-eventos. Los **sospechosos** llevan un borde violeta. Al seleccionar una fila se
-redibuja.
+eventos. Los **sospechosos** llevan un **aro violeta grueso**, cualquiera sea su
+fuente (rojo si el CSN fue percibido, amarillo si no, o el color de la agencia).
+Al seleccionar una fila se redibuja.
 
 ### Botones
 
@@ -283,8 +376,8 @@ un arrastre hace zoom o mueve la vista; **Esc** sale del modo. El botón
 
 ## 7. El catálogo de SeisComp
 
-La pestaña **Catálogo → SeisComp** muestra el listado de eventos de la
-exportación de SeisComp:
+La pestaña **SeisComp** de la ventana **«Catálogos»** (barra lateral) muestra
+el listado de eventos de la exportación de SeisComp:
 
 ![Catálogo de SeisComp](img/03_catalogo_seiscomp.png)
 
@@ -355,19 +448,20 @@ El resaltado cruza dos umbrales independientes del radio:
 
 Controles del encabezado (bloque **Distancias**):
 
-- **«Radio a mostrar (km)»**: **recorta** la lista ya exportada; no consulta la
-  base. Arranca con el radio de la exportación (400 km por defecto).
+- **«Radio a mostrar (km)»**: **recorta** la lista ya exportada; no consulta
+  la base. Arranca con el radio de la exportación (400 km por defecto).
+- **«Sin límite»**: al marcarlo, **«Aplicar radio»** consulta la base sin tope
+  de distancia (ignora el radio) y muestra el resultado en otra ventana.
 - **«Resaltar cerca ≤ (km)»**: umbral de resaltado «cerca» (50 km por defecto).
   **Solo cambia el color, no recorta la lista.** Se aplica en vivo mientras
   escribís.
 - **«Solo cercanas»**: marcado, recorta la lista a las estaciones dentro del
-  umbral «cerca» (además del radio).
-- **«Aplicar»** (o Enter en cualquiera de las casillas): aplica el recorte del
-  radio y el estado de «Solo cercanas».
-- **«Ampliar (consulta a la base)»**: recalcula, **para ese evento**, el
-  inventario vigente a su hora y la actividad, y muestra el resultado en otra
-  ventana (para no pisar el corte exportado).
-- **«Todo (sin límite)»**: igual que ampliar, pero sin tope de distancia.
+  umbral «cerca» (además del radio). Se aplica de inmediato, solo en local.
+- **«Aplicar radio»** (o Enter en la casilla de radio): si el radio pedido no
+  supera el de la exportación (o «Sin límite» está desmarcado y no hay
+  archivo de sin arribos), aplica el recorte local y el estado de «Solo
+  cercanas»; si lo supera, **consulta la base** y abre el resultado en otra
+  ventana.
 
 Debajo de los controles hay una **línea de estado** que aclara qué se está
 viendo, por ejemplo: *«Mostrando 7 de 7 estaciones (≤ 400 km) · 6 resaltadas
@@ -437,6 +531,22 @@ El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla
 - **Un evento quedó «sin perfil».** No siempre es un error: puede estar fuera de
   la cobertura de las grillas. El Registro y el conteo de perfiles indican el
   motivo.
+- **La pantalla se congeló** (el mouse no responde ni en el escritorio). Suele
+  pasar cuando la pila gráfica está frágil: el kernel reporta fallas de
+  *modeset* de nvidia y/o hay AnyDesk activo. Qué hacer:
+  1. **No pierdas el trabajo**: la app sigue viva; si podés, matala desde otra
+     terminal (`pkill -f app.py` por SSH) — el directorio de trabajo no se
+     toca.
+  2. **Cerrá AnyDesk** durante las sesiones largas (inyecta entrada y puede
+     interferir con la sesión gráfica).
+  3. Si el mouse sigue muerto, **reiniciá la sesión gráfica** (cerrar la sesión
+     de X) o la máquina.
+  4. **Mirá el registro**: todo lo que la app loguea va a
+     `informes/app.log` del directorio de trabajo (con hora y errores). Ahí
+     también aparecen avisos si AnyDesk estaba activo o si hubo fallas de
+     modeset al arrancar.
+  5. Para el futuro: la app ahora avisa al arrancar si detecta AnyDesk o
+     fallas de modeset recientes en el registro del kernel.
 
 ---
 
