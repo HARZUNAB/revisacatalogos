@@ -49,6 +49,36 @@ Image.MAX_IMAGE_PIXELS = None  # desactiva el límite de seguridad de PIL
 
 
 # =========================================================================
+# REGISTRO (trazabilidad)
+# =========================================================================
+# La app registra su propio logger con fijar_logger() para que los mensajes de
+# este módulo queden en informes/app.log con hora (igual que el resto). Sin
+# logger (uso por línea de comandos) cae a consola con flush, así se ven aunque
+# la salida esté en buffer.
+_LOGGER = None
+
+
+def fijar_logger(fn):
+    """Registra el logger de la app (app.App._log) para la trazabilidad."""
+    global _LOGGER
+    _LOGGER = fn
+
+
+def _log(texto):
+    """Escribe una línea de trazabilidad por el logger de la app o consola."""
+    if _LOGGER is not None:
+        try:
+            _LOGGER(texto)
+            return
+        except Exception:
+            pass
+    try:
+        print("[plotear] %s" % texto, flush=True)
+    except Exception:
+        pass
+
+
+# =========================================================================
 # PARÁMETROS CONFIGURABLES (EDITAR SEGÚN SEA NECESARIO)
 # =========================================================================
 
@@ -1378,7 +1408,12 @@ def _raiz_tk():
         return None
 
 
-_AVISANDO_SIN_DATOS = False
+# _TOP_AVISO: referencia a la única ventana «Sin datos» viva. Evita que dos
+# invocaciones (clic duplicado del WM/AnyDesk, reentrada o dos pestañas) creen
+# dos cuadros superpuestos: si ya hay una, se trae al frente.
+_TOP_AVISO = None
+
+
 def _avisar_sin_datos(texto, padre=None):
     """Avisa por interfaz (una línea) que no hay datos para plotear.
 
@@ -1389,20 +1424,30 @@ def _avisar_sin_datos(texto, padre=None):
     (nvidia + AnyDesk, p. ej.) puede dejar la sesión entera bloqueada hasta
     matar el proceso. Es una ventana común, sin grab.
     """
-    global _AVISANDO_SIN_DATOS
-    if _AVISANDO_SIN_DATOS:
-        print("[plotear] %s" % texto)
-        return
-    _AVISANDO_SIN_DATOS = True  # mark early
+    global _TOP_AVISO
+    # Si ya hay una ventana viva, no se crea otra: se trae al frente.
+    try:
+        if _TOP_AVISO is not None and _TOP_AVISO.winfo_exists():
+            _log("aviso «Sin datos» ya abierto; se trae al frente: %s" % texto)
+            try:
+                _TOP_AVISO.lift()
+                _TOP_AVISO.focus_force()
+            except Exception:
+                pass
+            return
+    except Exception:
+        _TOP_AVISO = None
+    _log("aviso «Sin datos»: %s" % texto)
     try:
         import tkinter as tk
         top = tk.Toplevel(padre)
+        _TOP_AVISO = top
         top.title("Sin datos")
         tk.Label(top, text=texto, padx=20, pady=12).pack()
 
         def _cerrar():
-            global _AVISANDO_SIN_DATOS
-            _AVISANDO_SIN_DATOS = False
+            global _TOP_AVISO
+            _TOP_AVISO = None
             try:
                 top.destroy()
             except Exception:
@@ -1430,13 +1475,7 @@ def _avisar_sin_datos(texto, padre=None):
         top.protocol("WM_DELETE_WINDOW", _cerrar)
         top.deiconify()
     except Exception:
-        try:
-            _AVISANDO_SIN_DATOS = False
-        except Exception:
-            pass
-        print("[plotear] %s" % texto)
-        return
-    print("[plotear] %s" % texto)
+        _TOP_AVISO = None
 
 
 def _texto_extencion(lon_min, lon_max, lat_min, lat_max):
@@ -3376,34 +3415,33 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
                                   aviso=True)
 
     def _abrir_territorios():
-        global _AVISANDO_SIN_DATOS
         if not estado['activo']:
             return
-        if terr_state.get('avisando') or _AVISANDO_SIN_DATOS:
+        if terr_state.get('avisando'):
+            _log("Mapas sin perfil: clic ignorado (ya en curso).")
             return
+        _log("Mapas sin perfil: apertura (sin_perfil=%d)." % len(sin_perfil))
         terr_state['avisando'] = True
         try:
             try:
                 btn_mapas.config(state='disabled')
             except Exception:
                 pass
-            if not sin_perfil:
-                if _AVISANDO_SIN_DATOS:
-                    terr_state['avisando'] = False
-                    return
-                _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
-                terr_state['avisando'] = False
-                return
-            nacional, insular, antartico = _categorizar_por_territorio(sin_perfil)
-            items = [(nombre, evs) for nombre, evs in [
-                ("Nacional", nacional), ("Insular", insular),
-                ("Antártico", antartico)] if evs]
+            # Categoriza una sola vez y, si no hay nada que mostrar en ningún
+            # territorio, avisa (una sola rama, un solo aviso).
+            items = []
+            if sin_perfil:
+                nacional, insular, antartico = _categorizar_por_territorio(
+                    sin_perfil)
+                items = [(nombre, evs) for nombre, evs in [
+                    ("Nacional", nacional), ("Insular", insular),
+                    ("Antártico", antartico)] if evs]
             if not items:
-                if _AVISANDO_SIN_DATOS:
-                    terr_state['avisando'] = False
-                    return
-                _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
+                _log("Mapas sin perfil: nada para mostrar (sin_perfil=%d)."
+                     % len(sin_perfil))
                 terr_state['avisando'] = False
+                _avisar_sin_datos("No hay eventos sin perfil para mostrar.",
+                                  raiz)
                 return
         except Exception:
             terr_state['avisando'] = False

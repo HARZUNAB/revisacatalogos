@@ -349,6 +349,13 @@ class App:
         self.catalogos_faltantes = set(estado.get("faltantes", []))
         self.detalles_faltantes = estado.get("detalles", {}) or {}
         self.cola = queue.Queue()
+        # Trazabilidad de plotear.py: sus mensajes (avisos, mapa sin perfil)
+        # quedan en informes/app.log con hora, igual que el resto de la app.
+        try:
+            import plotear
+            plotear.fijar_logger(self._log)
+        except Exception:
+            pass
         self.ocupado = False
         self.analisis_hecho = False
         self.analisis_en_curso = False
