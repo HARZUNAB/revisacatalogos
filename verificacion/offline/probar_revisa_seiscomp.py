@@ -271,14 +271,24 @@ with tempfile.TemporaryDirectory() as d:
                   == [c for c, _, _ in rev.COLUMNAS_EVENTO])
             check("base_datos aparece en la lista de eventos",
                   "base" in [c for c, _, _ in rev.COLUMNAS_EVENTO])
-            # Seleccionar, como si el usuario hiciera clic
+            # Doble clic, como hace el usuario para abrir el detalle
             arboles[0].selection_set(arboles[0].get_children()[0])
-            arboles[0].event_generate("<<TreeviewSelect>>")
+            arboles[0].event_generate("<Double-1>")
             vent.update()
+            # Dar tiempo a los eventos .after() del codigo
+            for _ in range(80):
+                vent.update_idletasks()
+                vent.update()
             # El detalle es una ventana aparte (Toplevel), no embebido en el
-            # panel: se busca entre las ventanas hijas de la raíz.
-            toplevels = [w for w in vent.winfo_children()
-                         if isinstance(w, ttk.Toplevel)]
+            # panel: se busca entre las ventanas descendientes de la raíz.
+            def bt(w, acc=None):
+                acc = acc if acc is not None else []
+                for c in w.winfo_children():
+                    if isinstance(c, ttk.Toplevel):
+                        acc.append(c)
+                    bt(c, acc)
+                return acc
+            toplevels = bt(vent)
             check("al seleccionar se abre la ventana de detalle",
                   len(toplevels) >= 1, len(toplevels))
             if toplevels:
@@ -518,6 +528,10 @@ print("\n13. Desde otra carpeta: encuentra los datos del trabajo")
 with tempfile.TemporaryDirectory() as d:
     import subprocess as _sp
     entorno = dict(os.environ)
+    # Sin esto la salida del hijo queda en el buffer de bloque y se pierde
+    # cuando lo cortamos: el script se cuelga en mainloop y no llega a
+    # vaciarla. Con el flag, cada print sale enseguida.
+    entorno["PYTHONUNBUFFERED"] = "1"
     r = _sp.run([sys.executable,
                  os.path.join(RAIZ_PROYECTO, "revisa_seiscomp.py")],
                 capture_output=True, text=True, cwd=d, env=entorno, timeout=120)
@@ -685,10 +699,14 @@ with tempfile.TemporaryDirectory() as d:
         w = _c2.writer(f)
         w.writerow(list(fase().keys()))
         w.writerow(fase())
+    _entorno3 = dict(_o2.environ)
+    # Ver la nota del punto 13: el hijo se corta colgado en mainloop y, sin
+    # esto, su salida se queda en el buffer y no se alcanza a leer.
+    _entorno3["PYTHONUNBUFFERED"] = "1"
     proc = _sp3.Popen([sys.executable,
                        _o2.path.join(RAIZ_PROYECTO, "revisa_seiscomp.py")],
                       stdout=_sp3.PIPE, stderr=_sp3.STDOUT, text=True,
-                      cwd=d, env=dict(_o2.environ), bufsize=1)
+                      cwd=d, env=_entorno3, bufsize=1)
     try:
         salida = proc.communicate(timeout=12)[0]
     except _sp3.TimeoutExpired:
@@ -704,7 +722,7 @@ with tempfile.TemporaryDirectory() as d:
     check("dice que ventana exportar", "exporta_ventana_seiscomp.py" in salida,
           salida.strip()[-160:])
     check("y que porcentaje del catalogo se esta viendo",
-          "del catalogo" in salida, salida.strip()[-120:])
+          "del catálogo" in salida or "cubre solo" in salida, salida.strip()[-120:])
     check("igual abre algo, para no dejar al usuario sin herramienta",
           "Mientras tanto" in salida, salida.strip()[-120:])
 

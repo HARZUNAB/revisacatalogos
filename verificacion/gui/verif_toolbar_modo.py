@@ -1,7 +1,10 @@
 """Pan/Zoom: comprueba que el estado pulsado ahora se distinga del reposo."""
 import sys
 import ttkbootstrap as ttkb
-raiz = ttkb.Window(themename=sys.argv[1])
+# El tema se puede pasar como argumento; sin argumento (p. ej. al correr la
+# suite) se usa el mismo tema por defecto del resto de la app.
+tema = sys.argv[1] if len(sys.argv) > 1 else "flatly"
+raiz = ttkb.Window(themename=tema)
 raiz.withdraw()
 import matplotlib
 matplotlib.use('TkAgg')
@@ -16,7 +19,7 @@ plotear._estilar_toolbar_figura(fig)
 
 zoom = tb._buttons['Zoom']
 pan = tb._buttons['Pan']
-print('tema %s' % sys.argv[1])
+print('tema %s' % tema)
 print('  reposo   -> Zoom selectcolor=%s  Pan selectcolor=%s'
       % (zoom.cget('selectcolor'), pan.cget('selectcolor')))
 

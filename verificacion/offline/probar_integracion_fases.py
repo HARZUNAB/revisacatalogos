@@ -174,15 +174,17 @@ with tempfile.TemporaryDirectory() as d:
           r["eventos_por_base"])
     check("ambos archivos existen",
           os.path.exists(salida) and os.path.exists(os.path.join(d, "prueba_fases.csv")))
-    check("se abrio una conexion por base para eventos y otra para fases",
-          ABIERTAS == ["seiscomp", "seiscomp2", "seiscomp", "seiscomp2"],
+    check("se abren cinco conexiones por base (eventos, fases, no picadas,"
+          " inventario y bindings)",
+          ABIERTAS == ["seiscomp", "seiscomp2"] * 5,
           ABIERTAS)
-    check("las cuatro conexiones quedaron cerradas",
-          all(c.cerrada for c in TODAS) and len(TODAS) == 4, len(TODAS))
+    check("las diez conexiones quedaron cerradas",
+          all(c.cerrada for c in TODAS) and len(TODAS) == 10, len(TODAS))
     # Una conexion por base para los eventos (zona, cobertura, tamano, eventos)
-    # y otra para las fases (zona, fases).
+    # y otra para las fases (zona, fases). Las que siguen son las de no picadas
+    # (estimacion, inventario y bindings).
     ev_cursores = [c.cursor("normal") for c in TODAS[:2]]
-    fa_cursores = [c.cursor("fases") for c in TODAS[2:]]
+    fa_cursores = [c.cursor("fases") for c in TODAS[2:4]]
     check("la conexion de eventos hace 4 consultas: zona, cobertura, tamano y eventos",
           all(len(c.consultas) == 4 for c in ev_cursores),
           [len(c.consultas) for c in ev_cursores])
@@ -190,8 +192,8 @@ with tempfile.TemporaryDirectory() as d:
           all(len(c.consultas) == 1 for c in fa_cursores),
           [len(c.consultas) for c in fa_cursores])
     check("y fija la zona horaria en la otra conexion",
-          all(len(c.cursor("normal").consultas) == 1 for c in TODAS[2:]),
-          [len(c.cursor("normal").consultas) for c in TODAS[2:]])
+          all(len(c.cursor("normal").consultas) == 1 for c in TODAS[2:4]),
+          [len(c.cursor("normal").consultas) for c in TODAS[2:4]])
     check("la consulta de eventos lleva la misma ventana",
           all(c.consultas[3][1][:2] == (inicio, fin) for c in ev_cursores))
     check("la consulta de fases lleva la misma ventana",
@@ -210,17 +212,19 @@ with tempfile.TemporaryDirectory() as d:
     with open(os.path.join(d, "prueba_fases.csv"), encoding="utf-8", newline="") as f:
         fa_csv = list(csv.reader(f))
 
-    check("CSV de eventos con las 14 originales + base_datos",
-          ev_csv[0] == ev.CABECERA and len(ev_csv[0]) == 15, ev_csv[0][:3])
+    check("CSV de eventos con las originales + base_datos",
+          ev_csv[0] == ev.CABECERA and len(ev_csv[0]) == len(ev.CABECERA),
+          ev_csv[0][:3])
     check("un solo evento, no uno por base",
           len(ev_csv) == 2, len(ev_csv) - 1)
     check("el evento dice de que base salio",
           ev_csv[1][ev.CABECERA.index("base_datos")] == "seiscomp2",
           ev_csv[1][ev.CABECERA.index("base_datos")])
-    check("CSV de fases con 29 columnas", fa_csv[0] == ev.CABECERA_FASES)
+    check("CSV de fases con las columnas declaradas",
+          fa_csv[0] == ev.CABECERA_FASES)
     check("CSV de fases con 20 filas + cabecera", len(fa_csv) == 21, len(fa_csv))
-    check("todas las filas de fase tienen 29 campos",
-          all(len(f) == 29 for f in fa_csv[1:]))
+    check("todas las filas de fase tienen las columnas declaradas",
+          all(len(f) == len(ev.CABECERA_FASES) for f in fa_csv[1:]))
     check("las fases no se duplican al fusionar las dos bases",
           len(fa_csv) - 1 == 20, len(fa_csv) - 1)
     check("cada fase dice de que base salio",

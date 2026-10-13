@@ -330,7 +330,7 @@ _llamados = []
 _orig = (pl.plotear_perfil, pl.plotear_planta, ap.asignar_perfil_evento,
          sismo.es_sospechoso)
 pl.plotear_perfil = lambda evs, perf, *a, **k: _llamados.append(
-    ("perfil", perf["id"], len(evs), k.get("titulo")))
+    ("perfil", perf["id"], len(evs), k.get("titulo"), k.get("subtitulo")))
 pl.plotear_planta = lambda evs, *a, **k: _llamados.append(("planta", len(evs)))
 sismo.es_sospechoso = lambda ev, *a, **k: False
 perfil_falso = {"id": "P001", "lat_media": -33.0, "slab": {"p": [], "depth": []},
@@ -355,7 +355,8 @@ try:
           _llamados and _llamados[-1][0] == "perfil" and _llamados[-1][2] == 2,
           _llamados)
     check("la comparación titula con el catálogo local",
-          _llamados[-1][3] and "Seisan" in _llamados[-1][3], _llamados)
+          _llamados[-1][3] == "Comparación local vs publicado"
+          and _llamados[-1][4] and "Seisan" in _llamados[-1][4], _llamados)
     ap.asignar_perfil_evento = lambda *a, **k: {
         "perfil": None, "along_km": None, "perp_km": None, "residuo_km": None,
         "dist_asoc": None, "motivo": "fuera_cobertura"}
