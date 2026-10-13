@@ -584,7 +584,15 @@ def _texto_diferencia(local, publicado):
             local.get('latitud'), local.get('longitud'),
             publicado.get('latitud'), publicado.get('longitud'))
         if dist is not None:
-            partes.append("Δ ubicación %.1f km" % dist)
+            try:
+                dirc = _direccion_cardinal(float(local.get('longitud')), float(local.get('latitud')),
+                                            float(publicado.get('longitud')), float(publicado.get('latitud')))
+            except Exception:
+                dirc = ""
+            if dirc:
+                partes.append("Δ ubicación %.1f km al %s" % (dist, dirc))
+            else:
+                partes.append("Δ ubicación %.1f km" % dist)
     except Exception:
         pass
     try:
@@ -1222,6 +1230,22 @@ def _localidad_mas_cercana(lon, lat):
     return mejor['nombre'], mejor_dist, direccion
 
 
+def _direccion_cardinal(lon1, lat1, lon2, lat2):
+    """Dirección cardinal de (lon1,lat1) → (lon2,lat2): N, NE, E, SE, S, SO, O, NO."""
+    try:
+        lat_med = math.radians((lat1 + lat2) / 2.0)
+        dx = (lon2 - lon1) * 111.0 * math.cos(lat_med)  # este positivo
+        dy = (lat2 - lat1) * 111.0  # norte positivo
+        if abs(dx) < 1e-12 and abs(dy) < 1e-12:
+            return ""
+        ang = math.degrees(math.atan2(dx, dy)) % 360.0
+        puntos = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
+        return puntos[int((ang + 22.5) // 45.0) % 8]
+    except Exception:
+        return ""
+
+
+
 def _desplegar_referencia_geo(ax, ev):
     """
     Dibuja en la esquina inferior izquierda de la planta un recuadro con la
@@ -1354,6 +1378,7 @@ def _raiz_tk():
         return None
 
 
+_AVISANDO_SIN_DATOS = False
 def _avisar_sin_datos(texto, padre=None):
     """Avisa por interfaz (una línea) que no hay datos para plotear.
 
@@ -1364,12 +1389,26 @@ def _avisar_sin_datos(texto, padre=None):
     (nvidia + AnyDesk, p. ej.) puede dejar la sesión entera bloqueada hasta
     matar el proceso. Es una ventana común, sin grab.
     """
+    global _AVISANDO_SIN_DATOS
+    if _AVISANDO_SIN_DATOS:
+        print("[plotear] %s" % texto)
+        return
     try:
         import tkinter as tk
+        _AVISANDO_SIN_DATOS = True
         top = tk.Toplevel(padre)
         top.title("Sin datos")
         tk.Label(top, text=texto, padx=20, pady=12).pack()
-        tk.Button(top, text="Aceptar", command=top.destroy).pack(pady=(0, 12))
+
+        def _cerrar():
+            global _AVISANDO_SIN_DATOS
+            _AVISANDO_SIN_DATOS = False
+            try:
+                top.destroy()
+            except Exception:
+                pass
+
+        tk.Button(top, text="Aceptar", command=_cerrar).pack(pady=(0, 12))
         # Se asegura de que la ventana aparezca: sin geometry y con transient
         # sobre un padre no mapeado, algunos gestores dejan la ventana sin
         # mapear (1x1 en 0,0). Forzamos una geometría mínima y la levantamos.
@@ -1388,9 +1427,15 @@ def _avisar_sin_datos(texto, padre=None):
                 top.transient(padre)
             except Exception:
                 pass
+        top.protocol("WM_DELETE_WINDOW", _cerrar)
         top.deiconify()
     except Exception:
-        pass
+        try:
+            _AVISANDO_SIN_DATOS = False
+        except Exception:
+            pass
+        print("[plotear] %s" % texto)
+        return
     print("[plotear] %s" % texto)
 
 
@@ -3333,16 +3378,25 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
     def _abrir_territorios():
         if not estado['activo']:
             return
-        if not sin_perfil:
-            _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
+        if terr_state.get('avisando'):
             return
-        nacional, insular, antartico = _categorizar_por_territorio(sin_perfil)
-        items = [(nombre, evs) for nombre, evs in [
-            ("Nacional", nacional), ("Insular", insular),
-            ("Antártico", antartico)] if evs]
-        if not items:
-            _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
-            return
+        terr_state['avisando'] = True
+        try:
+            if not sin_perfil:
+                _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
+                terr_state['avisando'] = False
+                return
+            nacional, insular, antartico = _categorizar_por_territorio(sin_perfil)
+            items = [(nombre, evs) for nombre, evs in [
+                ("Nacional", nacional), ("Insular", insular),
+                ("Antártico", antartico)] if evs]
+            if not items:
+                _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
+                terr_state['avisando'] = False
+                return
+        except Exception:
+            terr_state['avisando'] = False
+            raise
         # Si ya está abierto, se trae al frente en vez de duplicarlo.
         if terr_state.get('panel') is not None:
             try:
