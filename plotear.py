@@ -3382,6 +3382,10 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             return
         terr_state['avisando'] = True
         try:
+            try:
+                btn_mapas.config(state='disabled')
+            except Exception:
+                pass
             if not sin_perfil:
                 _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
                 terr_state['avisando'] = False
@@ -3397,6 +3401,11 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         except Exception:
             terr_state['avisando'] = False
             raise
+        finally:
+            try:
+                btn_mapas.config(state='normal')
+            except Exception:
+                pass
         # Si ya está abierto, se trae al frente en vez de duplicarlo.
         if terr_state.get('panel') is not None:
             try:
@@ -3571,7 +3580,8 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         _actualizar_mini()
 
     _boton(marco_botones, "Abrir detalle", _abrir_perfil_actual)
-    _boton(marco_botones, "Mapas sin perfil", _abrir_territorios)
+    btn_mapas = ttk.Button(marco_botones, text="Mapas sin perfil", command=_abrir_territorios, **estilo_btn)
+    btn_mapas.pack(side='left', padx=4)
     btn_filtro = ttk.Button(marco_botones, text="Solo sospechosos",
                             command=_alternar_filtro, **estilo_btn)
     btn_filtro.pack(side='left', padx=4)
