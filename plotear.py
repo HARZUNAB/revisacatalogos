@@ -573,9 +573,9 @@ def _texto_superposicion(grupo, referencia=None):
 
 def _texto_diferencia(local, publicado):
     """
-    Líneas del Δ de una pareja local↔publicado: ubicación, profundidad y
-    magnitud (esta solo si difiere, con el tipo si cambia). Lista vacía si no
-    hay ningún dato comparable.
+    Líneas del Δ entre referencia/solución y la otra solución (ej. eventquery/seiscomp
+    vs agencia publicada): ubicación, profundidad y magnitud (esta solo si difiere,
+    con el tipo si cambia). Lista vacía si no hay ningún dato comparable.
     """
     partes = []
     try:
