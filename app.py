@@ -2399,7 +2399,7 @@ class App:
         publicado. Reutiliza lo ya procesado si ningún catálogo cambió; si no,
         corre solo las etapas necesarias. Al terminar abre la ventana.
         """
-        inicio, fin = self.periodo
+        inicio, fin = self._periodo()
         if not (inicio and fin):
             Messagebox.show_info(
                 "No hay un período de análisis cargado. Abra la aplicación con "
