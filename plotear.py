@@ -1393,9 +1393,9 @@ def _avisar_sin_datos(texto, padre=None):
     if _AVISANDO_SIN_DATOS:
         print("[plotear] %s" % texto)
         return
+    _AVISANDO_SIN_DATOS = True  # mark early
     try:
         import tkinter as tk
-        _AVISANDO_SIN_DATOS = True
         top = tk.Toplevel(padre)
         top.title("Sin datos")
         tk.Label(top, text=texto, padx=20, pady=12).pack()
@@ -3376,9 +3376,10 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
                                   aviso=True)
 
     def _abrir_territorios():
+        global _AVISANDO_SIN_DATOS
         if not estado['activo']:
             return
-        if terr_state.get('avisando'):
+        if terr_state.get('avisando') or _AVISANDO_SIN_DATOS:
             return
         terr_state['avisando'] = True
         try:
