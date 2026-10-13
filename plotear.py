@@ -1370,11 +1370,25 @@ def _avisar_sin_datos(texto, padre=None):
         top.title("Sin datos")
         tk.Label(top, text=texto, padx=20, pady=12).pack()
         tk.Button(top, text="Aceptar", command=top.destroy).pack(pady=(0, 12))
+        # Se asegura de que la ventana aparezca: sin geometry y con transient
+        # sobre un padre no mapeado, algunos gestores dejan la ventana sin
+        # mapear (1x1 en 0,0). Forzamos una geometría mínima y la levantamos.
+        top.geometry("380x90")
+        top.update_idletasks()
+        try:
+            top.lift()
+        except Exception:
+            pass
+        try:
+            top.focus_force()
+        except Exception:
+            pass
         if padre is not None:
             try:
                 top.transient(padre)
             except Exception:
                 pass
+        top.deiconify()
     except Exception:
         pass
     print("[plotear] %s" % texto)
