@@ -1,15 +1,15 @@
 # Manual de usuario — RevisaPubSeisan
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 2.0 — 6 de octubre de 2026.
+Versión 1.3 — 13 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1, de octubre de 2026) quedaron archivadas en
-> `docs/versiones/`. Este es el documento vigente.
+> Las versiones anteriores (1.1 y 1.2, de octubre de 2026) quedaron archivadas
+> en `docs/versiones/`. Este es el documento vigente.
 
 ---
 
@@ -147,8 +147,9 @@ final.
   **magnitud mínima** y qué agencias consultar; al terminar abre una ventana con
   la **Comparación** (nuestros eventos con las soluciones de las agencias
   superpuestas, color por fuente, y el Δ de ubicación/profundidad/magnitud al
-  hacer clic) y **Agencias sin contraparte** (eventos de agencia que no
-  aparecen en lo nuestro).
+  hacer clic; el Δ de ubicación indica la **dirección cardinal** desde nuestra
+  solución, p. ej. `Δ 10.3 km SE (ref. eventquery)`) y **Agencias sin
+  contraparte** (eventos de agencia que no aparecen en lo nuestro).
 
 **DESCARGAS**
 
@@ -243,9 +244,10 @@ cualquier columna (incluida **Dist (km)**) haciendo clic en su encabezado.
 
 **Doble clic** en una fila abre la figura de planta + perfil con **las dos
 soluciones**: el **evento Seisan/SeisComp** (amarillo) y el **publicado** (anillo
-azul con centro blanco), unidos por una línea y con el **Δ de ubicación, de
-profundidad y de magnitud** (abajo a la derecha; la magnitud aparece solo si
-difiere, y con el **tipo** cuando cambia, p. ej. `Mlv vs ML`). Así se ve en el
+azul con centro blanco), unidos por una línea y con el **Δ de ubicación** (con su
+**dirección cardinal**), de **profundidad** y de **magnitud** (abajo a la derecha;
+la magnitud aparece solo si difiere, y con el **tipo** cuando cambia, p. ej.
+`Mlv vs ML`). Así se ve en el
 mapa la diferencia hipocentral, no solo el km de la tabla:
 
 ![Comparación local vs publicado](img/15_comparacion.png)
@@ -254,7 +256,7 @@ Además del listado, el grupo **No actualizados** de la barra de pestañas abre 
 **panel de mapas y perfiles** de los eventos locales que quedaron desactualizados.
 Su mini-mapa muestra la solución local; al abrir el detalle de un perfil se
 dibujan **las dos soluciones** (local y publicada) con una línea y el Δ por cada
-evento.
+evento (el de ubicación, con su **dirección cardinal**).
 
 ### Comparar agencias
 
@@ -293,8 +295,9 @@ de perfiles) y, debajo, un **listado por evento** con las columnas
   (**rojo** si fue **percibida**, **amarillo** si no), con borde negro, para
   distinguirse del mar; las agencias usan su propio color. Al hacer clic en un
   evento, su viñeta muestra los **Δ (ubicación, profundidad y magnitud)** de cada
-  agencia. El listado trae una fila por evento con las fuentes asociadas
-  (`CSN + EMSC + …`).
+  agencia; el Δ de ubicación da la **dirección cardinal** desde nuestro publicado,
+  p. ej. `Δ 10.3 km SE (ref. eventquery)`. El listado trae una fila por evento con
+  las fuentes asociadas (`CSN + EMSC + …`).
 - **Agencias sin contraparte con CSN**: eventos de las agencias que **no**
   aparecen en nuestro publicado (posibles sismos que no publicamos), agrupando
   en una fila las soluciones de **distintas agencias** que son el mismo evento.
@@ -309,7 +312,8 @@ otra), se marcan con un **aro magenta** («Soluciones superpuestas» en la leyen
 en la planta y en el perfil; en el listado, esas fuentes aparecen unidas por
 **`≡`** (p. ej. `CSN + EMSC≡USGS`). Al **hacer clic** sobre una superposición, la
 viñeta lista **todas** las fuentes con su profundidad, magnitud y tipo, y —en la
-comparación— el **Δ de cada una** respecto de nuestro publicado.
+comparación— el **Δ de cada una** respecto de nuestro publicado (con la
+**dirección cardinal**, p. ej. `Δ 10.3 km SE (ref. eventquery)`).
 
 Si el listado supera las **2000** filas, se muestra un aviso («Mostrando 2000 de
 N — usá «Descargar» para el listado completo») y la descarga trae todo. Cuando no

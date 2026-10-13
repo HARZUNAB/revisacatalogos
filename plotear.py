@@ -579,7 +579,8 @@ def _linea_fuente(evento, referencia=None):
         fuente, _numero_evento(evento.get('prof'), 1),
         _numero_evento(evento.get('magnitud'), 1), evento.get('tipo', ''))
     if referencia is not None and evento is not referencia:
-        delta = _texto_diferencia(referencia, evento)
+        delta = _texto_diferencia(referencia, evento,
+                                  _etiqueta_referencia(referencia))
         if delta:
             linea += "\n     " + " · ".join(delta)
     return linea
@@ -601,11 +602,25 @@ def _texto_superposicion(grupo, referencia=None):
     return "\n".join([encab] + [_linea_fuente(e, referencia) for e in unicos])
 
 
-def _texto_diferencia(local, publicado):
+def _etiqueta_referencia(evento):
+    """
+    Nombre de la referencia si 'evento' es nuestra solución publicada de
+    eventquery (rol 'referencia'/'publicado'); None para el resto (agencia o
+    solución local), donde el Δ no se mide desde eventquery.
+    """
+    if evento.get('rol') in ('referencia', 'publicado'):
+        return 'eventquery'
+    return None
+
+
+def _texto_diferencia(local, publicado, ref_nombre=None):
     """
     Líneas del Δ entre referencia/solución y la otra solución (ej. eventquery/seiscomp
     vs agencia publicada): ubicación, profundidad y magnitud (esta solo si difiere,
     con el tipo si cambia). Lista vacía si no hay ningún dato comparable.
+
+    'ref_nombre' rotula, entre paréntesis, desde dónde se mide la dirección
+    (p. ej. 'eventquery'); se omite cuando el Δ no parte del publicado.
     """
     partes = []
     try:
@@ -619,7 +634,10 @@ def _texto_diferencia(local, publicado):
                                             float(publicado.get('longitud')), float(publicado.get('latitud')))
             except Exception:
                 dirc = ""
-            if dirc:
+            if dirc and ref_nombre:
+                partes.append("Δ %.1f km %s (ref. %s)"
+                              % (dist, dirc, ref_nombre))
+            elif dirc:
                 partes.append("Δ ubicación %.1f km al %s" % (dist, dirc))
             else:
                 partes.append("Δ ubicación %.1f km" % dist)
@@ -677,7 +695,7 @@ def _dibujar_diferencia(ax_planta, ax_perfil, local, publicado, etiquetar=True):
             pass
     if not etiquetar:
         return
-    partes = _texto_diferencia(local, publicado)
+    partes = _texto_diferencia(local, publicado, _etiqueta_referencia(local))
     if not partes:
         return
     # Esquina inferior derecha (coordenadas de ejes): no tapa los puntos ni la
@@ -1814,12 +1832,12 @@ def _resaltar_evento(ax, ev, lon=None, lat=None, x_km=None, prof_km=None,
         # '_referencia'. El Δ va acá, así aparece solo en el evento clickeado.
         par = ev.get('publicado')
         if isinstance(par, dict):
-            delta = _texto_diferencia(ev, par)
+            delta = _texto_diferencia(ev, par, _etiqueta_referencia(ev))
             if delta:
                 contenido += "\n" + "\n".join(delta)
         ref = ev.get('_referencia')
         if isinstance(ref, dict):
-            delta = _texto_diferencia(ref, ev)
+            delta = _texto_diferencia(ref, ev, _etiqueta_referencia(ref))
             if delta:
                 contenido += "\n" + "\n".join(delta)
 

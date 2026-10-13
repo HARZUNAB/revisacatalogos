@@ -1,7 +1,7 @@
 # Manual técnico — RevisaPubSeisan
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 2.0 — 6 de octubre de 2026.
+Versión 1.3 — 13 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -312,8 +312,12 @@ local (con `asigna_perfiles.distancia_al_perfil`/`profundidad_slab_en`), los
 pinta distinto (`_estilo_marcadores`: el Evento Seisan/SeisComp amarillo
 relleno, el publicado como **anillo** —centro blanco, borde `COLOR_PUBLICADO`—),
 dibuja la **línea
-conectora** y el **Δ ubicación/prof/mag** (`_dibujar_diferencia`, en la esquina
-inferior derecha; el Δ mag solo si difiere, con el tipo cuando cambia), y titula
+conectora** y el **Δ ubicación/prof/mag** (`_dibujar_diferencia` y
+`_texto_diferencia`, en la esquina inferior derecha; el Δ de ubicación incluye la
+**dirección cardinal** —`_direccion_cardinal`, p. ej. `Δ 10.3 km SE`— y, cuando el
+Δ parte de nuestra solución publicada, la **referencia entre paréntesis**
+—`_etiqueta_referencia` según el `rol`, p. ej. `Δ 10.3 km SE (ref. eventquery)`—;
+el Δ mag solo si difiere, con el tipo cuando cambia), y titula
 con el catálogo local (`titulo`). El tipo de magnitud viaja en
 `datos/atribucion_<fuente>.csv` (`tipo_mag_local`/`tipo_mag_eventquery`, los
 escribe `compara.py`). Si el local
