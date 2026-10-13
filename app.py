@@ -2212,7 +2212,10 @@ class App:
 
     def _consulta_agencias_al_dia(self, minmag, agencias, modo, periodo_efectivo):
         """True si los CSV de agencia ya corresponden al modo, período y mag."""
-        inicio, fin = self.periodo
+        # El período efectivo lo pasa el llamador (ya resuelto con _periodo(),
+        # que infiere del nombre de los archivos si no vino estado.json). No se
+        # usa self.periodo: en el arranque en modo catálogo explícito está vacío.
+        inicio, fin = periodo_efectivo
         consulta = (self._leer_estado_agencias().get("consulta") or {})
         if consulta.get("modo") != modo:
             return False
@@ -2232,7 +2235,11 @@ class App:
 
     def _comparacion_al_dia(self, minmag, agencias, modo, referencia):
         """True si la comparación ya está hecha y no cambió ningún insumo."""
-        inicio, fin = self.periodo
+        # _periodo() (no self.periodo): infiere inicio/fin del nombre de los
+        # archivos cuando se arrancó en modo catálogo explícito (sin
+        # estado.json), que es justo el caso en que self.periodo está vacío y
+        # la comparación se repetía siempre.
+        inicio, fin = self._periodo()
         estado = self._leer_estado_agencias()
         comp = (estado.get("comparacion") or {})
         consulta = (estado.get("consulta") or {})
