@@ -3388,6 +3388,9 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             except Exception:
                 pass
             if not sin_perfil:
+                if _AVISANDO_SIN_DATOS:
+                    terr_state['avisando'] = False
+                    return
                 _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
                 terr_state['avisando'] = False
                 return
@@ -3396,6 +3399,9 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
                 ("Nacional", nacional), ("Insular", insular),
                 ("Antártico", antartico)] if evs]
             if not items:
+                if _AVISANDO_SIN_DATOS:
+                    terr_state['avisando'] = False
+                    return
                 _avisar_sin_datos("No hay eventos sin perfil para mostrar.", raiz)
                 terr_state['avisando'] = False
                 return
