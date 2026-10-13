@@ -1440,8 +1440,14 @@ def _avisar_sin_datos(texto, padre=None):
     _log("aviso «Sin datos»: %s" % texto)
     try:
         import tkinter as tk
+        # Se crea OCULTO y se configura entero antes de mostrarlo una sola vez.
+        # Si se crea visible, en esta pila frágil (nvidia + AnyDesk) el gestor
+        # alcanza a mapearlo primero con su tamaño/posición por defecto y en el
+        # ciclo siguiente lo re-mapea ya configurado: se ve un "destello" de una
+        # caja fantasma antes del cuadro real.
         top = tk.Toplevel(padre)
         _TOP_AVISO = top
+        top.withdraw()
         top.title("Sin datos")
         tk.Label(top, text=texto, padx=20, pady=12).pack()
 
@@ -1454,11 +1460,18 @@ def _avisar_sin_datos(texto, padre=None):
                 pass
 
         tk.Button(top, text="Aceptar", command=_cerrar).pack(pady=(0, 12))
-        # Se asegura de que la ventana aparezca: sin geometry y con transient
-        # sobre un padre no mapeado, algunos gestores dejan la ventana sin
-        # mapear (1x1 en 0,0). Forzamos una geometría mínima y la levantamos.
+        # Geometría mínima y transient mientras está oculto: se resuelven antes
+        # del único mapeo (evita el 1x1 en 0,0 del primer intento).
         top.geometry("380x90")
+        if padre is not None:
+            try:
+                top.transient(padre)
+            except Exception:
+                pass
+        top.protocol("WM_DELETE_WINDOW", _cerrar)
         top.update_idletasks()
+        # Único mapeo: recién acá la ventana se hace visible.
+        top.deiconify()
         try:
             top.lift()
         except Exception:
@@ -1467,13 +1480,6 @@ def _avisar_sin_datos(texto, padre=None):
             top.focus_force()
         except Exception:
             pass
-        if padre is not None:
-            try:
-                top.transient(padre)
-            except Exception:
-                pass
-        top.protocol("WM_DELETE_WINDOW", _cerrar)
-        top.deiconify()
     except Exception:
         _TOP_AVISO = None
 
