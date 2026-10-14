@@ -1,14 +1,14 @@
 # Manual de usuario — RevisaPubSeisan
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.5 — 13 de octubre de 2026.
+Versión 1.6 — 13 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.4, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.5, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -271,22 +271,22 @@ La **referencia es fija** hoy: el **catálogo de eventos publicados extraído
 recuerda con una línea («Se compara contra catálogo de eventos publicados
 extraído (eventquery)»).
 
-Por defecto se consulta la **ventana del análisis**. Con la casilla **«Consultar
-hasta el momento actual»** se pide **hasta ahora** (tiempo real): el **fin** es el
-momento actual y el **inicio** es el campo **«Desde (UTC)»** (formato
-`AAAA-MM-DD HH:MM:SS`), que se activa al marcar la casilla y trae por defecto el
-**inicio del análisis** (o el último usado); se puede escribir una fecha o usar
-los presets **Inicio del análisis / 7 d / 15 d / 30 d**. Al marcarla se activan
-solas (y se pueden destildar) **«Volver a consultar las agencias»** y
-**«Actualizar el catálogo publicado (eventquery)»**. Actualizar eventquery pide
-la **contraseña del servidor** y vuelve a bajar el catálogo hasta la hora actual
-cuando corresponde; si esa bajada falla, se avisa y se compara contra el
+Por defecto se consulta la **ventana del análisis**. Con la casilla
+**«Desde/Hasta»** se consulta un **rango elegido** (UTC): los campos **«Desde
+(UTC)»** y **«Hasta (UTC)»** tienen un **calendario** para el día y un campo
+**`HH:MM:SS`** para la hora. El **Desde** trae por defecto el **inicio del
+análisis** (la extracción anterior) y el **Hasta** el **instante en que se abre
+el diálogo**; ambos son editables (y hay un botón **«Ahora»** para el Hasta). Al
+marcar la casilla se activan solas (y se pueden destildar) **«Volver a consultar
+las agencias»** y **«Actualizar el catálogo publicado (eventquery)»**. Actualizar
+eventquery pide la **contraseña del servidor** y re-baja el catálogo **hasta el
+«Hasta» elegido**; si esa bajada falla, se avisa y se compara contra el
 eventquery del análisis. La referencia fresca se usa **solo para esta
 comparación**: el resto del análisis (No publicados, No actualizados, etc.) sigue
 calculado sobre la ventana cargada y **no se altera**. Ojo: las soluciones muy recientes pueden ser
 **preliminares** (luego las agencias las revisan) y **GFZ llega con ~1 día** de
-atraso; EMSC y USGS están casi en tiempo real. En modo tiempo real, si volvés a
-abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
+atraso; EMSC y USGS están casi en tiempo real. Con la misma ventana elegida, si
+volvés a abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
 se vuelve a consultar.
 
 Cuando no cambió nada (misma ventana, magnitud, agencias y catálogos), la

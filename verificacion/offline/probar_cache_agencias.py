@@ -116,12 +116,13 @@ try:
     check("_consulta_agencias_al_dia() es False si falta un CSV",
           o._consulta_agencias_al_dia(2.5, AGS, "ventana", [INI, FIN]) is False)
 
-    print("\n6. «Hasta ahora» con inicio elegido")
+    print("\n6. Ventana elegida (Desde/Hasta)")
     desde = "20261001000000"
+    hasta = "20261013220000"
     estado_ahora = {
         "consulta": {
-            "modo": "ahora", "periodo": [desde, "20261013220000"],
-            "desde": desde, "minmag": 2.5, "agencias": AGS,
+            "modo": "ahora", "periodo": [desde, hasta],
+            "desde": desde, "hasta": hasta, "minmag": 2.5, "agencias": AGS,
             "referencia": "eventquery",
             "timestamp": datetime.datetime.utcnow().strftime(
                 "%Y-%m-%d %H:%M:%S")},
@@ -131,11 +132,15 @@ try:
     with open(os.path.join("datos", "agencias", "estado.json"), "w",
               encoding="utf-8") as f:
         json.dump(estado_ahora, f)
-    check("reutiliza si el inicio elegido coincide",
-          o._comparacion_al_dia(2.5, AGS, "ahora", "eventquery", desde) is True)
-    check("rehace si cambia el inicio elegido",
+    check("reutiliza si Desde y Hasta coinciden",
           o._comparacion_al_dia(2.5, AGS, "ahora", "eventquery",
-                                "20261005000000") is False)
+                                desde, hasta) is True)
+    check("con el mismo Desde y Hasta distinto reciente, reutiliza (TTL)",
+          o._comparacion_al_dia(2.5, AGS, "ahora", "eventquery",
+                                desde, "20261013223000") is True)
+    check("rehace si cambia el Desde",
+          o._comparacion_al_dia(2.5, AGS, "ahora", "eventquery",
+                                "20261005000000", hasta) is False)
 
 finally:
     os.chdir(cwd_previo)
