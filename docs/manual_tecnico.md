@@ -1,7 +1,7 @@
 # Manual técnico — RevisaPubSeisan
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.6 — 13 de octubre de 2026.
+Versión 1.7 — 13 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -343,6 +343,13 @@ no tiene `perfil` (o falta profundidad), cae a `plotear_planta`. Los eventos de
 esos listados **no llevan `id`**, así que no se etiquetan sobre el mapa ni
 muestran la línea «id:» en la viñeta (`_marcadores_planta` y
 `_texto_parametros_evento` omiten el id cuando falta).
+
+En una **superposición** (varias fuentes en la misma ubicación) la viñeta la arma
+`_texto_superposicion`: además del encabezado `Soluciones superpuestas (N): …` y
+el Δ de cada fuente, agrega una línea con el **`id` y la fecha/hora de nuestro
+evento publicado** (la referencia) —`id: 40 · 2026-10-02 12:47:27`— para no
+depender de buscar el id en el catálogo. Si no hay referencia, muestra solo la
+fecha/hora (nunca el id de una agencia).
 
 ---
 

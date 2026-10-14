@@ -599,7 +599,22 @@ def _texto_superposicion(grupo, referencia=None):
     fuentes = [e.get('agencia') or 'CSN' for e in unicos]
     encab = ("Soluciones superpuestas (%d): %s"
              % (len(unicos), " ≡ ".join(fuentes)))
-    return "\n".join([encab] + [_linea_fuente(e, referencia) for e in unicos])
+    # Identificación del evento para no depender de buscar el id en el
+    # catálogo: id y fecha/hora de NUESTRO evento publicado (la referencia).
+    # Si no hay referencia, se muestra solo la fecha/hora, sin el id (no se
+    # rotula con el id de una agencia).
+    ident = []
+    if referencia is not None:
+        if referencia.get('id') not in (None, ""):
+            ident.append("id: %s" % referencia.get('id'))
+        if referencia.get('fecha hora'):
+            ident.append(str(referencia.get('fecha hora')))
+    linea_id = " · ".join(ident)
+    lineas = [encab]
+    if linea_id:
+        lineas.append(linea_id)
+    lineas += [_linea_fuente(e, referencia) for e in unicos]
+    return "\n".join(lineas)
 
 
 def _etiqueta_referencia(evento):

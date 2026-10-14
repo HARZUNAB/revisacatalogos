@@ -1,14 +1,14 @@
 # Manual de usuario — RevisaPubSeisan
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.6 — 13 de octubre de 2026.
+Versión 1.7 — 13 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.5, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.6, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -326,7 +326,9 @@ Cuando dos soluciones caen **en la misma ubicación** (una agencia adoptando la 
 otra), se marcan con un **aro magenta** («Soluciones superpuestas» en la leyenda)
 en la planta y en el perfil; en el listado, esas fuentes aparecen unidas por
 **`≡`** (p. ej. `CSN + EMSC≡USGS`). Al **hacer clic** sobre una superposición, la
-viñeta lista **todas** las fuentes con su profundidad, magnitud y tipo, y —en la
+viñeta muestra primero la **identificación del evento** —el **id** y la
+**fecha/hora** (`AAAA-MM-DD HH:MM:SS`) de nuestro evento publicado (eventquery)—
+y luego lista **todas** las fuentes con su profundidad, magnitud y tipo, y —en la
 comparación— el **Δ de cada una** respecto de nuestro publicado (con la
 **dirección cardinal**, p. ej. `Δ 10.3 km SE (ref. eventquery)`).
 
