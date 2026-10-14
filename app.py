@@ -2782,21 +2782,27 @@ class App:
         texto_estado = "%s · %s UTC" % (
             "Reutilizada" if reutilizada else "Ejecutada",
             consulta.get("timestamp") or "sin fecha")
-        ttk.Label(cabecera, text=texto_estado, bootstyle="inverse-secondary"
-                  ).pack(side=TOP, anchor=W)
+        # Colores: el tema es claro (flatly), así que el gris 'secondary'
+        # (fondo blanco) queda ilegible. La etiqueta de estado va como badge
+        # azul oscuro (inverse-primary, texto blanco) y la ventana solicitada
+        # en color de texto normal, en 10 pt, para que se distinga.
+        ttk.Label(cabecera, text=texto_estado, bootstyle="inverse-primary",
+                  font=("", 10, "bold")).pack(side=TOP, anchor=W)
         sol = cobertura["solicitada"]
         if sol["desde"] and sol["hasta"]:
             mag = (" · mag ≥ %g" % sol["minmag"]
                    if sol.get("minmag") is not None else "")
-            ttk.Label(cabecera, bootstyle="secondary", font=("", 8),
-                      text="Solicitada: %s → %s UTC%s"
-                           % (sol["desde"], sol["hasta"], mag),
-                      wraplength=1000, justify=LEFT
-                      ).pack(side=TOP, anchor=W)
+            fila_sol = ttk.Frame(cabecera)
+            fila_sol.pack(side=TOP, anchor=W, pady=(4, 0))
+            ttk.Label(fila_sol, text="Solicitada:", font=("", 10, "bold")
+                      ).pack(side=LEFT)
+            ttk.Label(fila_sol, font=("", 10), text=" %s → %s UTC%s"
+                      % (sol["desde"], sol["hasta"], mag)).pack(side=LEFT)
         ttk.Button(cabecera, text="Cobertura por agencia",
-                   bootstyle="secondary-outline",
+                   bootstyle="primary-outline",
                    command=lambda: self._detalles_cobertura(top, cobertura)
-                   ).pack(side=TOP, anchor=W, pady=(4, 0))
+                   ).pack(side=TOP, anchor=W, pady=(6, 4))
+        ttk.Separator(top, orient="horizontal").pack(side=TOP, fill=X)
 
         cuaderno = ttk.Notebook(top)
         cuaderno.pack(fill=BOTH, expand=YES)
@@ -2887,7 +2893,9 @@ class App:
                 f["agencia"], f["eventos"], f["desde"] or "—",
                 f["hasta"] or "—", f["rezago"] or "—"))
         arbol.pack(fill=BOTH, expand=YES, pady=(0, 8))
-        ttk.Label(marco, bootstyle="secondary", font=("", 8),
+        # Nota en color de texto normal (no el gris 'secondary', ilegible en
+        # tema claro) y 9 pt.
+        ttk.Label(marco, font=("", 9),
                   wraplength=740, justify=LEFT,
                   text="«Desde/Hasta (UTC)» son el primer y el último evento "
                        "reportado entre los devueltos (no la cobertura total "
