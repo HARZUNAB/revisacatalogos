@@ -2161,12 +2161,13 @@ class App:
             return {}
 
     def _escribir_estado_agencias(self, minmag, agencias, modo, periodo_efectivo,
-                                  referencia="eventquery"):
+                                  referencia="eventquery", desde=None):
         """Guarda con qué modo, período, magnitud, agencias y referencia se comparó."""
         estado = {
             "consulta": {
                 "modo": modo,
                 "periodo": list(periodo_efectivo),
+                "desde": desde,
                 "minmag": minmag,
                 "agencias": list(agencias),
                 "referencia": referencia,
@@ -2233,7 +2234,8 @@ class App:
                 return False
         return True
 
-    def _comparacion_al_dia(self, minmag, agencias, modo, referencia):
+    def _comparacion_al_dia(self, minmag, agencias, modo, referencia,
+                            desde=None):
         """True si la comparación ya está hecha y no cambió ningún insumo."""
         # _periodo() (no self.periodo): infiere inicio/fin del nombre de los
         # archivos cuando se arrancó en modo catálogo explícito (sin
@@ -2254,8 +2256,13 @@ class App:
         if modo == "ventana":
             if (consulta.get("periodo") or [None, None]) != [inicio, fin]:
                 return False
-        elif not self._dentro_de_ttl(consulta):
-            return False
+        else:
+            # En «hasta ahora» el inicio lo elige el usuario: si cambió,
+            # hay que rehacer aunque el TTL siga vigente.
+            if desde is not None and consulta.get("desde") != desde:
+                return False
+            if not self._dentro_de_ttl(consulta):
+                return False
         entradas = [os.path.join("datos", "eventos_%s.json" % referencia)]
         entradas += [os.path.join("datos", "eventos_agencia_%s.json" % ag)
                      for ag in agencias]
@@ -2372,38 +2379,93 @@ class App:
         var_refrescar = BooleanVar(value=False)
         var_eventquery = BooleanVar(value=False)
 
+        # Inicio de la ventana «hasta ahora»: por defecto el inicio del
+        # análisis (o el último usado), editable. El fin es siempre el momento
+        # actual.
+        ini14 = self._periodo()[0]
+        inicio_analisis = self._fecha_desde14(ini14) if ini14 else ""
+        consulta_prev = (self._leer_estado_agencias().get("consulta") or {})
+        desde_prev14 = consulta_prev.get("desde")
+        desde_default = (self._fecha_desde14(desde_prev14)
+                         if desde_prev14 else inicio_analisis)
+
+        ttk.Label(marco, text="Desde (UTC):").grid(
+            row=5, column=0, sticky=W, pady=(6, 0))
+        ent_desde = ttk.Entry(marco, width=22)
+        ent_desde.insert(0, desde_default)
+        ent_desde.grid(row=5, column=1, sticky=W, pady=(6, 0))
+
+        marco_presets = ttk.Frame(marco)
+        marco_presets.grid(row=6, column=0, columnspan=2, sticky=W, pady=(2, 0))
+
+        def _poner_desde(valor_iso):
+            ent_desde.delete(0, END)
+            ent_desde.insert(0, valor_iso)
+
+        def _ultimos(n_dias):
+            dt = datetime.datetime.utcnow() - datetime.timedelta(days=n_dias)
+            _poner_desde(dt.strftime("%Y-%m-%d %H:%M:%S"))
+
+        botones_preset = []
+        for texto, fn in [("Inicio del análisis",
+                           lambda: _poner_desde(inicio_analisis)),
+                          ("7 d", lambda: _ultimos(7)),
+                          ("15 d", lambda: _ultimos(15)),
+                          ("30 d", lambda: _ultimos(30))]:
+            b = ttk.Button(marco_presets, text=texto,
+                           bootstyle="secondary-outline", command=fn)
+            b.pack(side=LEFT, padx=(0, 4))
+            botones_preset.append(b)
+
         def _al_cambiar_ahora():
             # «Hasta ahora» implica reconsultar agencias y actualizar el
             # eventquery; se marcan solas, pero el usuario puede destildarlas.
-            if var_ahora.get():
+            activo = bool(var_ahora.get())
+            if activo:
                 var_refrescar.set(True)
                 var_eventquery.set(True)
+            # El campo «Desde» y sus presets solo tienen sentido en «hasta
+            # ahora»; fuera de ese modo quedan deshabilitados.
+            estado_ctrl = "normal" if activo else "disabled"
+            try:
+                ent_desde.config(state=estado_ctrl)
+            except TclError:
+                pass
+            for b in botones_preset:
+                try:
+                    b.config(state=estado_ctrl)
+                except TclError:
+                    pass
 
         ttk.Checkbutton(marco, text="Consultar hasta el momento actual",
                         variable=var_ahora, command=_al_cambiar_ahora,
                         bootstyle="round-toggle").grid(
             row=3, column=0, columnspan=2, sticky=W, pady=(8, 0))
-        ttk.Label(marco, bootstyle="secondary",
-                  wraplength=420, justify=LEFT,
-                  text="Si no se marca, se usa la ventana del análisis. "
-                       "Los datos muy recientes pueden ser preliminares; GFZ "
-                       "llega con ~1 día."
+        ttk.Label(marco, font=("", 9), wraplength=430, justify=LEFT,
+                  text="Si no se marca, se usa la ventana del análisis. Si se "
+                       "marca, el fin es el momento actual y el inicio es el "
+                       "campo «Desde». Los datos muy recientes pueden ser "
+                       "preliminares; GFZ llega con ~1 día."
                   ).grid(row=4, column=0, columnspan=2, sticky=W, pady=(4, 0))
 
         ttk.Checkbutton(marco, text="Volver a consultar las agencias",
                         variable=var_refrescar,
                         bootstyle="round-toggle").grid(
-            row=5, column=0, columnspan=2, sticky=W, pady=(8, 0))
+            row=7, column=0, columnspan=2, sticky=W, pady=(8, 0))
         ttk.Checkbutton(
             marco, text="Actualizar el catálogo publicado (eventquery)",
             variable=var_eventquery, bootstyle="round-toggle").grid(
-            row=6, column=0, columnspan=2, sticky=W, pady=(4, 0))
-        ttk.Label(marco, bootstyle="secondary", wraplength=420, justify=LEFT,
+            row=8, column=0, columnspan=2, sticky=W, pady=(4, 0))
+        ttk.Label(marco, font=("", 9), wraplength=430, justify=LEFT,
                   text="Actualizar eventquery requiere la contraseña del "
                        "servidor y re-baja el catálogo hasta la hora actual. "
                        "La referencia fresca es solo para esta comparación; el "
                        "resto del análisis sigue en la ventana cargada."
-                  ).grid(row=7, column=0, columnspan=2, sticky=W, pady=(2, 0))
+                  ).grid(row=9, column=0, columnspan=2, sticky=W, pady=(2, 0))
+
+        lbl_error = ttk.Label(marco, bootstyle="danger", text="",
+                              wraplength=430, justify=LEFT)
+        lbl_error.grid(row=10, column=0, columnspan=2, sticky=W, pady=(4, 0))
 
         resultado = {"valor": None}
 
@@ -2411,26 +2473,44 @@ class App:
             try:
                 minmag = float(ent_mag.get().strip())
             except ValueError:
+                lbl_error.config(text="La magnitud mínima no es un número.")
                 return
             agencias = [ag for ag, v in vars_ag.items() if v.get()]
             if not agencias:
+                lbl_error.config(text="Elegí al menos una agencia.")
                 return
             modo = "ahora" if var_ahora.get() else "ventana"
+            desde14 = None
+            if modo == "ahora":
+                try:
+                    dt = datetime.datetime.strptime(
+                        ent_desde.get().strip(), "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    lbl_error.config(
+                        text="«Desde» inválido. Usá AAAA-MM-DD HH:MM:SS (UTC).")
+                    return
+                if dt >= datetime.datetime.utcnow():
+                    lbl_error.config(
+                        text="«Desde» debe ser anterior al momento actual.")
+                    return
+                desde14 = dt.strftime("%Y%m%d%H%M%S")
+            lbl_error.config(text="")
             resultado["valor"] = (minmag, agencias, bool(var_refrescar.get()),
-                                  modo, bool(var_eventquery.get()))
+                                  modo, bool(var_eventquery.get()), desde14)
             top.destroy()
 
         def cancelar(_evento=None):
             top.destroy()
 
         botones = ttk.Frame(marco)
-        botones.grid(row=8, column=0, columnspan=2, sticky=E, pady=(10, 0))
+        botones.grid(row=11, column=0, columnspan=2, sticky=E, pady=(10, 0))
         ttk.Button(botones, text="Comparar", command=aceptar,
                    bootstyle="primary").pack(side=RIGHT)
         ttk.Button(botones, text="Cancelar", command=cancelar,
                    bootstyle="secondary").pack(side=RIGHT, padx=(0, 6))
         ent_mag.bind("<Return>", aceptar)
         top.bind("<Escape>", cancelar)
+        _al_cambiar_ahora()  # estado inicial: «Desde» deshabilitado
         self.raiz.wait_window(top)
         return resultado["valor"]
 
@@ -2499,7 +2579,7 @@ class App:
         if params is None:
             self._log("Comparación de agencias cancelada.")
             return
-        minmag, agencias, refrescar, modo, actualizar = params
+        minmag, agencias, refrescar, modo, actualizar, desde14 = params
 
         # Referencia: la del análisis, o la recién bajada si se pide actualizar
         # eventquery en modo "hasta ahora".
@@ -2508,7 +2588,7 @@ class App:
 
         # Camino rápido: ya está todo procesado y no se pidió refrescar.
         if not refrescar and self._comparacion_al_dia(minmag, agencias, modo,
-                                                      referencia):
+                                                      referencia, desde14):
             self._log("La comparación de agencias ya está al día; se muestra "
                       "lo procesado.")
             self._ver_comparacion_agencias(reutilizada=True)
@@ -2525,10 +2605,11 @@ class App:
         def _ventana_efectiva():
             """(ini_iso, fin_iso, ini14, fin14): del análisis o 'hasta ahora'."""
             if modo == "ahora":
+                # El fin es el momento actual; el inicio lo eligió el usuario
+                # («Desde»), con el inicio del análisis como respaldo.
                 fin_dt = datetime.datetime.utcnow()
-                dur = (datetime.datetime.strptime(fin, "%Y%m%d%H%M%S")
-                       - datetime.datetime.strptime(inicio, "%Y%m%d%H%M%S"))
-                ini_dt = fin_dt - dur
+                ini_dt = datetime.datetime.strptime(
+                    desde14 if desde14 else inicio, "%Y%m%d%H%M%S")
                 return (ini_dt.strftime("%Y-%m-%dT%H:%M:%S"),
                         fin_dt.strftime("%Y-%m-%dT%H:%M:%S"),
                         ini_dt.strftime("%Y%m%d%H%M%S"),
@@ -2578,7 +2659,8 @@ class App:
                         + list(agencias)
                         + ["--referencia=%s" % referencia])
             self._escribir_estado_agencias(minmag, agencias, modo,
-                                           [ini14, fin14], referencia)
+                                           [ini14, fin14], referencia,
+                                           desde=desde14)
 
         def al_terminar():
             self._log("Comparación de agencias terminada; mostrando "

@@ -1,7 +1,7 @@
 # Manual técnico — RevisaPubSeisan
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.4 — 13 de octubre de 2026.
+Versión 1.5 — 13 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -104,8 +104,10 @@ app.py ──► ventana principal (orquesta subprocesos)
 > «Ejecutada» con el `timestamp` (UTC) y `_cobertura_agencias()` resume la
 > ventana solicitada y la real por agencia (min/max de
 > `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Cobertura por
-> agencia» y
-> en la descarga.
+> agencia» y en la descarga. En modo «hasta ahora» el **fin** es `utcnow()` y el
+> **inicio** lo fija el usuario (`desde`, 14 díg., en el diálogo; por defecto el
+> inicio del análisis); `_comparacion_al_dia()` también compara ese `desde`, así
+> que cambiarlo obliga a rehacer aunque el TTL siga vigente.
 
 > `entregables` (CSV/TXT) solo se escriben con `RV_ENTREGABLES=1`.
 

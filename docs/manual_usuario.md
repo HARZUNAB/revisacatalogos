@@ -1,14 +1,14 @@
 # Manual de usuario — RevisaPubSeisan
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.4 — 13 de octubre de 2026.
+Versión 1.5 — 13 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1, 1.2 y 1.3, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.4, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -272,8 +272,12 @@ recuerda con una línea («Se compara contra catálogo de eventos publicados
 extraído (eventquery)»).
 
 Por defecto se consulta la **ventana del análisis**. Con la casilla **«Consultar
-hasta el momento actual»** se pide **hasta ahora** (tiempo real); al marcarla se
-activan solas (y se pueden destildar) **«Volver a consultar las agencias»** y
+hasta el momento actual»** se pide **hasta ahora** (tiempo real): el **fin** es el
+momento actual y el **inicio** es el campo **«Desde (UTC)»** (formato
+`AAAA-MM-DD HH:MM:SS`), que se activa al marcar la casilla y trae por defecto el
+**inicio del análisis** (o el último usado); se puede escribir una fecha o usar
+los presets **Inicio del análisis / 7 d / 15 d / 30 d**. Al marcarla se activan
+solas (y se pueden destildar) **«Volver a consultar las agencias»** y
 **«Actualizar el catálogo publicado (eventquery)»**. Actualizar eventquery pide
 la **contraseña del servidor** y vuelve a bajar el catálogo hasta la hora actual
 cuando corresponde; si esa bajada falla, se avisa y se compara contra el
