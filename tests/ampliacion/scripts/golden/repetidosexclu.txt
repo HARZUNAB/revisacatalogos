@@ -1,0 +1,39 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+total de eventos a revisar 5 ( fuente archivo excluidos del selec.out )
+total de eventos desde select.out 5 ( fuente archivo select.out )
+@@PROGRESO@@ 0.2000
+@@PROGRESO@@ 0.4000
+@@PROGRESO@@ 0.6000
+@@PROGRESO@@ 0.8000
+@@PROGRESO@@ 1.0000
+
+Finalizado
+tiempo proceso: 0:00:00
+Posibles repetidos excluidos en seisan: 7
+Archivos generados...
+informes/rep_seisan_exclu.txt
+
+--- archivos ---
+898d4c979a71d2e49601fa4699b7f89e220a0a58b958cfb805ad08a252636575  informes/rep_seisan_exclu.txt
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+total de eventos a revisar 5 ( fuente archivo excluidos del selec.out )
+total de eventos desde select.out 5 ( fuente archivo select.out )
+@@PROGRESO@@ 0.2000
+@@PROGRESO@@ 0.4000
+@@PROGRESO@@ 0.6000
+@@PROGRESO@@ 0.8000
+@@PROGRESO@@ 1.0000
+
+Finalizado
+tiempo proceso: 0:00:00
+Posibles repetidos excluidos en seisan: 7
+Archivos generados...
+informes/rep_seisan_exclu.txt
+
+--- archivos ---
+898d4c979a71d2e49601fa4699b7f89e220a0a58b958cfb805ad08a252636575  informes/rep_seisan_exclu.txt
