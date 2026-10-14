@@ -2482,9 +2482,19 @@ class App:
                 var_refrescar.set(True)
                 var_eventquery.set(True)
             estado_ctrl = "normal" if activo else "disabled"
+            # Ojo: en DateEntry de ttkbootstrap hay que usar .configure()
+            # (config() va al configure base y con "state" lanza TclError, que
+            # dejaba el campo activo). Los ttk.Entry/Button aceptan cualquiera.
             for w in (de_desde, ent_desde, de_hasta, ent_hasta, btn_ahora):
                 try:
-                    w.config(state=estado_ctrl)
+                    w.configure(state=estado_ctrl)
+                except TclError:
+                    pass
+            # Blindaje por si algún tema no propaga el estado al subwidget.
+            for de in (de_desde, de_hasta):
+                try:
+                    de.entry.configure(state=estado_ctrl)
+                    de.button.configure(state=estado_ctrl)
                 except TclError:
                     pass
 
