@@ -9,7 +9,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 - `compara.py` (refactorizado)
 - `repetidos.py` (refactorizado)
 - `repetidosexclu.py` (refactorizado)
-- `revisaselect.py`
+- `revisaselect.py` (refactorizado)
 - `revisacollect.py`
 - `revisaexcluidos.py`
 - `proc_query_harz_2.py` (refactorizado)
@@ -39,8 +39,12 @@ python3 tests/ampliacion/scripts/arnes_refactor.py verificar compara.py compara 
     -- eventquery.csv local.csv
 ```
 
-Cada *caso* es una carpeta `casos/<caso>/` con los CSV de entrada. El script se
-corre como subproceso (igual que `app.py`): `RV_PROG=1`, en un temporal, en dos
+Cada *caso* es una carpeta `casos/<caso>/`. Los archivos de primer nivel son las
+fixtures que se pasan por argumento (se copian a `entrada/`). Si el caso tiene
+una subcarpeta `cwd/`, su contenido se copia a la raíz del temporal: es para los
+scripts que leen rutas fijas relativas al cwd y que `app.py` invoca **sin
+argumentos** (`revisaselect.py` y su `select.out`). El script se corre como
+subproceso (igual que `app.py`): `RV_PROG=1`, en un temporal, en dos
 modos —**app** (sin `RV_ENTREGABLES`) y **entregables** (`RV_ENTREGABLES=1`)— y
 se guarda stdout + código de salida + un manifiesto sha256 de todo lo generado.
 El golden queda en `golden/<caso>.txt`, versionado como regresión permanente.
