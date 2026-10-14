@@ -30,6 +30,7 @@ script de verdad necesita sus dependencias (p. ej. pandas), que el CI no instala
 """
 
 import argparse
+import datetime
 import hashlib
 import os
 import re
@@ -44,20 +45,54 @@ DIR_CASOS = os.path.join(AQUI, "casos")
 DIR_GOLDEN = os.path.join(AQUI, "golden")
 
 _TIEMPO_RE = re.compile(r"\d{14}")
+_FECHA_RE = re.compile(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}")
+
+# Un timestamp que cae dentro de esta ventana del momento de la corrida es
+# "volátil" (una fecha de impresión), no un dato del fixture. Las fechas de los
+# casos son históricas y quedan intactas, así el golden sigue detectando
+# regresiones en las fechas.
+_VENTANA_VOLATIL = datetime.timedelta(days=2)
+
+
+def _reemplazar_fecha(match):
+    """Neutraliza la fecha solo si es un timestamp de impresión (reciente)."""
+    texto = match.group(0)
+    try:
+        fecha = datetime.datetime.strptime(
+            " ".join(texto.split()), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return texto
+    if abs(datetime.datetime.now() - fecha) <= _VENTANA_VOLATIL:
+        return "<TS>"
+    return texto
+
+
+def _estabilizar(texto):
+    """Reemplaza los timestamps volátiles por un marcador estable."""
+    texto = _TIEMPO_RE.sub("<TS>", texto)
+    return _FECHA_RE.sub(_reemplazar_fecha, texto)
 
 
 def _normalizar(texto, tmp):
     """Vuelve estable la salida: la ruta del temporal y los timestamps."""
-    texto = texto.replace(tmp, "$CWD")
-    return _TIEMPO_RE.sub("<TS>", texto)
+    return _estabilizar(texto.replace(tmp, "$CWD"))
 
 
 def _hash(ruta):
-    h = hashlib.sha256()
+    """sha256 del contenido; si es texto, con los timestamps normalizados.
+
+    Varios scripts escriben la fecha de impresión en sus salidas (p. ej. la
+    cabecera del .dat de proc_query_harz_2), así que hashear el contenido crudo
+    daría un golden distinto en cada corrida. Para los binarios o lo que no
+    decodifique como UTF-8 se hashea el crudo.
+    """
     with open(ruta, "rb") as f:
-        for bloque in iter(lambda: f.read(65536), b""):
-            h.update(bloque)
-    return h.hexdigest()
+        datos = f.read()
+    try:
+        texto = datos.decode("utf-8")
+    except UnicodeDecodeError:
+        return hashlib.sha256(datos).hexdigest()
+    return hashlib.sha256(_estabilizar(texto).encode("utf-8")).hexdigest()
 
 
 def _manifiesto(tmp):
