@@ -10,19 +10,25 @@ tocarlos se captura esa salida como *golden*; después del refactor se corre de
 nuevo y se verifica que sea **idéntica**. Así el refactor no cambia el
 comportamiento que consume ``app.py``.
 
-Cada *caso* es una carpeta ``casos/<caso>/`` con los CSV de entrada. El script
-se corre como subproceso (igual que app.py): ``RV_PROG=1``, en un directorio
-temporal, con los argumentos apuntando a las fixtures copiadas en ``entrada/``.
-Se corre dos veces: en **modo app** (sin ``RV_ENTREGABLES``) y en **modo
-entregables** (con ``RV_ENTREGABLES=1``).
+Cada *caso* es una carpeta ``casos/<caso>/``. Los archivos de primer nivel son
+las fixtures que se pasan por argumento (copiadas a ``entrada/``). Si el caso
+tiene una subcarpeta ``cwd/``, su contenido se copia a la raíz del temporal:
+es para los scripts que leen rutas fijas relativas al cwd y que ``app.py``
+invoca **sin argumentos** (p. ej. ``revisaselect.py`` y su ``select.out``). El
+script se corre como subproceso (igual que app.py): ``RV_PROG=1``, en un
+directorio temporal. Se corre dos veces: en **modo app** (sin
+``RV_ENTREGABLES``) y en **modo entregables** (con ``RV_ENTREGABLES=1``).
 
 Uso:
     python3 arnes_refactor.py capturar  <script> <caso> -- <args...>
     python3 arnes_refactor.py verificar <script> <caso> -- <args...>
+    python3 arnes_refactor.py capturar  <script> <caso>        # caso con cwd/
 
-Ejemplo:
+Ejemplos:
     python3 tests/ampliacion/scripts/arnes_refactor.py capturar compara.py \\
         compara -- eventquery.csv local.csv
+    python3 tests/ampliacion/scripts/arnes_refactor.py capturar revisaselect.py \\
+        revisaselect
 
 El golden queda en ``golden/<caso>.txt`` (versionado: es la regresión permanente;
 el nombre del caso ya es único por módulo). Es una herramienta local: correr el
@@ -107,6 +113,27 @@ def _manifiesto(tmp):
     return "\n".join(sorted(lineas))
 
 
+def _staging(origen, tmp):
+    """Prepara el temporal con las fixtures del caso.
+
+    Los archivos de primer nivel van a ``entrada/`` (se pasan como argumentos,
+    el comportamiento de siempre). Si el caso tiene una carpeta ``cwd/``, su
+    contenido se copia a la raíz del temporal, para los scripts que leen rutas
+    fijas relativas al cwd y que la app invoca sin argumentos.
+    """
+    shutil.copytree(origen, os.path.join(tmp, "entrada"),
+                    ignore=shutil.ignore_patterns("cwd"))
+    dir_cwd = os.path.join(origen, "cwd")
+    if os.path.isdir(dir_cwd):
+        for nombre in os.listdir(dir_cwd):
+            src = os.path.join(dir_cwd, nombre)
+            dst = os.path.join(tmp, nombre)
+            if os.path.isdir(src):
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+
+
 def _snapshot(script, caso, args):
     """Corre el script en los dos modos y devuelve el texto del snapshot."""
     origen = os.path.join(DIR_CASOS, caso)
@@ -117,7 +144,7 @@ def _snapshot(script, caso, args):
     for modo, extra in (("app", {}), ("entregables", {"RV_ENTREGABLES": "1"})):
         tmp = tempfile.mkdtemp(prefix="rcs_regr_")
         try:
-            shutil.copytree(origen, os.path.join(tmp, "entrada"))
+            _staging(origen, tmp)
             env = dict(os.environ)
             env["RV_PROG"] = "1"
             env.update(extra)
@@ -156,8 +183,10 @@ def main():
     args = ns.args
     if args and args[0] == "--":
         args = args[1:]
-    if not args:
-        raise SystemExit("Faltan las fixtures de entrada (usá '-- a.csv b.csv').")
+    tiene_cwd = os.path.isdir(os.path.join(DIR_CASOS, ns.caso, "cwd"))
+    if not args and not tiene_cwd:
+        raise SystemExit("Faltan las fixtures de entrada: usá '-- a.csv b.csv' "
+                         "o una carpeta cwd/ en el caso.")
 
     script = _ruta_script(ns.script)
     if not os.path.isfile(script):
