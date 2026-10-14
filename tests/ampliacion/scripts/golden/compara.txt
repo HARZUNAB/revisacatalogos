@@ -1,0 +1,92 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+total eventos entrada/eventquery.csv 4 ( fuente eventquery )
+total eventos entrada/local.csv 6 ( fuente select de seisan )
+Comparando con filtro amplio (6s/2.0°/2.0°)...
+@@PROGRESO@@ 0.1670
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 0.8330
+@@PROGRESO@@ 1.0000
+
+Comparando con filtro estricto (3s/1.0°/1.0°)...
+@@PROGRESO@@ 0.1670
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 0.8330
+@@PROGRESO@@ 1.0000
+atribución de seisan: 3 cruces sobre 3 eventos publicados
+
+--------------------------------------- Salida ---------------------------------------
+Filtro amplio (6s/2.0°)
+  total eventos no publicados: 3
+  eventos no publicados >= a mag. 2.5: 2
+  total eventos no actualizados: 1
+  no publicados sin magnitud (no entran al CSV): 1
+Filtro estricto (3s/1.0°)
+  total eventos no publicados: 3
+  eventos no publicados >= a mag. 2.5: 2
+  total eventos no actualizados: 1
+  no publicados sin magnitud (no entran al CSV): 1
+Archivos generados...
+no_act_amplio.txt / no_act_estricto.txt
+no_pub_desde_2_5_estricto.csv
+Entregables no generados (use RV_ENTREGABLES=1 si los necesita).
+
+--- archivos ---
+4289506f7505fc4a4a071845dc52a4f6e4898b8531e911a69ca6f25267fb0a94  informes/no_act_amplio.txt
+4289506f7505fc4a4a071845dc52a4f6e4898b8531e911a69ca6f25267fb0a94  informes/no_act_estricto.txt
+b3aa12cd623448e4cca64c77439cc93298b31f9c3082db006f5d7545a62b83cc  datos/no_pub_desde_2_5_estricto.csv
+d01398d13276592586a18f15ff7f7a0ce668610075d75af1fd16c53da6604d2c  datos/atribucion_seisan.csv
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+total eventos entrada/eventquery.csv 4 ( fuente eventquery )
+total eventos entrada/local.csv 6 ( fuente select de seisan )
+Comparando con filtro amplio (6s/2.0°/2.0°)...
+@@PROGRESO@@ 0.1670
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 0.8330
+@@PROGRESO@@ 1.0000
+
+Comparando con filtro estricto (3s/1.0°/1.0°)...
+@@PROGRESO@@ 0.1670
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 0.8330
+@@PROGRESO@@ 1.0000
+atribución de seisan: 3 cruces sobre 3 eventos publicados
+
+--------------------------------------- Salida ---------------------------------------
+Filtro amplio (6s/2.0°)
+  total eventos no publicados: 3
+  eventos no publicados >= a mag. 2.5: 2
+  total eventos no actualizados: 1
+  no publicados sin magnitud (no entran al CSV): 1
+Filtro estricto (3s/1.0°)
+  total eventos no publicados: 3
+  eventos no publicados >= a mag. 2.5: 2
+  total eventos no actualizados: 1
+  no publicados sin magnitud (no entran al CSV): 1
+Archivos generados...
+no_act_amplio.txt / no_act_estricto.txt
+no_pub_desde_2_5_estricto.csv
+En descargas/: no_pub_todos_*.txt / no_pub_desde_2_5_*.txt / no_pub_desde_2_5_*amplio.csv
+
+--- archivos ---
+0d110e7056d9c9967ea9b3a62ae3b9f677c1d8bc0253514c5feb4d0d6670fff8  descargas/no_pub_desde_2_5_amplio.txt
+0d110e7056d9c9967ea9b3a62ae3b9f677c1d8bc0253514c5feb4d0d6670fff8  descargas/no_pub_desde_2_5_estricto.txt
+4289506f7505fc4a4a071845dc52a4f6e4898b8531e911a69ca6f25267fb0a94  informes/no_act_amplio.txt
+4289506f7505fc4a4a071845dc52a4f6e4898b8531e911a69ca6f25267fb0a94  informes/no_act_estricto.txt
+a4ccaaafef96fd04a99e5815bbb96ea25619b461d1c24aecc34879492c94add8  descargas/no_pub_todos_amplio.txt
+a4ccaaafef96fd04a99e5815bbb96ea25619b461d1c24aecc34879492c94add8  descargas/no_pub_todos_estricto.txt
+b3aa12cd623448e4cca64c77439cc93298b31f9c3082db006f5d7545a62b83cc  datos/no_pub_desde_2_5_estricto.csv
+b3aa12cd623448e4cca64c77439cc93298b31f9c3082db006f5d7545a62b83cc  descargas/no_pub_desde_2_5_amplio.csv
+d01398d13276592586a18f15ff7f7a0ce668610075d75af1fd16c53da6604d2c  datos/atribucion_seisan.csv
