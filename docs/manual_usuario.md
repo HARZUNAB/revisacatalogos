@@ -1,7 +1,7 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.7 — 13 de octubre de 2026.
+Versión 1.8 — 14 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,

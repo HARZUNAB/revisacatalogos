@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.7 — 13 de octubre de 2026.
+Versión 1.8 — 14 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
