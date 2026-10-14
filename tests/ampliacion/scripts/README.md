@@ -8,7 +8,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 
 - `compara.py` (refactorizado)
 - `repetidos.py` (refactorizado)
-- `repetidosexclu.py`
+- `repetidosexclu.py` (refactorizado)
 - `revisaselect.py`
 - `revisacollect.py`
 - `revisaexcluidos.py`
