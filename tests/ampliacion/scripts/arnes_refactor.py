@@ -24,9 +24,9 @@ Ejemplo:
     python3 tests/ampliacion/scripts/arnes_refactor.py capturar compara.py \\
         compara -- eventquery.csv local.csv
 
-El golden queda en ``golden/<script>.txt`` (versionado: es la regresión
-permanente). Es una herramienta local: correr el script de verdad necesita sus
-dependencias (p. ej. pandas), que el CI no instala.
+El golden queda en ``golden/<caso>.txt`` (versionado: es la regresión permanente;
+el nombre del caso ya es único por módulo). Es una herramienta local: correr el
+script de verdad necesita sus dependencias (p. ej. pandas), que el CI no instala.
 """
 
 import argparse
@@ -128,7 +128,7 @@ def main():
     if not os.path.isfile(script):
         raise SystemExit("No existe el script: %s" % script)
 
-    golden = os.path.join(DIR_GOLDEN, os.path.splitext(ns.script)[0] + ".txt")
+    golden = os.path.join(DIR_GOLDEN, ns.caso + ".txt")
     actual = _snapshot(script, ns.caso, args)
 
     if ns.accion == "capturar":

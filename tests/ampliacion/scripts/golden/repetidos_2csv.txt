@@ -1,0 +1,83 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+total eventos entrada/publica.csv 4 ( fuente eventquery )
+total eventos entrada/seisan.csv 3 ( fuente select de seisan )
+Revisando datos de publica...
+@@PROGRESO@@ 0.2500
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.7500
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.2500
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.7500
+@@PROGRESO@@ 1.0000
+
+Finalizado
+Revisando datos de seisan...
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+
+Finalizado
+----------------------------------- Salida -----------------------------------
+Posibles repetidos en publica (amplio, 6s/2.0°): 2
+Posibles repetidos en publica (estricto, 3s/1.0°): 2
+Posibles repetidos en seisan (amplio, 6s/2.0°): 2
+Posibles repetidos en seisan (estricto, 3s/1.0°): 2
+Archivos generados...
+rep_publica_amplio.txt
+rep_publica_estricto.txt
+rep_seisan_amplio.txt
+rep_seisan_estricto.txt
+
+--- archivos ---
+053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_amplio.txt
+053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_estricto.txt
+11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_amplio.txt
+11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_estricto.txt
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+total eventos entrada/publica.csv 4 ( fuente eventquery )
+total eventos entrada/seisan.csv 3 ( fuente select de seisan )
+Revisando datos de publica...
+@@PROGRESO@@ 0.2500
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.7500
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.2500
+@@PROGRESO@@ 0.5000
+@@PROGRESO@@ 0.7500
+@@PROGRESO@@ 1.0000
+
+Finalizado
+Revisando datos de seisan...
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+
+Finalizado
+----------------------------------- Salida -----------------------------------
+Posibles repetidos en publica (amplio, 6s/2.0°): 2
+Posibles repetidos en publica (estricto, 3s/1.0°): 2
+Posibles repetidos en seisan (amplio, 6s/2.0°): 2
+Posibles repetidos en seisan (estricto, 3s/1.0°): 2
+Archivos generados...
+rep_publica_amplio.txt
+rep_publica_estricto.txt
+rep_seisan_amplio.txt
+rep_seisan_estricto.txt
+
+--- archivos ---
+053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_amplio.txt
+053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_estricto.txt
+11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_amplio.txt
+11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_estricto.txt

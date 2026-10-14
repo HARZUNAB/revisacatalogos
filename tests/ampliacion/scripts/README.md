@@ -43,7 +43,11 @@ Cada *caso* es una carpeta `casos/<caso>/` con los CSV de entrada. El script se
 corre como subproceso (igual que `app.py`): `RV_PROG=1`, en un temporal, en dos
 modos —**app** (sin `RV_ENTREGABLES`) y **entregables** (`RV_ENTREGABLES=1`)— y
 se guarda stdout + código de salida + un manifiesto sha256 de todo lo generado.
-El golden queda en `golden/<script>.txt`, versionado como regresión permanente.
+El golden queda en `golden/<caso>.txt`, versionado como regresión permanente.
+
+Un módulo puede tener **varios casos** (cada uno con su golden), p. ej.
+`repetidos_3csv` y `repetidos_2csv` para cubrir con y sin el catálogo de
+SeisComp; el nombre del caso ya incluye el módulo.
 
 Es una herramienta **local**: correr el script de verdad necesita sus
 dependencias (p. ej. pandas), que el CI no instala. Los unit tests de las
@@ -51,7 +55,7 @@ funciones extraídas sí corren en CI.
 
 Procedimiento por módulo:
 
-1. Fixtures en `casos/<modulo>/`.
+1. Fixtures en `casos/<modulo>[...]/` (uno o más casos por módulo).
 2. `capturar` → commit del golden (pre-refactor).
 3. Refactor (`main(argv)` + guard).
 4. `verificar` → idéntico.
