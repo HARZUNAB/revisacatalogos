@@ -103,7 +103,8 @@ app.py ──► ventana principal (orquesta subprocesos)
 > / `eventos_agencia_*.json`. La cabecera de la ventana muestra «Reutilizada» o
 > «Ejecutada» con el `timestamp` (UTC) y `_cobertura_agencias()` resume la
 > ventana solicitada y la real por agencia (min/max de
-> `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Detalles» y
+> `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Cobertura por
+> agencia» y
 > en la descarga.
 
 > `entregables` (CSV/TXT) solo se escriben con `RV_ENTREGABLES=1`.

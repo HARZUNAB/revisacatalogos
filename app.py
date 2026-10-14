@@ -2771,8 +2771,9 @@ class App:
         top.geometry("1040x700")
 
         # Cabecera: de dónde salió el resultado (reutilizado/ejecutado) y qué
-        # ventana se pidió + qué reportó realmente cada agencia. Sin modal ni
-        # grab (misma cautela que el aviso «Sin datos»).
+        # ventana se pidió. La cobertura real por agencia va en el botón, para
+        # no amontonar todo en una línea. Sin modal ni grab (misma cautela que
+        # el aviso «Sin datos»).
         consulta = (self._leer_estado_agencias().get("consulta") or {})
         cobertura = self._cobertura_agencias(
             consulta.get("agencias") or list(AGENCIAS_EXTERNAS))
@@ -2792,20 +2793,7 @@ class App:
                            % (sol["desde"], sol["hasta"], mag),
                       wraplength=1000, justify=LEFT
                       ).pack(side=TOP, anchor=W)
-        partes = []
-        for f in cobertura["agencias"]:
-            if f["desde"]:
-                partes.append("%s %s–%s UTC (%d)"
-                              % (f["agencia"], f["desde"], f["hasta"],
-                                 f["eventos"]))
-            else:
-                partes.append("%s sin datos" % f["agencia"])
-        if partes:
-            ttk.Label(cabecera, bootstyle="secondary", font=("", 8),
-                      text="Real: " + " · ".join(partes),
-                      wraplength=1000, justify=LEFT
-                      ).pack(side=TOP, anchor=W)
-        ttk.Button(cabecera, text="Detalles",
+        ttk.Button(cabecera, text="Cobertura por agencia",
                    bootstyle="secondary-outline",
                    command=lambda: self._detalles_cobertura(top, cobertura)
                    ).pack(side=TOP, anchor=W, pady=(4, 0))
@@ -2871,7 +2859,7 @@ class App:
         agencia. Se abre oculta, se arma entera y recién ahí se muestra (un
         solo mapeo, para no dejar un destello de caja fantasma).
         """
-        top = ttk.Toplevel(title="Cobertura de agencias", master=padre)
+        top = ttk.Toplevel(title="Cobertura por agencia", master=padre)
         top.withdraw()
         top.geometry("780x340")
         marco = ttk.Frame(top, padding=12)

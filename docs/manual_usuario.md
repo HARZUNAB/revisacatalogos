@@ -288,12 +288,13 @@ se vuelve a consultar.
 Cuando no cambió nada (misma ventana, magnitud, agencias y catálogos), la
 comparación **no se rehace**: se reutiliza el resultado y la ventana lo indica en
 una etiqueta, **`Reutilizada · AAAA-MM-DD HH:MM:SS UTC`** (o **`Ejecutada · …`**
-si se acaba de correr). Todas las horas van en **UTC**. Debajo, la ventana
-muestra la **ventana solicitada** (común a las agencias) y la **ventana real** de
-cada una —el primer y el último evento que reportaron, con su cantidad—, y un
-botón **«Detalles»** abre una tabla con `Agencia · Eventos · Desde (UTC) ·
-Hasta (UTC) · Rezago`: el rezago es cuánto antes del fin solicitado terminó cada
-catálogo (por ejemplo, GFZ). Esa misma cobertura se incluye en la **descarga**.
+si se acaba de correr). Todas las horas van en **UTC**. Debajo se muestra la
+**ventana solicitada** (común a las agencias) y un botón **«Cobertura por
+agencia»** que abre una tabla con la **ventana real** de cada una (`Agencia ·
+Eventos · Desde (UTC) · Hasta (UTC) · Rezago`): son el primer y el último evento
+que reportaron —no la cobertura total del catálogo— y el rezago es cuánto antes
+del fin solicitado terminó cada catálogo (por ejemplo, GFZ). Esa misma cobertura
+se incluye en la **descarga**.
 
 Al terminar se abre una ventana con dos pestañas, cada una con el **mapa** (panel
 de perfiles) y, debajo, un **listado por evento** con las columnas
