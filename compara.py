@@ -83,7 +83,7 @@ def _borrar(ruta):
         pass
 
 def comparar(listacsv_1, listacsv_2, max_seg, max_lat, max_lon, sufijo,
-             prefijo=""):
+             prefijo="", num_eventos_locales=0):
     # El prefijo distingue la fuente local para que una corrida no pise los
     # informes de la otra. Viene vacío para Seisan, así sus nombres quedan
     # exactamente como siempre (no_pub_desde_2_5_estricto.csv lo usa app.py).
@@ -124,7 +124,7 @@ def comparar(listacsv_1, listacsv_2, max_seg, max_lat, max_lon, sufijo,
 
     # Un archivo local sin eventos (solo encabezado) haría 0/0 acá. Con la
     # fuente SeisComp eso es esperable: la ventana puede no tener eventos.
-    total_a_comparar = max(1, numsis_csv_2)
+    total_a_comparar = max(1, num_eventos_locales)
 
     # compara fecha_hora de cada evento de seisan para determinar si esta publicado 
     for sismo2 in listacsv_2:
@@ -300,102 +300,112 @@ def comparar(listacsv_1, listacsv_2, max_seg, max_lat, max_lon, sufijo,
     archivo2.close()
     return total_eventos, total_diferentes, totsobre2_5, salida, nopub_sin_magnitud
 
-# Uso: compara.py <eventquery.csv> <soluciones_locales.csv> [prefijo]
-# El prefijo es opcional y solo distingue la fuente local en los nombres de
-# salida ("seiscomp_" para seiscomp_a_parametros.py). Sin él, la corrida es la
-# de siempre y escribe los mismos nombres de siempre.
-csv_file_1 = open(sys.argv[1])
-csv_file_2 = open(sys.argv[2])
+def main(argv=None):
+    """
+    Uso: compara.py <eventquery.csv> <soluciones_locales.csv> [prefijo]
 
-PREFIJO = sys.argv[3] if len(sys.argv) > 3 else ""
+    El prefijo es opcional y solo distingue la fuente local en los nombres de
+    salida ("seiscomp_" para seiscomp_a_parametros.py). Sin él, la corrida es la
+    de siempre y escribe los mismos nombres de siempre.
+    """
+    argv = sys.argv if argv is None else argv
 
-csvreader_1 = csv.reader(csv_file_1)
-csvreader_2 = csv.reader(csv_file_2)
+    csv_file_1 = open(argv[1])
+    csv_file_2 = open(argv[2])
 
-# saltar el encabezado de cada archivo .csv
-next(csvreader_1,None)
-next(csvreader_2,None)
+    PREFIJO = argv[3] if len(argv) > 3 else ""
 
-# Declara diccionario
-diccsv_1={}
-diccsv_2={}
+    csvreader_1 = csv.reader(csv_file_1)
+    csvreader_2 = csv.reader(csv_file_2)
 
-# Declara listas
-listacsv_1=[]
-listacsv_2=[]
+    # saltar el encabezado de cada archivo .csv
+    next(csvreader_1,None)
+    next(csvreader_2,None)
 
-numsis_csv_1=0
-numsis_csv_2=0
+    # Declara diccionario
+    diccsv_1={}
+    diccsv_2={}
 
-# Creando diccionario que contiene lista con datos extraidos del .csv ordenado (eventquery)
-# Las columnas numéricas se normalizan al formato fijo del flujo (coordenadas
-# 3 decimales, profundidad y magnitud 1) con comparacion.py, que reemplaza al
-# viejo relleno de ceros. Así las salidas quedan consistentes y la comparación
-# numérica no depende de cuántos decimales traiga cada fuente.
-for linea1 in csvreader_1:
-    diccsv_1={
-        "n_fila":linea1[0],
-        "fecha_hora":linea1[1],
-        "dt":_parsear_fecha_hora(linea1[1]),
-        "lat":comparacion.formato_coordenada(linea1[2]),
-        "lon":comparacion.formato_coordenada(linea1[3]),
-        "prof":comparacion.formato_profundidad(linea1[4]),
-        "mag":comparacion.formato_magnitud(linea1[5]),
-        "tipo_mag":linea1[6],
-        "ref":linea1[7],
-        "perc":linea1[8]
-    }
-    listacsv_1.append(diccsv_1)
+    # Declara listas
+    listacsv_1=[]
+    listacsv_2=[]
 
-# Creando diccionario que contiene lista con datos extraidos del .csv ordenado (seisan)
-for linea2 in csvreader_2:
-    diccsv_2={
-        "fecha_hora":linea2[1],
-		"dt":_parsear_fecha_hora(linea2[1]),
-		"lat":comparacion.formato_coordenada(linea2[2]),
-		"lon":comparacion.formato_coordenada(linea2[3]),
-		"prof":comparacion.formato_profundidad(linea2[4]),
-		"mag":comparacion.formato_magnitud(linea2[5]),
-		"tipo_mag":linea2[6],
-		"analista":linea2[7],
-    }
-    listacsv_2.append(diccsv_2)
+    numsis_csv_1=0
+    numsis_csv_2=0
 
-for sismo in listacsv_1:
-    numsis_csv_1+=1
-print('total eventos',sys.argv[1], numsis_csv_1, "( fuente eventquery )")
+    # Creando diccionario que contiene lista con datos extraidos del .csv ordenado (eventquery)
+    # Las columnas numéricas se normalizan al formato fijo del flujo (coordenadas
+    # 3 decimales, profundidad y magnitud 1) con comparacion.py, que reemplaza al
+    # viejo relleno de ceros. Así las salidas quedan consistentes y la comparación
+    # numérica no depende de cuántos decimales traiga cada fuente.
+    for linea1 in csvreader_1:
+        diccsv_1={
+            "n_fila":linea1[0],
+            "fecha_hora":linea1[1],
+            "dt":_parsear_fecha_hora(linea1[1]),
+            "lat":comparacion.formato_coordenada(linea1[2]),
+            "lon":comparacion.formato_coordenada(linea1[3]),
+            "prof":comparacion.formato_profundidad(linea1[4]),
+            "mag":comparacion.formato_magnitud(linea1[5]),
+            "tipo_mag":linea1[6],
+            "ref":linea1[7],
+            "perc":linea1[8]
+        }
+        listacsv_1.append(diccsv_1)
 
-for sismo in listacsv_2:
-    numsis_csv_2+=1
-print('total eventos', sys.argv[2], numsis_csv_2,
-      "( fuente select de seisan )" if not PREFIJO
-      else "( fuente local %s )" % PREFIJO.rstrip("_"))
+    # Creando diccionario que contiene lista con datos extraidos del .csv ordenado (seisan)
+    for linea2 in csvreader_2:
+        diccsv_2={
+            "fecha_hora":linea2[1],
+            "dt":_parsear_fecha_hora(linea2[1]),
+            "lat":comparacion.formato_coordenada(linea2[2]),
+            "lon":comparacion.formato_coordenada(linea2[3]),
+            "prof":comparacion.formato_profundidad(linea2[4]),
+            "mag":comparacion.formato_magnitud(linea2[5]),
+            "tipo_mag":linea2[6],
+            "analista":linea2[7],
+        }
+        listacsv_2.append(diccsv_2)
 
-print("Comparando con filtro amplio ({}s/{}°/{}°)...".format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO))
-total_eventos_amplio, total_diferentes_amplio, totsobre2_5_amplio, salida_amplio, sinmag_amplio = comparar(listacsv_1, listacsv_2, MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO, "amplio", PREFIJO)
+    for sismo in listacsv_1:
+        numsis_csv_1+=1
+    print('total eventos',argv[1], numsis_csv_1, "( fuente eventquery )")
 
-print("\nComparando con filtro estricto ({}s/{}°/{}°)...".format(MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO, MAX_LAT_LON_ESTRICTO))
-total_eventos_estricto, total_diferentes_estricto, totsobre2_5_estricto, salida_estricto, sinmag_estricto = comparar(listacsv_1, listacsv_2, MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO, MAX_LAT_LON_ESTRICTO, "estricto", PREFIJO)
+    for sismo in listacsv_2:
+        numsis_csv_2+=1
+    print('total eventos', argv[2], numsis_csv_2,
+          "( fuente select de seisan )" if not PREFIJO
+          else "( fuente local %s )" % PREFIJO.rstrip("_"))
 
-print("\n--------------------------------------- Salida ---------------------------------------")
-print('Filtro amplio ({}s/{}°)'.format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO))
-print('  total eventos no publicados: {}'.format(total_eventos_amplio))
-print('  eventos no publicados >= a mag. 2.5: {}'.format(totsobre2_5_amplio))
-print('  total eventos no actualizados: {}'.format(total_diferentes_amplio))
-print('  no publicados sin magnitud (no entran al CSV): {}'.format(sinmag_amplio))
-print('Filtro estricto ({}s/{}°)'.format(MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO))
-print('  total eventos no publicados: {}'.format(total_eventos_estricto))
-print('  eventos no publicados >= a mag. 2.5: {}'.format(totsobre2_5_estricto))
-print('  total eventos no actualizados: {}'.format(total_diferentes_estricto))
-print('  no publicados sin magnitud (no entran al CSV): {}'.format(sinmag_estricto))
-print('Archivos generados...')
-print('no_act_%samplio.txt / no_act_%sestricto.txt' % (PREFIJO, PREFIJO))
-print('no_pub_desde_2_5_%sestricto.csv' % PREFIJO)
-if rutas.ENTREGABLES:
-    print('En descargas/: no_pub_todos_*.txt / no_pub_desde_2_5_*.txt / '
-          'no_pub_desde_2_5_*amplio.csv')
-else:
-    print('Entregables no generados (use RV_ENTREGABLES=1 si los necesita).')
+    print("Comparando con filtro amplio ({}s/{}°/{}°)...".format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO))
+    total_eventos_amplio, total_diferentes_amplio, totsobre2_5_amplio, salida_amplio, sinmag_amplio = comparar(listacsv_1, listacsv_2, MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO, "amplio", PREFIJO, numsis_csv_2)
+
+    print("\nComparando con filtro estricto ({}s/{}°/{}°)...".format(MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO, MAX_LAT_LON_ESTRICTO))
+    total_eventos_estricto, total_diferentes_estricto, totsobre2_5_estricto, salida_estricto, sinmag_estricto = comparar(listacsv_1, listacsv_2, MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO, MAX_LAT_LON_ESTRICTO, "estricto", PREFIJO, numsis_csv_2)
+
+    print("\n--------------------------------------- Salida ---------------------------------------")
+    print('Filtro amplio ({}s/{}°)'.format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO))
+    print('  total eventos no publicados: {}'.format(total_eventos_amplio))
+    print('  eventos no publicados >= a mag. 2.5: {}'.format(totsobre2_5_amplio))
+    print('  total eventos no actualizados: {}'.format(total_diferentes_amplio))
+    print('  no publicados sin magnitud (no entran al CSV): {}'.format(sinmag_amplio))
+    print('Filtro estricto ({}s/{}°)'.format(MAX_SEG_ESTRICTO, MAX_LAT_LON_ESTRICTO))
+    print('  total eventos no publicados: {}'.format(total_eventos_estricto))
+    print('  eventos no publicados >= a mag. 2.5: {}'.format(totsobre2_5_estricto))
+    print('  total eventos no actualizados: {}'.format(total_diferentes_estricto))
+    print('  no publicados sin magnitud (no entran al CSV): {}'.format(sinmag_estricto))
+    print('Archivos generados...')
+    print('no_act_%samplio.txt / no_act_%sestricto.txt' % (PREFIJO, PREFIJO))
+    print('no_pub_desde_2_5_%sestricto.csv' % PREFIJO)
+    if rutas.ENTREGABLES:
+        print('En descargas/: no_pub_todos_*.txt / no_pub_desde_2_5_*.txt / '
+              'no_pub_desde_2_5_*amplio.csv')
+    else:
+        print('Entregables no generados (use RV_ENTREGABLES=1 si los necesita).')
+
+
+if __name__ == "__main__":
+    main()
 
 
 
