@@ -2262,6 +2262,81 @@ class App:
         return self._mas_nuevo_que(
             os.path.join("datos", "comparacion_agencias.json"), entradas)
 
+    @staticmethod
+    def _fecha_desde14(valor14):
+        """'AAAAMMDDHHMMSS' -> 'AAAA-MM-DD HH:MM:SS' (o '' si no es válido)."""
+        try:
+            return datetime.datetime.strptime(
+                str(valor14), "%Y%m%d%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            return ""
+
+    @staticmethod
+    def _fecha_utc(texto):
+        """Parsea 'AAAA-MM-DD HH:MM:SS[.ffffff]' (UTC) a datetime, o None."""
+        if texto is None:
+            return None
+        limpio = str(texto).strip().replace("T", " ").replace("Z", "")
+        for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return datetime.datetime.strptime(limpio, fmt)
+            except ValueError:
+                continue
+        return None
+
+    def _cobertura_agencias(self, agencias):
+        """
+        Ventana solicitada (común) y cobertura real por agencia de la última
+        extracción de agencias.
+
+        La solicitada sale del estado (período y magnitud guardados). La real,
+        de min/max de 'Fecha_Hora' en datos/agencias/consultaapi_<AG>.csv: es
+        el primer/último evento EFECTIVAMENTE reportado (no la cobertura total
+        del catálogo). El rezago compara el último evento con el fin solicitado.
+
+        Devuelve:
+            {"solicitada": {"desde", "hasta", "minmag"},
+             "agencias": [{"agencia", "eventos", "desde", "hasta", "rezago"}]}
+        """
+        consulta = (self._leer_estado_agencias().get("consulta") or {})
+        periodo = consulta.get("periodo") or [None, None]
+        sol_desde = self._fecha_desde14(periodo[0]) if periodo[0] else ""
+        sol_hasta = self._fecha_desde14(periodo[1]) if periodo[1] else ""
+        sol_hasta_dt = self._fecha_utc(sol_hasta)
+        filas = []
+        for ag in agencias:
+            ruta = os.path.join("datos", "agencias",
+                                "consultaapi_%s.csv" % AGENCIAS_EXTERNAS[ag])
+            tiempos = []
+            if os.path.isfile(ruta):
+                try:
+                    with open(ruta, encoding="utf-8-sig", newline="") as f:
+                        for fila in csv.DictReader(f):
+                            t = self._fecha_utc(fila.get("Fecha_Hora"))
+                            if t is not None:
+                                tiempos.append(t)
+                except OSError:
+                    pass
+            desde = min(tiempos) if tiempos else None
+            hasta = max(tiempos) if tiempos else None
+            rezago = ""
+            if sol_hasta_dt is not None and hasta is not None:
+                dias = (sol_hasta_dt - hasta).total_seconds() / 86400.0
+                if dias > 0.05:
+                    rezago = "%.1f d" % dias
+            filas.append({
+                "agencia": ag,
+                "eventos": len(tiempos),
+                "desde": desde.strftime("%Y-%m-%d %H:%M:%S") if desde else "",
+                "hasta": hasta.strftime("%Y-%m-%d %H:%M:%S") if hasta else "",
+                "rezago": rezago,
+            })
+        return {
+            "solicitada": {"desde": sol_desde, "hasta": sol_hasta,
+                           "minmag": consulta.get("minmag")},
+            "agencias": filas,
+        }
+
     def _pedir_parametros_agencias(self):
         """Diálogo: magnitud, agencias y opción de reconsultar (últimos valores)."""
         comp = (self._leer_estado_agencias().get("comparacion") or {})
@@ -2436,7 +2511,7 @@ class App:
                                                       referencia):
             self._log("La comparación de agencias ya está al día; se muestra "
                       "lo procesado.")
-            self._ver_comparacion_agencias()
+            self._ver_comparacion_agencias(reutilizada=True)
             return
 
         # La actualización de eventquery necesita la contraseña del servidor.
@@ -2544,6 +2619,21 @@ class App:
             par = self._leer_csv_datos(nombre)
             if par is not None:
                 datos.append((etiqueta, par[0], par[1]))
+        # Se suma la cobertura (ventana solicitada y real por agencia) para que
+        # quien procese el archivo fuera tenga de dónde salieron los datos.
+        try:
+            consulta = (self._leer_estado_agencias().get("consulta") or {})
+            cobertura = self._cobertura_agencias(
+                consulta.get("agencias") or list(AGENCIAS_EXTERNAS))
+            filas_cob = [[f["agencia"], f["eventos"], f["desde"], f["hasta"],
+                          f["rezago"]] for f in cobertura["agencias"]]
+            sol = cobertura["solicitada"]
+            filas_cob.append(["Solicitada", "", sol["desde"], sol["hasta"], ""])
+            datos.append(("cobertura agencias",
+                          ["Agencia", "Eventos", "Desde (UTC)", "Hasta (UTC)",
+                           "Rezago"], filas_cob))
+        except Exception:
+            pass
         if not datos:
             self._log("No hay comparación para descargar.")
             return
@@ -2666,7 +2756,7 @@ class App:
         except Exception as e:
             self._log("[error] no se pudo plotear el grupo de agencias: %s" % e)
 
-    def _ver_comparacion_agencias(self):
+    def _ver_comparacion_agencias(self, reutilizada=False):
         """Ventana con mapas y listado: comparación y sin contraparte con CSN."""
         ruta_cmp = os.path.join("datos", "comparacion_agencias.json")
         ruta_sp = os.path.join("datos", "agencias_sin_par.json")
@@ -2679,6 +2769,47 @@ class App:
         import plotear
         top = ttk.Toplevel(title="Comparar agencias", master=self.raiz)
         top.geometry("1040x700")
+
+        # Cabecera: de dónde salió el resultado (reutilizado/ejecutado) y qué
+        # ventana se pidió + qué reportó realmente cada agencia. Sin modal ni
+        # grab (misma cautela que el aviso «Sin datos»).
+        consulta = (self._leer_estado_agencias().get("consulta") or {})
+        cobertura = self._cobertura_agencias(
+            consulta.get("agencias") or list(AGENCIAS_EXTERNAS))
+        cabecera = ttk.Frame(top, padding=(10, 8, 10, 0))
+        cabecera.pack(side=TOP, fill=X)
+        texto_estado = "%s · %s UTC" % (
+            "Reutilizada" if reutilizada else "Ejecutada",
+            consulta.get("timestamp") or "sin fecha")
+        ttk.Label(cabecera, text=texto_estado, bootstyle="inverse-secondary"
+                  ).pack(side=TOP, anchor=W)
+        sol = cobertura["solicitada"]
+        if sol["desde"] and sol["hasta"]:
+            mag = (" · mag ≥ %g" % sol["minmag"]
+                   if sol.get("minmag") is not None else "")
+            ttk.Label(cabecera, bootstyle="secondary", font=("", 8),
+                      text="Solicitada: %s → %s UTC%s"
+                           % (sol["desde"], sol["hasta"], mag),
+                      wraplength=1000, justify=LEFT
+                      ).pack(side=TOP, anchor=W)
+        partes = []
+        for f in cobertura["agencias"]:
+            if f["desde"]:
+                partes.append("%s %s–%s UTC (%d)"
+                              % (f["agencia"], f["desde"], f["hasta"],
+                                 f["eventos"]))
+            else:
+                partes.append("%s sin datos" % f["agencia"])
+        if partes:
+            ttk.Label(cabecera, bootstyle="secondary", font=("", 8),
+                      text="Real: " + " · ".join(partes),
+                      wraplength=1000, justify=LEFT
+                      ).pack(side=TOP, anchor=W)
+        ttk.Button(cabecera, text="Detalles",
+                   bootstyle="secondary-outline",
+                   command=lambda: self._detalles_cobertura(top, cobertura)
+                   ).pack(side=TOP, anchor=W, pady=(4, 0))
+
         cuaderno = ttk.Notebook(top)
         cuaderno.pack(fill=BOTH, expand=YES)
 
@@ -2733,6 +2864,54 @@ class App:
         except Exception:
             self._log("[error ajuste] " + traceback.format_exc())
         self._log("Ventana «Comparar agencias» lista.")
+
+    def _detalles_cobertura(self, padre, cobertura):
+        """
+        Ventana de consulta (NO modal) con la ventana solicitada y la real por
+        agencia. Se abre oculta, se arma entera y recién ahí se muestra (un
+        solo mapeo, para no dejar un destello de caja fantasma).
+        """
+        top = ttk.Toplevel(title="Cobertura de agencias", master=padre)
+        top.withdraw()
+        top.geometry("780x340")
+        marco = ttk.Frame(top, padding=12)
+        marco.pack(fill=BOTH, expand=YES)
+        sol = cobertura["solicitada"]
+        mag = (" · mag ≥ %g" % sol["minmag"]
+               if sol.get("minmag") is not None else "")
+        ttk.Label(marco, bootstyle="primary", font=("", 10, "bold"),
+                  text="Ventana solicitada (todas las agencias)"
+                  ).pack(anchor=W)
+        ttk.Label(marco, text="%s → %s UTC%s"
+                  % (sol["desde"] or "—", sol["hasta"] or "—", mag)
+                  ).pack(anchor=W, pady=(0, 8))
+        cols = ("ag", "n", "desde", "hasta", "rezago")
+        arbol = ttk.Treeview(marco, columns=cols, show="headings", height=6)
+        for clave, texto, ancho in [("ag", "Agencia", 90),
+                                    ("n", "Eventos", 70),
+                                    ("desde", "Desde (UTC)", 175),
+                                    ("hasta", "Hasta (UTC)", 175),
+                                    ("rezago", "Rezago", 90)]:
+            arbol.heading(clave, text=texto)
+            arbol.column(clave, width=ancho, anchor=W)
+        for f in cobertura["agencias"]:
+            arbol.insert("", END, values=(
+                f["agencia"], f["eventos"], f["desde"] or "—",
+                f["hasta"] or "—", f["rezago"] or "—"))
+        arbol.pack(fill=BOTH, expand=YES, pady=(0, 8))
+        ttk.Label(marco, bootstyle="secondary", font=("", 8),
+                  wraplength=740, justify=LEFT,
+                  text="«Desde/Hasta (UTC)» son el primer y el último evento "
+                       "reportado entre los devueltos (no la cobertura total "
+                       "del catálogo). El rezago compara el último evento con "
+                       "el fin solicitado.").pack(anchor=W)
+        ttk.Button(marco, text="Cerrar", command=top.destroy,
+                   bootstyle="secondary").pack(anchor=E, pady=(8, 0))
+        top.deiconify()
+        try:
+            descargas.encima_de(padre, top, modal=False)
+        except Exception:
+            pass
 
     def _concatenar_eventquery(self, forzar=False):
         """

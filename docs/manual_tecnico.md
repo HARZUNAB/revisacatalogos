@@ -1,7 +1,7 @@
 # Manual técnico — RevisaPubSeisan
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.3 — 13 de octubre de 2026.
+Versión 1.4 — 13 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -94,6 +94,17 @@ app.py ──► ventana principal (orquesta subprocesos)
 | `agencias.py` | Consulta APIs de EMSC/USGS/GFZ y normaliza respuestas. | Referencia local publicada | Listado de eventos por agencia | — |
 | `consultaapi.py` | Cliente HTTP (timeout, reintentos) para catálogos remotos. | Config | JSON de eventos | — |
 | `agencias.py` / `consultaapi.py` | Comparación de agencias (UI de `app.py` + plotear). | Agencias seleccionadas | Tabla «Agencias sin contraparte» y mapas | — |
+
+> La comparación de agencias se **reutiliza** si no cambió ningún insumo: el
+> período y los parámetros salen de `datos/agencias/estado.json` (`_periodo()`
+> infiere inicio/fin del nombre de los archivos cuando no vino `estado.json`) y
+> `_comparacion_al_dia()`/`_consulta_agencias_al_dia()` comparan contra el
+> `mtime` de `datos/comparacion_agencias.json` y de `eventos_<referencia>.json`
+> / `eventos_agencia_*.json`. La cabecera de la ventana muestra «Reutilizada» o
+> «Ejecutada» con el `timestamp` (UTC) y `_cobertura_agencias()` resume la
+> ventana solicitada y la real por agencia (min/max de
+> `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Detalles» y
+> en la descarga.
 
 > `entregables` (CSV/TXT) solo se escriben con `RV_ENTREGABLES=1`.
 

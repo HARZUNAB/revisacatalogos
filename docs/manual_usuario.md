@@ -1,15 +1,15 @@
 # Manual de usuario — RevisaPubSeisan
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.3 — 13 de octubre de 2026.
+Versión 1.4 — 13 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 y 1.2, de octubre de 2026) quedaron archivadas
-> en `docs/versiones/`. Este es el documento vigente.
+> Las versiones anteriores (1.1, 1.2 y 1.3, de octubre de 2026) quedaron
+> archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
 
@@ -284,6 +284,16 @@ calculado sobre la ventana cargada y **no se altera**. Ojo: las soluciones muy r
 atraso; EMSC y USGS están casi en tiempo real. En modo tiempo real, si volvés a
 abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
 se vuelve a consultar.
+
+Cuando no cambió nada (misma ventana, magnitud, agencias y catálogos), la
+comparación **no se rehace**: se reutiliza el resultado y la ventana lo indica en
+una etiqueta, **`Reutilizada · AAAA-MM-DD HH:MM:SS UTC`** (o **`Ejecutada · …`**
+si se acaba de correr). Todas las horas van en **UTC**. Debajo, la ventana
+muestra la **ventana solicitada** (común a las agencias) y la **ventana real** de
+cada una —el primer y el último evento que reportaron, con su cantidad—, y un
+botón **«Detalles»** abre una tabla con `Agencia · Eventos · Desde (UTC) ·
+Hasta (UTC) · Rezago`: el rezago es cuánto antes del fin solicitado terminó cada
+catálogo (por ejemplo, GFZ). Esa misma cobertura se incluye en la **descarga**.
 
 Al terminar se abre una ventana con dos pestañas, cada una con el **mapa** (panel
 de perfiles) y, debajo, un **listado por evento** con las columnas
