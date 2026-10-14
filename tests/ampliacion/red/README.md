@@ -18,3 +18,14 @@ pytestmark = pytest.mark.red
 ```
 
 Convención de nombre: `test_<modulo>_<tema>.py`.
+
+## Sin pandas ni requests en CI
+
+`consultaapi.py` importa `pandas` y `requests` a nivel de módulo, pero el CI
+solo instala `numpy` y `pytest`. Por eso el `conftest.py` de esta carpeta trae
+una fixture `consultaapi` que importa el módulo con **stubs mínimos** de esas
+dos dependencias. Los tests nunca ejercitan pandas (las ramas de pandas —
+`_guardar` con filas, el parseo de GFZ— quedan fuera del alcance) y reemplazan
+`requests.get` con `monkeypatch`. Así el grupo `red` corre en CI sin red real
+ni dependencias pesadas.
+

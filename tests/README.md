@@ -73,13 +73,17 @@ Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
 analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso) y
 `descargas` (nombres y escritura de archivos).
 
+Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
+cuadrante de EMSC/USGS/GFZ, con `requests` mockeado y sin pandas).
+
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
 - **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
   `ampliacion/gui/`, marcador `gui`.
 - **Base de datos** (`exporta_ventana_seiscomp.py`, `verifica_entorno.py`):
   `ampliacion/db/`, marcador `db`.
-- **Red** (`consultaapi.py`, descargas SSH/SCP): `ampliacion/red/`, con mock.
+- **Red restante**: descargas SSH/SCP de `traer_catalogos.py` (helpers puros ya
+  en `base/`), en `ampliacion/red/` con mock.
 - **Casos borde** de los módulos puros: `ampliacion/bordes/`.
 - **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
   `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
