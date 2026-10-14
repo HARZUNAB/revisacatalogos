@@ -1,4 +1,4 @@
-# Manual de usuario — RevisaPubSeisan
+# Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
 Versión 1.7 — 13 de octubre de 2026.
@@ -32,7 +32,7 @@ parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
 ## 1. Qué hace el sistema
 
-RevisaPubSeisan **contrasta** lo que publicó el sistema automático de detección
+RCS **contrasta** lo que publicó el sistema automático de detección
 sísmica (Seisan, en el servidor local) y el catálogo sísmico de SeisComp con el
 **catálogo público** de eventos (consultado por `eventquery`). El objetivo es
 responder preguntas concretas de control de calidad:

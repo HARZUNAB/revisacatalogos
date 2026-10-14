@@ -43,7 +43,7 @@ def bv(doc, texto):
 
 def generar_tecnico():
     doc = base_document()
-    titulo(doc, "Informe de revision tecnica - RevisaPubSeisan",
+    titulo(doc, "Informe de revision tecnica - RCS",
            "Revision de codigo del pipeline de publicacion sismica y deteccion de eventos no publicados")
 
     seccion(doc, "1. Alcance y metodo")
@@ -216,7 +216,7 @@ def generar_tecnico():
 
 def generar_usuario():
     doc = base_document()
-    titulo(doc, "Informe de revision del sistema RevisaPubSeisan",
+    titulo(doc, "Informe de revision del sistema RCS",
            "Revision de los procesos de publicacion sismica y deteccion de eventos no publicados")
 
     seccion(doc, "1. Que se hizo")

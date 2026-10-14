@@ -1,6 +1,6 @@
 -- ============================================================================
 -- esquema_seiscomp_mysql.sql
--- Modelo relacional (subconjunto) de la base de SeisComp que usa RevisaPubSeisan.
+-- Modelo relacional (subconjunto) de la base de SeisComp que usa RCS.
 --
 -- QUÉ ES
 --   Un script DDL en dialecto MySQL (InnoDB) con las tablas que consulta la
@@ -24,7 +24,7 @@
 --   * `origin._parent_oid` NO enlaza con `event` en esta base (0 coincidencias);
 --     el evento se une a su origen PREFERIDO por `m_preferredoriginid`.
 --
--- Autor: RevisaPubSeisan. Ver también docs/esquema_seiscomp.md.
+-- Autor: RCS. Ver también docs/esquema_seiscomp.md.
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS seiscomp2

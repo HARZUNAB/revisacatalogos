@@ -1,4 +1,4 @@
-# Manual técnico — RevisaPubSeisan
+# Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
 Versión 1.7 — 13 de octubre de 2026.

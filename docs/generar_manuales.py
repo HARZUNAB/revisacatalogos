@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Genera manual_tecnico.docx y manual_usuario.docx en la raiz del proyecto.
 
-Los documentos describen el funcionamiento ACTUAL del sistema RevisaPubSeisan.
+Los documentos describen el funcionamiento ACTUAL del sistema RCS.
 Todo el contenido (constantes, firmas, rutas, mensajes) fue verificado contra
 el codigo fuente antes de redactarse.
 """
@@ -106,7 +106,7 @@ def generar_tecnico():
     doc = base_document()
     titulo(
         doc,
-        "Manual técnico — RevisaPubSeisan",
+        "Manual técnico — RCS",
         "Revisión de publicaciones sísmicas, detección de eventos no publicados "
         "y asignación de perfiles de subducción",
     )
@@ -115,7 +115,7 @@ def generar_tecnico():
     seccion(doc, "1. Propósito y alcance")
     parrafo(
         doc,
-        "RevisaPubSeisan es una aplicación de escritorio que procesa la salida de un "
+        "RCS es una aplicación de escritorio que procesa la salida de un "
         "sistema de detección sísmica (Seisan) y la contrasta con el catálogo público de "
         "eventos, con el fin de responder tres preguntas operativas: qué eventos del "
         "catálogo público no fueron publicados por el sistema, qué eventos se publicaron "
@@ -873,7 +873,7 @@ def generar_usuario():
     doc = base_document()
     titulo(
         doc,
-        "Manual de usuario — RevisaPubSeisan",
+        "Manual de usuario — RCS",
         "Guía de operación diaria para la revisión de publicaciones sísmicas",
     )
 
@@ -881,7 +881,7 @@ def generar_usuario():
     seccion(doc, "1. Qué hace el sistema")
     parrafo(
         doc,
-        "RevisaPubSeisan compara lo que publicó el sistema automático de detección sísmica con "
+        "RCS compara lo que publicó el sistema automático de detección sísmica con "
         "el catálogo público de eventos, y ayuda a revisar a mano los casos dudosos. En una "
         "sesión típica se hace lo siguiente:",
     )
