@@ -76,8 +76,9 @@ analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso) y
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
 cuadrante de EMSC/USGS/GFZ, con `requests` mockeado y sin pandas).
 
-Cubierto en `ampliacion/scripts/`: `compara` (refactorizado; helpers puros con
-stub de pandas, y un arnés de regresión antes/después con golden).
+Cubierto en `ampliacion/scripts/`: `compara` y `repetidos` (refactorizados;
+helpers puros con stub de pandas, y un arnés de regresión antes/después con
+goldens por caso).
 
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
@@ -91,7 +92,7 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 - **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
   `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
   subcarpeta que corresponda.
-- **Módulos script-style** (`repetidos.py`, `revisaselect.py`,
+- **Módulos script-style** (`revisaselect.py`,
   `revisacollect.py`, `revisaexcluidos.py`, `repetidosexclu.py`,
   `proc_query_harz_2.py`): hoy ejecutan código al importar y leen `sys.argv` en
   el nivel superior. Para testearlos hay que refactorizarlos primero para

@@ -7,7 +7,7 @@ Tests de los módulos hoy **script-style**, que ejecutan código al importar y l
 y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 
 - `compara.py` (refactorizado)
-- `repetidos.py`
+- `repetidos.py` (refactorizado)
 - `repetidosexclu.py`
 - `revisaselect.py`
 - `revisacollect.py`
