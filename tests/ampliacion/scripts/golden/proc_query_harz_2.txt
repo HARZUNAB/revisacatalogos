@@ -1,0 +1,33 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+Nuevos archivos generados...
+entrada/../salida.dat
+datos/new_2_eventquery.csv
+
+--- archivos ---
+292567709fbe4866b55913584bbe9db22937ab05ae8867feb02aefbf3ffd02c7  datos/new_2_eventquery.csv
+f27d86cb441ca3c197bcab9b51367bcc97d32e8fff09e00f26d0f989a8d76899  salida.dat
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+@@PROGRESO@@ 0.3330
+@@PROGRESO@@ 0.6670
+@@PROGRESO@@ 1.0000
+Nuevos archivos generados...
+entrada/../salida.dat
+datos/new_2_eventquery.csv
+
+--- archivos ---
+292567709fbe4866b55913584bbe9db22937ab05ae8867feb02aefbf3ffd02c7  datos/new_2_eventquery.csv
+f27d86cb441ca3c197bcab9b51367bcc97d32e8fff09e00f26d0f989a8d76899  salida.dat
