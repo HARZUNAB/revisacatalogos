@@ -33,6 +33,7 @@ Sin argumentos corre toda la suite (menos gui y db).
 Grupos:
   base          tests/base (suite entregada, congelada)
   ampliacion    tests/ampliacion (menos gui y db)
+  modulos       tests/ampliacion/modulos
   bordes        tests/ampliacion/bordes
   scripts       tests/ampliacion/scripts
   red           tests/ampliacion/red (con mock)
@@ -61,6 +62,7 @@ shift
 case "$grupo" in
     base)       set -- tests/base "$@";;
     ampliacion) set -- tests/ampliacion "$@";;
+    modulos)    set -- tests/ampliacion/modulos "$@";;
     bordes)     set -- tests/ampliacion/bordes "$@";;
     scripts)    set -- tests/ampliacion/scripts "$@";;
     red)        set -- tests/ampliacion/red "$@";;

@@ -69,6 +69,10 @@ Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 `asigna_perfiles`, `revisa_seiscomp` (funciones puras) y
 `exporta_ventana_seiscomp` (geometría).
 
+Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
+analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso) y
+`descargas` (nombres y escritura de archivos).
+
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
 - **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
@@ -77,6 +81,9 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
   `ampliacion/db/`, marcador `db`.
 - **Red** (`consultaapi.py`, descargas SSH/SCP): `ampliacion/red/`, con mock.
 - **Casos borde** de los módulos puros: `ampliacion/bordes/`.
+- **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
+  `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
+  subcarpeta que corresponda.
 - **Módulos script-style** (`compara.py`, `repetidos.py`, `revisaselect.py`,
   `revisacollect.py`, `revisaexcluidos.py`, `repetidosexclu.py`,
   `proc_query_harz_2.py`): hoy ejecutan código al importar y leen `sys.argv` en

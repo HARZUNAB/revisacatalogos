@@ -9,6 +9,7 @@ profundiza en los que sí.
 
 | Carpeta | Qué va acá | Marcador | Corre en CI |
 |---|---|---|---|
+| `modulos/` | Cobertura nueva de módulos puros que no estaban en `base/` (`generajson.py`, `prog.py`, `descargas.py`) | — | Sí |
 | `bordes/` | Casos borde y escenarios complejos de módulos puros ya cubiertos en `base/` | — | Sí |
 | `gui/` | Interfaz: ventanas de Tk (`app.py`, `plotear.py`, ventanas de `revisa_seiscomp.py`) | `gui` | No (necesita `DISPLAY`) |
 | `db/` | Base de datos: `exporta_ventana_seiscomp.py`, `verifica_entorno.py` | `db` | No (necesita PostgreSQL o mock) |
@@ -37,6 +38,7 @@ informativamente costosos.
 
 ```bash
 ./tests/correr.sh ampliacion   # todo lo agregado, menos gui/db
+./tests/correr.sh modulos      # solo módulos puros nuevos
 ./tests/correr.sh gui          # solo interfaz
 ./tests/correr.sh db           # solo base de datos
 ./tests/correr.sh red          # solo red (mock)
