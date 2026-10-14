@@ -10,6 +10,27 @@
   MySQL Workbench (diagrama EER).
 - `docs/versiones/` — manuales anteriores archivados.
 
+## Tests
+
+Hay dos niveles, y conviene no mezclarlos:
+
+- `tests/` — **tests unitarios** (pytest) de las funciones puras: sin pantalla,
+  sin base y sin red. Corren en segundos y son la red de seguridad para
+  desarrollar. Adentro, `tests/base/` es la suite entregada (congelada) y
+  `tests/ampliacion/` lo que se agrega después. Ver `tests/README.md`.
+- `verificacion/` — **comprobaciones end-to-end** de la app armada (ventanas
+  reales, base simulada, datos de prueba). Ver `verificacion/README.md`.
+
+```bash
+.venv/bin/python -m pip install -r requirements-dev.txt   # una vez
+./tests/correr.sh                                          # toda la suite
+./tests/correr.sh base                                     # solo la suite base
+./tests/correr.sh gui                                      # solo interfaz (DISPLAY)
+```
+
+`pytest` se fija en 7.4.4 (la última versión que soporta Python 3.7). La suite
+corre en CI (GitHub Actions) con cada push y pull request.
+
 ## Uso
 
 ```

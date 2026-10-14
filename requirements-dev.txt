@@ -1,0 +1,6 @@
+# Dependencias de desarrollo (tests unitarios). No van en requirements.txt
+# porque la app no las necesita para correr.
+#
+# pytest se fija en 7.4.4: es la última versión que soporta Python 3.7.
+pytest==7.4.4
+pytest-cov==4.1.0

@@ -47,9 +47,11 @@ DISPLAY=:1 .venv/bin/python verificacion/gui/verif_ventana_estaciones.py
 - Los paths al proyecto son relativos a `__file__`, así que funcionan en
   cualquier máquina (incluido el repo en GitHub).
 
-## Semilla para tests unitarios
+## Relación con `tests/`
 
-Los scripts `verifica_*.py` que quedaron en `/tmp` (dependían de datos de
-sesiones viejas) pueden servir de inspiración para futuros tests unitarios
-en `tests/`: verificaban filtros, catálogos, exportación y fases con datos
-fijos.
+Los tests unitarios ya existen en `tests/` (pytest, funciones puras) y cubren
+la lógica de cálculo: comparación, rutas, agencias, perfiles, sismicidad,
+exportación y los ayudantes puros de `revisa_seiscomp.py`. Los scripts de esta
+carpeta siguen siendo los que ejercitan la app armada y la base simulada; no se
+reemplazan entre sí. Para saber qué está cubierto y qué falta, ver
+`tests/README.md`.
