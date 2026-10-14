@@ -28,6 +28,9 @@ select_*.out
 eventquery_*.csv
 *.csv.completo
 
+# Excepción: las fixtures de los tests (casos del arnés) sí se versionan.
+!tests/**/select.out
+
 # Residuo de cuando el flujo escribía en la raíz; ahora todo va a datos/.
 /eventos_eventquery.json
 /conteo_perfiles_eventquery.json
