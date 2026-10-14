@@ -61,6 +61,12 @@ app.py ──► ventana principal (orquesta subprocesos)
    └─ paneles:   generajson (por fuente) → plotear / revisa_seiscomp
 ```
 
+**Nota histórica.** RCS nace de integrar varios programas que un mismo
+desarrollador había hecho por separado para tareas puntuales de la revisión.
+La reunificación se hizo en un entorno asistido por IA —Visual Studio Code,
+Python y Bash, y herramientas de consulta de PostgreSQL— que permitió releer,
+unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
+
 ---
 
 ## 2. Inventario de módulos

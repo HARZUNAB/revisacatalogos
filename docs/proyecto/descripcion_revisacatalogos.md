@@ -90,7 +90,29 @@ remotos.
 
 ## 3. Materiales y métodos
 
-### 3.1 Enfoque de desarrollo
+### 3.1 Antecedentes y origen del desarrollo
+
+La herramienta no se diseñó desde cero: es el resultado de **integrar varios
+programas pequeños** que un mismo desarrollador había construido por separado a
+lo largo del tiempo, cada uno resolviendo una necesidad puntual de la revisión
+(parsear el `select.out`, cruzar catálogos, detectar repetidos, dibujar mapas).
+Esos programas operaban de forma aislada, con formatos y convenciones propias, y
+su mantenimiento era manual.
+
+El salto se produjo con la **incorporación de la inteligencia artificial como
+asistente de desarrollo**. Sobre un entorno de trabajo moderno —**Visual Studio
+Code**, **Python** y **Bash** como lenguajes, y herramientas de consulta de
+**PostgreSQL**— y con la IA guiando el trabajo de forma iterativa, fue posible
+**releer, homogeneizar e integrar** esos códigos base: unificar su organización
+en un solo directorio de trabajo con una capa de rutas común, eliminar
+duplicaciones, corregir inconsistencias y convertirlos en un sistema coherente,
+reproducible y mantenible.
+
+El resultado conserva la lógica ya validada en la operación y, a la vez,
+aprovecha el desarrollo asistido para extender, documentar y probar el sistema
+con mayor velocidad y consistencia.
+
+### 3.2 Enfoque de desarrollo
 
 El desarrollo fue **iterativo e incremental, guiado por el uso operativo**: cada
 módulo se agregó a partir de una necesidad concreta de la revisión y se validó
@@ -98,7 +120,7 @@ usando catálogos reales de la operación. La herramienta prioriza **reproducir
 el criterio del supervisor** antes que automatizar decisiones: el sistema
 propone y ordena; el analista decide.
 
-### 3.2 Patrón de arquitectura
+### 3.3 Patrón de arquitectura
 
 La aplicación separa tres responsabilidades:
 
@@ -114,7 +136,7 @@ El **directorio de trabajo** es el directorio desde donde se invoca la
 aplicación; allí se resuelven las rutas relativas (`datos/`, `informes/`,
 `ploteo/`, `descargas/`, `trabajo/`), centralizadas en `rutas.py`.
 
-### 3.3 Tecnologías
+### 3.4 Tecnologías
 
 - **Lenguaje**: Python 3.7.
 - **Interfaz**: Tkinter con `ttkbootstrap`.
@@ -125,7 +147,7 @@ aplicación; allí se resuelven las rutas relativas (`datos/`, `informes/`,
 - **Entorno**: entorno virtual (`.venv`) reproducido desde `requirements.txt`
   por `supervisor.sh` / `preparar_venv.sh`.
 
-### 3.4 Método de trabajo
+### 3.5 Método de trabajo
 
 Cada corrida sigue el mismo ciclo: **solicitar** (bajar los tres catálogos) →
 **procesar** (análisis por etapas) → **consultar** (pestañas de revisión) →
