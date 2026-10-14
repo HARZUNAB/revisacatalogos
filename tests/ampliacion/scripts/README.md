@@ -12,7 +12,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 - `revisaselect.py`
 - `revisacollect.py`
 - `revisaexcluidos.py`
-- `proc_query_harz_2.py`
+- `proc_query_harz_2.py` (refactorizado)
 
 Una vez refactorizado un módulo, su test va acá con nombre
 `test_<modulo>_<tema>.py` (con **stub de pandas** si el módulo lo importa, para
@@ -44,6 +44,9 @@ corre como subproceso (igual que `app.py`): `RV_PROG=1`, en un temporal, en dos
 modos —**app** (sin `RV_ENTREGABLES`) y **entregables** (`RV_ENTREGABLES=1`)— y
 se guarda stdout + código de salida + un manifiesto sha256 de todo lo generado.
 El golden queda en `golden/<caso>.txt`, versionado como regresión permanente.
+Los *timestamps de impresión* (fechas recientes, como el `Impresion:` del `.dat`)
+se normalizan a `<TS>` tanto en stdout como en el contenido de los archivos, así
+el golden es reproducible; las fechas históricas de los fixtures no se tocan.
 
 Un módulo puede tener **varios casos** (cada uno con su golden), p. ej.
 `repetidos_3csv` y `repetidos_2csv` para cubrir con y sin el catálogo de
