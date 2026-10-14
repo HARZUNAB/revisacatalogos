@@ -1,0 +1,26 @@
+@startuml 01_contexto
+' Diagrama de contexto — RCS (Revisor de Catálogos Sísmicos)
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+left to right direction
+
+actor "Supervisor / Analista\n(OPA-CSN)" as U
+
+rectangle "RCS\nRevisor de Catálogos Sísmicos\n(aplicación de escritorio)" as SYS
+
+actor "Servidor de catálogos\n(Seisan, vía SSH/SCP)" as SRV
+database "Base de datos\nSeisComp (PostgreSQL)" as DB
+cloud "APIs de agencias\nEMSC / USGS / GFZ" as AG
+
+U --> SYS : solicita el período\ny revisa los resultados
+SYS --> SRV : select.out\neventquery2 (CSV)
+SYS --> DB : eventos, fases,\ninventario y bindings
+SYS --> AG : catálogos de\nagencias (HTTP/JSON)
+
+note right of SYS
+  Compara el catálogo local (Seisan / SeisComp)
+  con el catálogo público y con otras agencias,
+  y entrega listados, mapas y perfiles.
+end note
+@enduml

@@ -1,0 +1,47 @@
+@startuml 03_vista_procesos
+' Vista de procesos — un ciclo de «Procesar catálogos» en subprocesos
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+autonumber
+
+actor "Supervisor" as U
+participant "app.py\n(orquestador)" as APP
+participant "Scripts del\npipeline" as SCRIPT
+database "Directorio de trabajo\n(datos/ informes/ …)" as FS
+
+U -> APP : Procesar catálogos
+activate APP
+
+APP -> SCRIPT : proc_query_harz_2
+SCRIPT -> FS : new_2_*.csv, *.dat
+SCRIPT --> APP : @@PROGRESO@@
+
+APP -> SCRIPT : revisaselect
+SCRIPT -> FS : newcollect.txt / excluidos.txt
+
+APP -> SCRIPT : revisacollect
+SCRIPT -> FS : salida_collect.csv
+
+APP -> SCRIPT : compara (+ atribución SeisComp)
+SCRIPT -> FS : no_pub_*.csv, atribucion_*.csv, no_act_*.txt
+
+APP -> SCRIPT : revisaexcluidos / repetidosexclu / repetidos
+SCRIPT -> FS : excluidos.csv, rep_*.txt
+
+APP -> SCRIPT : generajson (por fuente)
+SCRIPT -> FS : eventos_<vista>.json, conteo_perfiles_*.json
+
+U -> APP : abre una pestaña
+APP -> SCRIPT : plotear / revisa_seiscomp
+SCRIPT -> FS : figuras y tablas (caché)
+SCRIPT --> APP : resultados
+
+deactivate APP
+APP --> U : paneles y listados listos
+
+note over APP, SCRIPT
+  Cada etapa corre como subproceso independiente
+  (cwd = directorio de ejecución). La GUI no contiene
+  lógica de negocio: lanza y muestra.
+end note
+@enduml

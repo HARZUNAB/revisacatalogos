@@ -32,3 +32,7 @@ eventquery_*.csv
 /eventos_eventquery.json
 /conteo_perfiles_eventquery.json
 /sospechosos_eventquery.csv
+
+# Binario de PlantUML para los diagramas de docs/proyecto/ (pesado; se baja con
+# docs/proyecto/herramientas/traer_plantuml.sh). Los .puml y los .png sí van.
+docs/proyecto/herramientas/plantuml.jar

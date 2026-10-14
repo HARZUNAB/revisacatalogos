@@ -1,0 +1,43 @@
+@startuml 04_vista_desarrollo
+' Vista de desarrollo (implementación) — organización de archivos y paquetes
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam packageStyle rectangle
+left to right direction
+
+folder "proyecto/" as ROOT {
+  file "supervisor.sh" as SH
+  file "preparar_venv.sh" as PV
+  file "requirements.txt" as REQ
+  file "app.py" as APP
+  file "solicita_catalogos.py" as SOL
+  file "*.py (módulos del pipeline)" as PIPE
+
+  folder "plantillas/" as PL
+  folder "grillas/" as GR
+  folder "docs/" as DOC {
+    file "manual_usuario.md" as MU
+    file "manual_tecnico.md" as MT
+    file "esquema_seiscomp.md" as ES
+    file "md_a_docx.py" as MDX
+    folder "img/" as IMG
+  }
+  folder "verificacion/" as VER {
+    folder "offline/" as VOFF
+    folder "gui/" as VGUI
+    file "correr.sh" as CORR
+  }
+}
+
+SH --> REQ
+SH --> APP
+SH --> SOL
+SOL --> APP
+PIPE --> PL
+PIPE --> GR
+DOC --> IMG
+VER --> VOFF
+VER --> VGUI
+CORR --> VOFF
+CORR --> VGUI
+@enduml

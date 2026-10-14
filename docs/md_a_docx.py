@@ -18,9 +18,11 @@ línea (**negrita**, *cursiva*, `código`).
 
 Uso:
     python3 docs/md_a_docx.py
+    python3 docs/md_a_docx.py <entrada.md> <salida.docx>
 """
 import os
 import re
+import sys
 
 from docx import Document
 from docx.shared import Pt, Inches
@@ -98,8 +100,16 @@ def _estilo_lista(base, indent):
     return base + " 3"
 
 
-def convertir(md_path, docx_path):
-    """Convierte 'md_path' a 'docx_path'. Devuelve la ruta del .docx."""
+def convertir(md_path, docx_path, base_img=None):
+    """Convierte 'md_path' a 'docx_path'. Devuelve la ruta del .docx.
+
+    Las imágenes se resuelven relativas a 'base_img', que por defecto es la
+    carpeta del propio .md (así un .md en docs/proyecto/ resuelve img/x.png
+    contra docs/proyecto/img/). Antes se resolvían contra docs/ a secas, que
+    solo servía para los manuales de la raíz de docs/.
+    """
+    if base_img is None:
+        base_img = os.path.dirname(os.path.abspath(md_path))
     with open(md_path, encoding="utf-8") as f:
         lineas = f.read().split("\n")
 
@@ -141,7 +151,7 @@ def convertir(md_path, docx_path):
         if m:
             alt, ruta = m.group(1), m.group(2)
             if not re.match(r"^[a-zA-Z]+://", ruta):
-                ruta_abs = os.path.join(DOCS, ruta)
+                ruta_abs = os.path.join(base_img, ruta)
                 if os.path.isfile(ruta_abs):
                     doc.add_picture(ruta_abs, width=Inches(6.0))
                     doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -229,6 +239,17 @@ def convertir(md_path, docx_path):
 
 
 def main():
+    # Con dos argumentos (md, docx) convierte ese par; sin argumentos, los
+    # manuales de siempre a la raíz del proyecto. Así el documento del sistema
+    # (docs/proyecto/…) se genera sin tocar la lógica de los manuales.
+    if len(sys.argv) >= 3:
+        md_path, docx_path = sys.argv[1], sys.argv[2]
+        if not os.path.isfile(md_path):
+            print("No existe %s" % md_path)
+            return
+        print(convertir(md_path, docx_path))
+        return
+
     trabajos = [("manual_tecnico.md", "manual_tecnico.docx"),
                 ("manual_usuario.md", "manual_usuario.docx")]
     for md, docx in trabajos:

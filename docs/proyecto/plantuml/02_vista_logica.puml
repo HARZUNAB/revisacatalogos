@@ -1,0 +1,82 @@
+@startuml 02_vista_logica
+' Vista lógica — módulos del sistema y sus dependencias
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam packageStyle rectangle
+left to right direction
+
+package "Interfaz (orquestación)" {
+  component "app.py\nVentana principal" as APP
+  component "solicita_catalogos.py\nVentana de solicitud" as SOL
+  component "ajuste.py\nTamaño de ventanas" as AJU
+}
+
+package "1. Solicitud y descarga" {
+  component "traer_catalogos.py" as TRA
+  component "exporta_ventana_seiscomp.py" as EXP
+  component "plantillas/select.inp" as PLANT <<artifact>>
+}
+
+package "2. Procesamiento y análisis" {
+  component "proc_query_harz_2.py" as PQ
+  component "revisaselect.py" as RS
+  component "revisacollect.py" as RC
+  component "revisaexcluidos.py" as RE
+  component "repetidos.py" as REP
+  component "repetidosexclu.py" as REPE
+  component "generajson.py" as GJ
+  component "asigna_perfiles.py" as AP
+  component "sismicidad.py" as SIS
+}
+
+package "3. Revisión y comparación" {
+  component "compara.py" as COM
+  component "comparacion.py" as COMP <<shared>>
+}
+
+package "4. Revisión SeisComp" {
+  component "revisa_seiscomp.py" as RSC
+  component "seiscomp_a_parametros.py" as SCP
+}
+
+package "5. Comparación con agencias" {
+  component "agencias.py" as AG
+  component "consultaapi.py" as API
+}
+
+package "6. Reportería y entregables" {
+  component "plotear.py" as PLOT
+  component "rutas.py" as RUT <<shared>>
+  component "prog.py" as PROG <<shared>>
+}
+
+package "Documentación (docs/)" {
+  component "generar_manuales.py" as GM
+  component "generar_informes.py" as GI
+}
+
+SOL --> TRA
+SOL --> EXP
+SOL --> APP
+APP --> PQ
+APP --> RS
+APP --> RC
+APP --> COM
+APP --> RE
+APP --> REP
+APP --> REPE
+APP --> GJ
+APP --> RSC
+APP --> PLOT
+APP ..> RUT : crea carpetas
+APP ..> PROG : @@PROGRESO@@
+GJ --> AP
+GJ --> SIS
+COM --> COMP
+RSC --> COMP
+RSC --> EXP
+RSC --> SCP
+AG --> API
+TRA ..> PLANT
+@enduml

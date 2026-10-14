@@ -1,0 +1,158 @@
+@startuml 07_modelo_relacional_seiscomp
+' Modelo relacional (subconjunto) de SeisComp que usa RCS
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam linetype polyline
+
+entity "object" as object {
+  * _oid : PK
+  --
+  _timestamp
+}
+entity "publicobject" as publicobject {
+  * _oid : PK/FK
+  --
+  m_publicid : texto
+}
+entity "event" as event {
+  * _oid : PK/FK
+  --
+  m_preferredoriginid
+  m_preferredmagnitudeid
+  m_type
+}
+entity "eventdescription" as eventdescription {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK event
+  m_text
+  m_type  (region name)
+}
+entity "origin" as origin {
+  * _oid : PK/FK
+  --
+  m_time_value
+  m_latitude_value
+  m_longitude_value
+  m_depth_value
+  m_evaluationstatus
+  m_quality_*
+}
+entity "magnitude" as magnitude {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK origin
+  m_magnitude_value
+  m_type
+}
+entity "arrival" as arrival {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK origin
+  m_pickID
+  m_phase_code
+  m_timeUsed
+}
+entity "pick" as pick {
+  * _oid : PK/FK
+  --
+  m_time_value
+  m_waveformID_*  (net/sta/loc/cha)
+  m_evaluationmode  (manual/automatic)
+}
+entity "amplitude" as amplitude {
+  * _oid : PK/FK
+  --
+  m_pickID
+  m_snr
+}
+entity "stationmagnitude" as stationmagnitude {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK origin
+  m_amplitudeID
+  m_magnitude_value
+  m_passedQC
+}
+entity "stationmagnitudecontribution" as smc {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK magnitude
+  m_stationMagnitudeID
+  m_residual
+}
+entity "network" as network {
+  * _oid : PK/FK
+  --
+  m_code
+  m_start / m_end
+}
+entity "station" as station {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK network
+  m_code
+  m_latitude / m_longitude
+  m_start / m_end
+}
+entity "sensorlocation" as sensorlocation {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK station
+  m_code
+  m_start / m_end
+}
+entity "stream" as stream {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK sensorlocation
+  m_code  (canal)
+  m_start / m_end
+}
+entity "configmodule" as configmodule {
+  * _oid : PK/FK
+  --
+  m_name  ('trunk')
+}
+entity "configstation" as configstation {
+  * _oid : PK/FK
+  --
+  _parent_oid : FK configmodule
+  m_networkcode
+  m_stationcode
+  m_enabled
+}
+
+object ||--|| publicobject : "mismo _oid"
+object ||--o{ event
+object ||--o{ origin
+object ||--o{ magnitude
+object ||--o{ eventdescription
+object ||--o{ arrival
+object ||--o{ pick
+object ||--o{ amplitude
+object ||--o{ stationmagnitude
+object ||--o{ smc
+object ||--o{ network
+object ||--o{ station
+object ||--o{ sensorlocation
+object ||--o{ stream
+object ||--o{ configmodule
+object ||--o{ configstation
+
+event ||--o{ eventdescription : "_parent_oid"
+event }o--|| origin : "m_preferredoriginid (vía publicobject)"
+event }o--|| magnitude : "m_preferredmagnitudeid (vía publicobject)"
+origin ||--o{ magnitude : "_parent_oid"
+origin ||--o{ arrival : "_parent_oid"
+origin ||--o{ stationmagnitude : "_parent_oid"
+arrival }o--|| pick : "m_pickID (vía publicobject)"
+pick ||--o{ amplitude : "m_pickID (vía publicobject)"
+amplitude ||--o{ stationmagnitude : "m_amplitudeID (vía publicobject)"
+magnitude ||--o{ smc : "_parent_oid"
+stationmagnitude ||--o{ smc : "m_stationMagnitudeID"
+network ||--o{ station : "_parent_oid"
+station ||--o{ sensorlocation : "_parent_oid"
+sensorlocation ||--o{ stream : "_parent_oid"
+configmodule ||--o{ configstation : "_parent_oid"
+@enduml

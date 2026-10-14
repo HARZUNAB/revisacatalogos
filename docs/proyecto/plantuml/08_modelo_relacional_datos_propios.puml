@@ -1,0 +1,106 @@
+@startuml 08_modelo_relacional_datos_propios
+' Modelo relacional de los datos propios (caché y entregables de RCS)
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam linetype polyline
+
+entity "CATALOGO_ORIGEN" as CAT {
+  * archivo : PK
+  --
+  tipo : seisan | eventquery | seiscomp
+  periodo_ini
+  periodo_fin
+}
+entity "EVENTO" as EV {
+  * vista : PK  (seisan/eventquery/seiscomp/nopub…)
+  * id : PK
+  --
+  fecha_hora
+  latitud
+  longitud
+  prof
+  magnitud
+  tipo
+  perfil
+  along_km / perp_km / residuo_km / dist_asoc
+  sospechoso
+  percibido
+}
+entity "SALIDA_COLLECT" as SC {
+  * fila : PK
+  --
+  fecha_hora / latitud / longitud
+  prof / mag / tipo_mag
+  analista
+  rms / agencia
+}
+entity "EXCLUIDO" as EX {
+  * fila : PK
+  --
+  motivo (sin agencia/mag/coord/RMS)
+}
+entity "ATRIBUCION" as AT {
+  * fuente : PK
+  * fila : PK
+  --
+  fecha_local / lat_local / lon_local
+  prof_local / mag_local
+  *_eventquery
+  analista
+  dt_seg / dlat / dlon
+  tipo_mag_local / tipo_mag_eventquery
+}
+entity "NO_PUBLICADO" as NP {
+  * fuente : PK
+  * fila : PK
+  --
+  Fecha_Hora / Latitud / Longitud
+  Prof. / Mag. / Tipo_mag. / Analista
+}
+entity "SEISCOMP_PARAMETROS" as SCP {
+  * id_evento : PK
+  --
+  id_origen
+  ot_utc / magnitud / tipo_magnitud
+  fases / rms / azgap
+  latitud / longitud / profundidad_km
+  agencia / operador / region / estatus
+}
+entity "PERFIL" as PF {
+  * codigo : PK
+  --
+  slabP### / topoP###
+}
+entity "CONSULTA_AGENCIA" as CAG {
+  * agencia : PK  (EMSC/USGS/GFZ)
+  * id_externo : PK
+  --
+  fecha_hora / latitud / longitud
+  magnitud / tipo_magnitud
+}
+entity "ESTADO" as EST {
+  * clave : PK
+  --
+  periodo_ini / periodo_fin
+  catalogos_faltantes
+}
+entity "REPETIDO" as REP {
+  * fuente : PK
+  * grupo : PK
+  --
+  eventos (amplio/estricto)
+}
+
+CAT ||--o{ EV : "genera (por fuente)"
+CAT ||--o{ SC : "Seisan → collect"
+CAT ||--o{ EX : "seisan excluidos"
+CAT ||--o{ SCP : "export SeisComp"
+EV }o--|| PF : "asigna perfil"
+SC ||--o{ AT : "local ↔ publicado"
+AT }o--o{ EV : "cruza (eventquery/seiscomp)"
+SC ||--o{ NP : "no publicado"
+EV ||--o{ REP : "detecta repetidos"
+CAT ||--o{ EST : "solicitud"
+CAT ||--o{ CAG : "consulta APIs"
+CAG ||--o{ AT : "comparación de agencias"
+@enduml

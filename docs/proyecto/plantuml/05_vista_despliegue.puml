@@ -1,0 +1,28 @@
+@startuml 05_vista_despliegue
+' Vista física / de despliegue — nodos y protocolos
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+left to right direction
+
+node "Estación de trabajo (Linux)" as WS {
+  node "Entorno virtual Python 3.7\n(.venv + requirements.txt)" as VENV
+  artifact "Aplicación RCS\n(app.py + módulos)" as APP
+  database "Directorio de ejecución\ndatos/ informes/ ploteo/ descargas/" as DATA
+  VENV -- APP
+  APP -- DATA
+}
+
+node "Servidor de catálogos\n(sysopr@10.54.217.9)" as SRV {
+  artifact "Seisan (select)\neventquery2" as SEISAN
+}
+
+node "Servidor SeisComp" as SCP {
+  database "PostgreSQL\n(esquema seiscomp2)" as PG
+}
+
+cloud "APIs de agencias\n(EMSC / USGS / GFZ)" as AG
+
+APP --> SEISAN : SSH / SCP
+APP --> PG : SQL (TCP 5432)
+APP --> AG : HTTPS / JSON
+@enduml

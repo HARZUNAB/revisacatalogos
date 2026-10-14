@@ -1,4 +1,4 @@
-# revisaapis
+# RCS — Revisor de Catálogos Sísmicos
 
 ## Documentación
 

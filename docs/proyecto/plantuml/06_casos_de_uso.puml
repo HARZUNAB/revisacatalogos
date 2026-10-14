@@ -1,0 +1,39 @@
+@startuml 06_casos_de_uso
+' Vista de escenarios — casos de uso
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+left to right direction
+
+actor "Supervisor /\nAnalista" as U
+actor "Servidor de\ncatálogos" as SRV
+actor "Base SeisComp\n(PostgreSQL)" as DB
+
+rectangle "RCS — Revisor de Catálogos Sísmicos" {
+  usecase "Solicitar y descargar\ncatálogos" as UC1
+  usecase "Procesar catálogos\n(análisis)" as UC2
+  usecase "Ver repetidos" as UC3
+  usecase "Ver No publicados" as UC4
+  usecase "Ver No actualizados" as UC5
+  usecase "Revisar catálogo\nde SeisComp" as UC6
+  usecase "Ver estaciones\ndel evento" as UC7
+  usecase "Análisis rápido\n(sin arribos cercanos)" as UC8
+  usecase "Comparar con\nagencias" as UC9
+  usecase "Descargar\nentregables" as UC10
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
+U --> UC9
+U --> UC10
+
+UC6 ..> UC7 : <<extend>>
+UC6 ..> UC8 : <<extend>>
+UC1 --> SRV
+UC6 --> DB
+UC9 --> DB
+UC2 ..> UC1 : <<include>>\n(usa los catálogos)
+@enduml
