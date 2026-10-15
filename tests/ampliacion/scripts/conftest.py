@@ -66,3 +66,9 @@ def proc_query_harz_2():
 def revisacollect():
     """Importa `revisacollect` con pandas y Levenshtein stubbeados."""
     return _importar_con_stubs("revisacollect")
+
+
+@pytest.fixture
+def revisaexcluidos():
+    """Importa `revisaexcluidos` con pandas stubbeado."""
+    return _importar_con_stubs("revisaexcluidos")

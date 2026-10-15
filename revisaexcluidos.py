@@ -9,174 +9,183 @@ import pandas as pandasForSortingCSV
 
 import rutas
 
-sismos={}
-lista=[]
-newlista=[]
-nuevalista=[]
-sismolista=[]
-linealista=''
+def _agregar_ceros_excluido(linea):
+    # agrega un cero a dias/meses/horas menores a 10 y separa dia del mes
+    linealista=''
+    sismo=linea.split()
+    largolista=len(sismo)
 
-#time.sleep(50)
+    #print(sismo)
 
-# genera txt agregando un cero a dias menores a 10 y separa el dia del mes
-archivo=open(rutas.p_informes("excluidos.txt"))
-archivo1=open(rutas.p_trabajo("excluidos_tmp_1.txt"), "w")
-revisar=rutas.entregable("revisar.txt")
 
-for linea in archivo:
-	sismo=linea.split()
-	largolista=len(sismo)
+    for elemento in range(largolista):
+        if elemento==1:
+            if len(sismo[elemento])==1:
+                linealista=linealista+'0'+sismo[elemento]+" "
+            if len(sismo[elemento])==2:
+                linealista=linealista+sismo[elemento]+" "
+            if len(sismo[elemento])==3:
+                linealista=linealista+'0'+sismo[elemento][0]+' '+sismo[elemento][-2:]+" "
+            if len(sismo[elemento])==4:
+                linealista=linealista+sismo[elemento][0:2]+' '+sismo[elemento][-2:]+" " 
+        else:
+            linealista=linealista+sismo[elemento]+' '
+    linealista_aux=linealista.split()
 
-	#print(sismo)
-	
+    #agrega un cero antes si el elemento es menor a 10
+    if len(linealista_aux[2])==1:
+        linealista_aux[2]='0'+linealista_aux[2]
+        nuevalinea=''
+        for caracter in linealista_aux:
+            nuevalinea=nuevalinea+caracter+' '
+        linealista=nuevalinea
+    if len(linealista_aux[3])==1:
+        linealista_aux[3]='0'+linealista_aux[3]
+        nuevalinea=''
+        for caracter in linealista_aux:
+            nuevalinea=nuevalinea+caracter+' '
+        linealista=nuevalinea
+    if len(linealista_aux[4])==1:
+        linealista_aux[4]='0'+linealista_aux[4]
+        i=0
+        nuevalinea=''
+        for caracter in linealista_aux:
+            if i==3:
+                nuevalinea=nuevalinea+caracter
+            else:
+                nuevalinea=nuevalinea+caracter+' '
+            i=i+1
+        linealista=nuevalinea
+    return linealista
 
-	for elemento in range(largolista):
-		if elemento==1:
-			if len(sismo[elemento])==1:
-				linealista=linealista+'0'+sismo[elemento]+" "
-			if len(sismo[elemento])==2:
-				linealista=linealista+sismo[elemento]+" "
-			if len(sismo[elemento])==3:
-				linealista=linealista+'0'+sismo[elemento][0]+' '+sismo[elemento][-2:]+" "
-			if len(sismo[elemento])==4:
-				linealista=linealista+sismo[elemento][0:2]+' '+sismo[elemento][-2:]+" "	
-		else:
-			linealista=linealista+sismo[elemento]+' '
-	linealista_aux=linealista.split()
 
-	#agrega un cero antes si el elemento es menor a 10
-	if len(linealista_aux[2])==1:
-		linealista_aux[2]='0'+linealista_aux[2]
-		nuevalinea=''
-		for caracter in linealista_aux:
-			nuevalinea=nuevalinea+caracter+' '
-		linealista=nuevalinea
-	if len(linealista_aux[3])==1:
-		linealista_aux[3]='0'+linealista_aux[3]
-		nuevalinea=''
-		for caracter in linealista_aux:
-			nuevalinea=nuevalinea+caracter+' '
-		linealista=nuevalinea
-	if len(linealista_aux[4])==1:
-		linealista_aux[4]='0'+linealista_aux[4]
-		i=0
-		nuevalinea=''
-		for caracter in linealista_aux:
-			if i==3:
-				nuevalinea=nuevalinea+caracter
-			else:
-				nuevalinea=nuevalinea+caracter+' '
-			i=i+1
-		linealista=nuevalinea
+def _hora_invalida(linea):
+    # True si la hora del evento es mayor a 23 (linea a revision manual)
+    return int(linea.split()[2][:2]) > 23
 
-	sismoaux=linea.split()
-	#print(sismoaux)
 
-	# guarda en revisar.txt sfile con horas erroneas y no los guarda en excluidos
-	horamala=''
-	#print(sismoaux[2][:2])
-	if int(sismoaux[2][:2]) > 23:
-		horamala='s'
-	else:
-		horamala='n'
-	#time.sleep(1)
-	if horamala=='n':
-		linealista=linealista[:-1]
-		archivo1.write(linealista+"\n")
-		linealista=''
-	else:
-		revisar.write(linealista+"\n")
+def _fecha_hora_desde_excluido(sismo):
+    # arma la fecha/hora normalizada a partir de los campos del evento
+    pospunto=sismo[4].find('.')
+    dato=sismo[4][0:pospunto]
 
-# crea archivo salida excluidos_collect.csv
-archivo1=open(rutas.p_trabajo("excluidos_tmp_1.txt"))
+    if len(sismo[1])<2:
+        sismo[1]="0"+sismo[1]
+    if len(sismo[2])<2:
+        sismo[2]="0"+sismo[2]
+    if int(sismo[4][0:pospunto])<10:
+        segundos="0"+sismo[4][0:1]
+    else:
+        segundos=sismo[4][0:2]
+    fecha_hora=sismo[0]+"-"+sismo[1]+"-"+sismo[2]+"  "+sismo[3][0:2]+":"+sismo[3][-2:]+":"+segundos
+    return fecha_hora
 
-listacsv=[]
-numeventofinal=0
 
-for linea in archivo1:
+def main():
+    sismos={}
+    lista=[]
+    newlista=[]
+    nuevalista=[]
+    sismolista=[]
+    linealista=''
 
-	# revisa si le faltan los segundos a linea de solucion
-	# si es asi agrega estos segundos y concatena el resto de la linea
-	if len(linea) <= 17 or linea[16].isalpha() or linea[17].isalpha():
-		#print(linea)
-		#print(linea[16],' / ', linea[17])
-		revisar.write(linea+"\n")
-		lineaaux=linea[:15]+" 00 "+linea[16:len(linea)]
-		#print(lineaaux)
-		linea=lineaaux
-		#print(linea)
+    #time.sleep(50)
 
-	numeventofinal+=1
-	sismo=linea.split()
-	
-	pospunto=sismo[4].find('.')
-	dato=sismo[4][0:pospunto]
+    # genera txt agregando un cero a dias menores a 10 y separa el dia del mes
+    archivo=open(rutas.p_informes("excluidos.txt"))
+    archivo1=open(rutas.p_trabajo("excluidos_tmp_1.txt"), "w")
+    revisar=rutas.entregable("revisar.txt")
 
-	if len(sismo[1])<2:
-		sismo[1]="0"+sismo[1]
-	if len(sismo[2])<2:
-		sismo[2]="0"+sismo[2]
-	if int(sismo[4][0:pospunto])<10:
-		segundos="0"+sismo[4][0:1]
-	else:
-		segundos=sismo[4][0:2]
-	fecha_hora=sismo[0]+"-"+sismo[1]+"-"+sismo[2]+"  "+sismo[3][0:2]+":"+sismo[3][-2:]+":"+segundos
-	analista=sismo[len(sismo)-1]
-	
-	sismolista=fecha_hora, analista
-	listacsv.append(sismolista)
+    for linea in archivo:
+        linealista = _agregar_ceros_excluido(linea)
+        if _hora_invalida(linea):
+            revisar.write(linealista+"\n")
+        else:
+            archivo1.write(linealista[:-1]+"\n")
 
-df = pd.DataFrame(listacsv)
-df.columns=['Fecha_Hora', 'Analista']
-salida=rutas.p_trabajo('excluidos_tmp.csv')
-df.to_csv(salida)
+    # crea archivo salida excluidos_collect.csv
+    archivo1=open(rutas.p_trabajo("excluidos_tmp_1.txt"))
 
-# Asigna datos del csv de origen
-salida = pandasForSortingCSV.read_csv(salida)
+    listacsv=[]
+    numeventofinal=0
 
-# Ordena datos por fecha
-salida.sort_values(["Fecha_Hora"], 
-                    axis=0,
-                    ascending=[True], 
-                    inplace=True)
-  
-# Crea archivo .csv ordenado
-salida_csv = rutas.p_trabajo('excluidos_tmp_sort.csv')
-salida.to_csv(salida_csv)
+    for linea in archivo1:
 
-# borra .txt y .csv temporales
-remove(rutas.p_informes('excluidos.txt'))
-remove(rutas.p_trabajo('excluidostmp1.txt'))
-os.rename(rutas.p_trabajo('excluidos_tmp_1.txt'), rutas.p_informes('excluidos.txt'))
-remove(rutas.p_trabajo('excluidos_tmp.csv'))
+        # revisa si le faltan los segundos a linea de solucion
+        # si es asi agrega estos segundos y concatena el resto de la linea
+        if len(linea) <= 17 or linea[16].isalpha() or linea[17].isalpha():
+            #print(linea)
+            #print(linea[16],' / ', linea[17])
+            revisar.write(linea+"\n")
+            lineaaux=linea[:15]+" 00 "+linea[16:len(linea)]
+            #print(lineaaux)
+            linea=lineaaux
+            #print(linea)
 
-csvData = open(salida_csv, encoding='utf-8')
-csvreader = csv.reader(csvData)
+        numeventofinal+=1
+        sismo=linea.split()
 
-# saltar el encabezado
-next(csvreader,None)
+        fecha_hora=_fecha_hora_desde_excluido(sismo)
+        analista=sismo[len(sismo)-1]
 
-# Creando lista con datos extraidos del .csv ordenado
-listacsv=[]
-for linea in csvreader:
-	# verifica si hora queda con segundo 60
-	if linea[2][-2:]=='60':
-		linea[2]=linea[2][0:18]+'00'
-		# se le suma 1 minuto a la hora
-		hora=datetime.datetime.strptime(linea[2], '%Y-%m-%d  %H:%M:%S')
-		hora=hora+datetime.timedelta(minutes=1)
-		fecha_hora_str=datetime.datetime.strftime(hora, '%Y-%m-%d  %H:%M:%S')
-		linea[2]=fecha_hora_str
-	
-	linea_aux=(linea[2], linea[3])
-	listacsv.append(linea_aux)
+        sismolista=fecha_hora, analista
+        listacsv.append(sismolista)
 
-# crea .csv final de salida
-df = pd.DataFrame(listacsv)
-df.columns=['Fecha_Hora', 'Analista']
-salida=rutas.p_datos('excluidos.csv')
-df.to_csv(salida)
+    df = pd.DataFrame(listacsv)
+    df.columns=['Fecha_Hora', 'Analista']
+    salida=rutas.p_trabajo('excluidos_tmp.csv')
+    df.to_csv(salida)
 
-# borra .csv temporal
-remove(rutas.p_trabajo('excluidos_tmp_sort.csv'))
+    # Asigna datos del csv de origen
+    salida = pandasForSortingCSV.read_csv(salida)
 
+    # Ordena datos por fecha
+    salida.sort_values(["Fecha_Hora"], 
+                        axis=0,
+                        ascending=[True], 
+                        inplace=True)
+
+    # Crea archivo .csv ordenado
+    salida_csv = rutas.p_trabajo('excluidos_tmp_sort.csv')
+    salida.to_csv(salida_csv)
+
+    # borra .txt y .csv temporales
+    remove(rutas.p_informes('excluidos.txt'))
+    remove(rutas.p_trabajo('excluidostmp1.txt'))
+    os.rename(rutas.p_trabajo('excluidos_tmp_1.txt'), rutas.p_informes('excluidos.txt'))
+    remove(rutas.p_trabajo('excluidos_tmp.csv'))
+
+    csvData = open(salida_csv, encoding='utf-8')
+    csvreader = csv.reader(csvData)
+
+    # saltar el encabezado
+    next(csvreader,None)
+
+    # Creando lista con datos extraidos del .csv ordenado
+    listacsv=[]
+    for linea in csvreader:
+        # verifica si hora queda con segundo 60
+        if linea[2][-2:]=='60':
+            linea[2]=linea[2][0:18]+'00'
+            # se le suma 1 minuto a la hora
+            hora=datetime.datetime.strptime(linea[2], '%Y-%m-%d  %H:%M:%S')
+            hora=hora+datetime.timedelta(minutes=1)
+            fecha_hora_str=datetime.datetime.strftime(hora, '%Y-%m-%d  %H:%M:%S')
+            linea[2]=fecha_hora_str
+
+        linea_aux=(linea[2], linea[3])
+        listacsv.append(linea_aux)
+
+    # crea .csv final de salida
+    df = pd.DataFrame(listacsv)
+    df.columns=['Fecha_Hora', 'Analista']
+    salida=rutas.p_datos('excluidos.csv')
+    df.to_csv(salida)
+
+    # borra .csv temporal
+    remove(rutas.p_trabajo('excluidos_tmp_sort.csv'))
+
+
+
+if __name__ == "__main__":
+    main()

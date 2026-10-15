@@ -11,7 +11,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 - `repetidosexclu.py` (refactorizado)
 - `revisaselect.py` (refactorizado)
 - `revisacollect.py` (refactorizado)
-- `revisaexcluidos.py`
+- `revisaexcluidos.py` (refactorizado)
 - `proc_query_harz_2.py` (refactorizado)
 
 Una vez refactorizado un módulo, su test va acá con nombre
