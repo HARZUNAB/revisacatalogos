@@ -35,13 +35,18 @@ cuando su archivo existe y pasa; el resto queda **pendiente**.
 La columna **Dependencias** dice qué se sustituye: `real` (nada), `sintético`
 (datos/estado dummy, sin efectos) o `mock` (dependencia externa mockeada).
 
+**Principio**: se prioriza la **interfaz real** (ventana Tk/ttkbootstrap de
+verdad) sobre los mocks. Solo se sustituye cuando la dependencia real no está
+disponible (PostgreSQL, red) o es bloqueante/externa (messagebox modal, abrir el
+explorador).
+
 | Módulo | Superficie | Archivo de test | Dependencias | Estado |
 |---|---|---|---|---|
 | `descargas.py` | Diálogo de formato (`preguntar_formato`) | `test_descargas_dialogo.py` | real | cubierto |
 | `app.py` | Ventana principal + toggles + tooltip | `test_app_principal.py` | sintético | cubierto |
 | `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | cubierto |
 | `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | pendiente |
-| `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | pendiente |
+| `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | pendiente |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | pendiente |
 | `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | pendiente |
