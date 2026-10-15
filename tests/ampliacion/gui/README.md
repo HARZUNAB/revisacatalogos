@@ -46,7 +46,7 @@ explorador).
 | `descargas.py` | `encima_de`, `_etiqueta_secundaria`, `descargar_tabla`/`_texto` | `test_descargas_widgets.py` | real | cubierto |
 | `app.py` | Ventana principal + toggles + tooltip | `test_app_principal.py` | sintético | cubierto |
 | `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | cubierto |
-| `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | pendiente |
+| `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | cubierto |
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | pendiente |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | pendiente |

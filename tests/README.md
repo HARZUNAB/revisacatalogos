@@ -96,15 +96,13 @@ fases) y `verifica_entorno` (venv, requirements, base), con `psycopg2` mockeado.
 
 Cubierto en `ampliacion/gui/` (marcador `gui`, necesita pantalla): la interfaz
 de `descargas` (diálogo de formato, `encima_de`, `_etiqueta_secundaria` y las
-descargas de tabla/texto), la ventana principal de `app.py`
-(toggles, gating y tooltip), las ventanas de consulta de `app.py` (No
-publicados, No actualizados, Catálogos, Repetidos) y los diálogos de `app.py`
-(contraseña, radio). El resto de la interfaz (`app.py` agencias, `plotear.py`,
-ventanas de `revisa_seiscomp.py`, `solicita_catalogos.py`) sigue pendiente; el
-tablero está en `ampliacion/gui/README.md`.
+descargas de tabla/texto), `app.py` completo (ventana principal, ventanas de
+consulta, diálogos, agencias y cobertura). El resto de la interfaz
+(`plotear.py`, ventanas de `revisa_seiscomp.py`, `solicita_catalogos.py`) sigue
+pendiente; el tablero está en `ampliacion/gui/README.md`.
 
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
-- **Interfaz restante** (`app.py`, `plotear.py`, ventanas de
-  `revisa_seiscomp.py`, `solicita_catalogos.py`): `ampliacion/gui/`, marcador
-  `gui`. Ver la tabla de cobertura en `ampliacion/gui/README.md`.
+- **Interfaz restante** (`plotear.py`, ventanas de `revisa_seiscomp.py`,
+  `solicita_catalogos.py`): `ampliacion/gui/`, marcador `gui`. Ver la tabla de
+  cobertura en `ampliacion/gui/README.md`.
