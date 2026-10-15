@@ -128,6 +128,22 @@ def test_procesar_csv_eventquery_avisa_sin_atribucion(
     assert "sin atribución" in capsys.readouterr().out
 
 
+def test_procesar_csv_agencia_vacia(cwd_tmp, sin_perfiles, sin_entregables):
+    # CSV de una agencia con solo el encabezado (ventana sin datos): no rompe y
+    # deja un JSON vacío.
+    ruta = _escribir_csv(
+        str(cwd_tmp / "consultaapi_EMSC.csv"),
+        ["id", "fecha hora", "lat", "lon", "prof", "mag", "tipo", "ref",
+         "agencia"],
+        [])
+    resultado = generajson.procesar_csv(ruta, "agencia", salida="agencia_EMSC",
+                                        agencia="EMSC")
+    assert resultado == (0, 0, 0)
+    eventos = _leer_json(
+        os.path.join(str(cwd_tmp), "datos", "eventos_agencia_EMSC.json"))
+    assert eventos == []
+
+
 # --------------------------------------------------------------------------
 # _resumen_y_conteo
 # --------------------------------------------------------------------------

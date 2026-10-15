@@ -9,6 +9,9 @@ nombres y el encadenado de tres agencias.
 """
 
 import datetime
+import json
+import os
+import sys
 
 import pytest
 
@@ -100,3 +103,77 @@ def test_max_distancia_con_coordenada_no_numerica():
         {"latitud": "-33.0", "longitud": "-71.0"},
     ]
     assert a._max_distancia(grupo) == ""
+
+
+# --------------------------------------------------------------------------
+# main(): ventana sin datos en el publicado o en las agencias
+# --------------------------------------------------------------------------
+def _escribir_json(cwd, nombre, datos):
+    carpeta = os.path.join(str(cwd), "datos")
+    os.makedirs(carpeta, exist_ok=True)
+    with open(os.path.join(carpeta, nombre), "w") as f:
+        json.dump(datos, f)
+
+
+def _leer_json(cwd, nombre):
+    with open(os.path.join(str(cwd), "datos", nombre)) as f:
+        return json.load(f)
+
+
+def _pub_json(fecha="2026-01-01 00:00:00", lat=-33.0, lon=-71.0, mag="5.0"):
+    return {"fecha hora": fecha, "latitud": str(lat), "longitud": str(lon),
+            "prof": "30.0", "magnitud": mag}
+
+
+def _ag_json(fecha="2026-01-01 00:00:04", lat=-33.0, lon=-71.0, mag="5.2"):
+    return {"fecha hora": fecha, "latitud": str(lat), "longitud": str(lon),
+            "prof": "30.0", "magnitud": mag}
+
+
+def test_mejor_publicado_sin_publicados():
+    assert a._mejor_publicado([], _ag("2026-01-01 00:00:00", -33.0, -71.0)) is None
+
+
+def test_main_publicado_faltante_sale(cwd_tmp, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["agencias.py", "3.0", "EMSC"])
+    with pytest.raises(SystemExit) as exc:
+        a.main()
+    assert exc.value.code == 1
+    assert "procese ese catálogo" in capsys.readouterr().out
+
+
+def test_main_publicado_vacio_todo_sin_par(cwd_tmp, monkeypatch):
+    _escribir_json(cwd_tmp, "eventos_eventquery.json", [])
+    _escribir_json(cwd_tmp, "eventos_agencia_EMSC.json", [_ag_json()])
+    monkeypatch.setattr(sys, "argv", ["agencias.py", "3.0", "EMSC"])
+    a.main()
+    assert _leer_json(cwd_tmp, "comparacion_agencias.json") == []
+    assert len(_leer_json(cwd_tmp, "agencias_sin_par.json")) == 1
+
+
+def test_main_agencia_faltante_se_omite(cwd_tmp, monkeypatch, capsys):
+    _escribir_json(cwd_tmp, "eventos_eventquery.json", [_pub_json()])
+    monkeypatch.setattr(sys, "argv", ["agencias.py", "3.0", "EMSC"])
+    a.main()
+    assert "se omite EMSC" in capsys.readouterr().out
+    comparacion = _leer_json(cwd_tmp, "comparacion_agencias.json")
+    assert len(comparacion) == 1 and comparacion[0]["agencias"] == []
+
+
+def test_main_agencia_vacia_sin_asociaciones(cwd_tmp, monkeypatch):
+    _escribir_json(cwd_tmp, "eventos_eventquery.json", [_pub_json()])
+    _escribir_json(cwd_tmp, "eventos_agencia_EMSC.json", [])
+    monkeypatch.setattr(sys, "argv", ["agencias.py", "3.0", "EMSC"])
+    a.main()
+    comparacion = _leer_json(cwd_tmp, "comparacion_agencias.json")
+    assert len(comparacion) == 1 and comparacion[0]["agencias"] == []
+    assert _leer_json(cwd_tmp, "agencias_sin_par.json") == []
+
+
+def test_main_todas_las_agencias_faltantes(cwd_tmp, monkeypatch):
+    _escribir_json(cwd_tmp, "eventos_eventquery.json", [_pub_json()])
+    monkeypatch.setattr(sys, "argv", ["agencias.py", "3.0", "EMSC", "USGS"])
+    a.main()
+    comparacion = _leer_json(cwd_tmp, "comparacion_agencias.json")
+    assert len(comparacion) == 1 and comparacion[0]["agencias"] == []
+    assert _leer_json(cwd_tmp, "agencias_sin_par.json") == []
