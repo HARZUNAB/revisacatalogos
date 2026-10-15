@@ -1,7 +1,8 @@
 # tests/ampliacion/modulos/
 
 Cobertura nueva de **módulos puros** que no estaban en la suite base:
-`generajson.py`, `prog.py`, `descargas.py` y `traequery.py` (refactorizado a
+`generajson.py`, `prog.py`, `descargas.py` (nombres, escritura y la lógica de
+interfaz con dobles, sin Tk real) y `traequery.py` (refactorizado a
 `main()` + guard). Son tests sin pantalla, sin base y sin red, así que corren
 siempre y entran al CI.
 

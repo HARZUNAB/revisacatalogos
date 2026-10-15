@@ -71,8 +71,9 @@ Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 
 Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
 analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso),
-`descargas` (nombres y escritura de archivos) y `traequery` (refactorizado:
-`solicitar`, armado de argumentos y flujo interactivo con `main()`).
+`descargas` (nombres, escritura de archivos y la lógica de interfaz con dobles)
+y `traequery` (refactorizado: `solicitar`, armado de argumentos y flujo
+interactivo con `main()`).
 
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
 cuadrante de EMSC/USGS/GFZ) y la capa SSH/SCP de `traer_catalogos` (clase
@@ -95,7 +96,5 @@ fases) y `verifica_entorno` (venv, requirements, base), con `psycopg2` mockeado.
 
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
-- **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
-  `ampliacion/gui/`, marcador `gui`.
-- **Otros módulos puros** sin cubrir (`descargas.py` con interfaz):
-  `ampliacion/modulos/` o la subcarpeta que corresponda.
+- **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py` y el
+  diálogo real de `descargas.py`): `ampliacion/gui/`, marcador `gui`.
