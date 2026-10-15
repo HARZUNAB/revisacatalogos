@@ -94,7 +94,13 @@ Cubierto en `ampliacion/db/`: la capa de consulta de `exporta_ventana_seiscomp`
 (configuración, conexión, eventos, inventario, bindings, actividad, estimación y
 fases) y `verifica_entorno` (venv, requirements, base), con `psycopg2` mockeado.
 
+Cubierto en `ampliacion/gui/` (marcador `gui`, necesita pantalla): el diálogo de
+formato de `descargas` (`preguntar_formato`). El resto de la interfaz
+(`app.py`, `plotear.py`, ventanas de `revisa_seiscomp.py`, `solicita_catalogos.py`)
+sigue pendiente; el tablero está en `ampliacion/gui/README.md`.
+
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
-- **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py` y el
-  diálogo real de `descargas.py`): `ampliacion/gui/`, marcador `gui`.
+- **Interfaz restante** (`app.py`, `plotear.py`, ventanas de
+  `revisa_seiscomp.py`, `solicita_catalogos.py`): `ampliacion/gui/`, marcador
+  `gui`. Ver la tabla de cobertura en `ampliacion/gui/README.md`.
