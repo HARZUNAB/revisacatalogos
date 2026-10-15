@@ -74,7 +74,9 @@ analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso) y
 `descargas` (nombres y escritura de archivos).
 
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
-cuadrante de EMSC/USGS/GFZ, con `requests` mockeado y sin pandas).
+cuadrante de EMSC/USGS/GFZ) y la capa SSH/SCP de `traer_catalogos` (clase
+`Conexion` y las descargas de Seisan/eventquery), con `requests` y `subprocess`
+mockeados y sin pandas.
 
 Cubierto en `ampliacion/scripts/`: `compara`, `repetidos`, `repetidosexclu`,
 `revisaselect`, `revisacollect`, `revisaexcluidos` y `proc_query_harz_2`
@@ -92,8 +94,6 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
   `ampliacion/gui/`, marcador `gui`.
 - **Base de datos** (`exporta_ventana_seiscomp.py`, `verifica_entorno.py`):
   `ampliacion/db/`, marcador `db`.
-- **Red restante**: descargas SSH/SCP de `traer_catalogos.py` (helpers puros ya
-  en `base/`), en `ampliacion/red/` con mock.
 - **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
   `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
   subcarpeta que corresponda.
