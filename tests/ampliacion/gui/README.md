@@ -46,6 +46,7 @@ excluye del CI. Archivos que **no** necesitan pantalla (solo las librerías):
 
 - `test_plotear_helpers.py` — helpers puros de `plotear.py` (matplotlib/cartopy
   al importar).
+- `test_plotear_figuras.py` — figuras con backend `Agg` (se arman sin pantalla).
 
 El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 
@@ -58,7 +59,7 @@ El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 | `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | cubierto |
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | cubierto |
-| `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | pendiente |
+| `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | cubierto |
 | `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | pendiente |
 | `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
