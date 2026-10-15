@@ -16,6 +16,8 @@ from tkinter import ttk
 
 import pytest
 
+pytest.importorskip("ttkbootstrap")
+pytest.importorskip("matplotlib")
 import app as appmod
 
 pytestmark = pytest.mark.gui

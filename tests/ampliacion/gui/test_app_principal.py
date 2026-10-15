@@ -8,8 +8,6 @@ estado inicial. **Ventana real + estado dummy**: no corre el pipeline ni usa
 mocks. Necesita `DISPLAY`.
 """
 
-import app as appmod
-
 import pytest
 
 pytestmark = pytest.mark.gui

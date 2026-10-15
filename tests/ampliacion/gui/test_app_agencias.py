@@ -12,8 +12,6 @@ from tkinter import ttk
 
 import pytest
 
-import app as appmod
-
 pytestmark = pytest.mark.gui
 
 
