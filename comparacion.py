@@ -184,6 +184,18 @@ def _no_actualizado(fila):
         fila.get("prof_local", ""), fila.get("mag_local", "")))
 
 
+def _clave_coord(valor):
+    """Clave de agrupado de una coordenada: el número redondeado, o el texto.
+
+    Se agrupa por valor y no por texto para que "-33.0" y "-33.00" cuenten como
+    el mismo evento local; si no se puede leer como número, se usa el texto.
+    """
+    numero = a_numero(valor)
+    if numero is None:
+        return str(valor) if valor is not None else ""
+    return round(numero, DECIMALES_COORDENADA)
+
+
 def no_actualizados(filas):
     """
     De las filas de 'atribucion_*.csv', los eventos locales no actualizados.
@@ -201,8 +213,9 @@ def no_actualizados(filas):
     for fila in filas:
         if not _no_actualizado(fila):
             continue
-        clave = (fila.get("fecha_local", ""), fila.get("lat_local", ""),
-                 fila.get("lon_local", ""))
+        clave = (fila.get("fecha_local", ""),
+                 _clave_coord(fila.get("lat_local")),
+                 _clave_coord(fila.get("lon_local")))
         actual = mejores.get(clave)
         if actual is None or _a_float(fila.get("dt_seg")) < _a_float(
                 actual.get("dt_seg")):

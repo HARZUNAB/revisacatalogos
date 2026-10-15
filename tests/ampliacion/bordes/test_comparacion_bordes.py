@@ -5,10 +5,7 @@ Tests de bordes de comparacion.py
 Casos borde y combinaciones raras que el test base de `comparacion` no cubre:
 valores no finitos, notación científica, la combinación de ignorar_signo con
 tolerancia, los extremos de la distancia (antípodas y cruce del meridiano 180)
-y el agrupado de `no_actualizados` por el texto crudo de la coordenada.
-
-El módulo no se modifica en esta tanda: los casos que fijan un comportamiento
-dudoso quedan anotados como tales para revisarlos aparte.
+y el agrupado de `no_actualizados` por el valor numérico de la coordenada.
 """
 
 import math
@@ -86,14 +83,14 @@ def _fila(**cambios):
     return base
 
 
-def test_no_actualizados_agrupa_por_texto_de_coordenada():
+def test_no_actualizados_agrupa_por_valor_de_coordenada():
     # Mismo evento local con la lat escrita distinto ("-33.0" vs "-33.00"):
-    # la clave de agrupado usa el texto crudo, así que quedan dos resultados.
+    # la clave agrupa por el número redondeado, así que es un solo resultado.
     filas = [
         _fila(mag_local="5.5", lat_local="-33.0"),
         _fila(mag_local="5.5", lat_local="-33.00"),
     ]
-    assert len(c.no_actualizados(filas)) == 2
+    assert len(c.no_actualizados(filas)) == 1
 
 
 def test_no_actualizados_dt_no_numerico_conserva_el_primero():
