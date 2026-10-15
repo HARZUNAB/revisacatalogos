@@ -99,13 +99,12 @@ de `descargas` (diálogo de formato, `encima_de`, `_etiqueta_secundaria` y las
 descargas de tabla/texto), `app.py` completo (ventana principal, ventanas de
 consulta, diálogos, agencias y cobertura) y `revisa_seiscomp.py` completo
 (panel/catálogo, no actualizados, detalle, estaciones, análisis rápido y las
-ramas CLI de `main`), más los helpers y las figuras (backend Agg) de
-`plotear.py`. El resto de la interfaz (panel de `plotear.py`,
-`solicita_catalogos.py`) sigue pendiente; el tablero está en
-`ampliacion/gui/README.md`.
+ramas CLI de `main`), más los helpers, las figuras (backend Agg) y el panel de
+análisis + aviso "Sin datos" de `plotear.py`. Lo único pendiente es
+`solicita_catalogos.py`; el tablero está en `ampliacion/gui/README.md`.
 
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
-- **Interfaz restante** (`plotear.py` y `solicita_catalogos.py`):
+- **Interfaz restante** (`solicita_catalogos.py`):
   `ampliacion/gui/`, marcador `gui`. Ver la tabla de cobertura en
   `ampliacion/gui/README.md`.

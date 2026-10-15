@@ -60,7 +60,7 @@ El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | cubierto |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | cubierto |
-| `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | pendiente |
+| `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Ventana detalle | `test_rs_detalle.py` | sintético | cubierto |
