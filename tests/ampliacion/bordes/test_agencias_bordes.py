@@ -6,9 +6,6 @@ Casos borde de la asociación espacio-temporal y del agrupado entre agencias que
 el test base no cubre: límites exactos de la ventana y de la tolerancia, el
 cruce de la medianoche, `_flags` sin la clave de magnitud, deduplicado de
 nombres y el encadenado de tres agencias.
-
-El módulo no se modifica en esta tanda: los casos que fijan un comportamiento
-dudoso (cruce de medianoche, encadenado) quedan anotados para revisarlos aparte.
 """
 
 import datetime
@@ -52,12 +49,12 @@ def test_mejor_publicado_tolerancia_espacial_exacta():
     assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -33.25, -71.0)) is pub
 
 
-def test_mejor_publicado_cruce_de_medianoche_no_asocia():
-    # Dos soluciones del mismo evento a 4 s, pero en días distintos: no asocia.
-    # Comportamiento actual; revisar aparte (la ventana de 6 s ya acota).
+def test_mejor_publicado_cruce_de_medianoche_asocia():
+    # Dos soluciones del mismo evento a 4 s, en días distintos: la ventana de
+    # 6 s basta, no hace falta exigir el mismo día.
     pub = _pub("2026-01-02 00:00:02", -33.0, -71.0)
     assert a._mejor_publicado(
-        [pub], _ag("2026-01-01 23:59:58", -33.0, -71.0)) is None
+        [pub], _ag("2026-01-01 23:59:58", -33.0, -71.0)) is pub
 
 
 # --------------------------------------------------------------------------
@@ -82,17 +79,16 @@ def test_texto_agencias_deduplica_mismo_nombre_y_ubicacion():
 # --------------------------------------------------------------------------
 # _asociar_entre_agencias: encadenado
 # --------------------------------------------------------------------------
-def test_asociar_encadenado_de_tres_no_se_une():
-    # EMSC(0 s), USGS(+4 s), GFZ(+8 s): GFZ queda a 8 s del representante del
-    # grupo, así que arma su propio grupo -> [2, 1].
-    # Comportamiento actual; revisar aparte (solo compara contra grupo[0]).
+def test_asociar_encadenado_de_tres_se_une():
+    # EMSC(0 s), USGS(+4 s), GFZ(+8 s): GFZ está a 8 s de EMSC pero a 4 s de
+    # USGS, así que se une al grupo -> [3].
     eventos = [
         _ag("2026-01-01 00:00:00", -33.0, -71.0, agencia="EMSC"),
         _ag("2026-01-01 00:00:04", -33.0, -71.0, agencia="USGS"),
         _ag("2026-01-01 00:00:08", -33.0, -71.0, agencia="GFZ"),
     ]
     grupos = a._asociar_entre_agencias(eventos)
-    assert [len(g) for g in grupos] == [2, 1]
+    assert [len(g) for g in grupos] == [3]
 
 
 # --------------------------------------------------------------------------

@@ -31,7 +31,7 @@ Un archivo por módulo de `base/`, con casos borde y regresiones de bugs:
 | `test_revisa_seiscomp_bordes.py` | `revisa_seiscomp.py` (helpers puros) |
 | `test_exporta_ventana_seiscomp_bordes.py` | `exporta_ventana_seiscomp.py` |
 
-Algunos casos **fijan el comportamiento actual** de puntos dudosos (p. ej. el
-cruce de medianoche en `agencias`, el `ValueError` de `_resumen_fases` o el
-agrupado por texto de `no_actualizados`). Quedan anotados en el docstring de cada
-test para revisarlos como trabajo aparte; acá solo se documentan.
+Algunos casos **fijan el comportamiento actual** de puntos que conviene revisar
+más adelante (p. ej. `a_numero("nan")`, `a_iso` con 13 dígitos, `ajuste` con
+posición negativa, `_banda_numero` en el borde de redondeo). Quedan anotados en
+el docstring de cada test; acá solo se documentan.

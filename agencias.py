@@ -12,8 +12,9 @@ ya traen asignado el perfil más cercano) contra nuestro catálogo publicado
         contraparte en nuestro publicado.
 
 Criterio de asociación (se considera el mismo evento si coincide en espacio y
-tiempo): mismo día, |Δt| <= 6 s, |Δlat| <= 0.25° y |Δlon| <= 0.25°. El Δ de
-magnitud se registra y se marca cuando supera 0.2.
+tiempo): |Δt| <= 6 s, |Δlat| <= 0.25° y |Δlon| <= 0.25°. El Δ de magnitud se
+registra y se marca cuando supera 0.2. No se exige el mismo día: la ventana de
+6 s ya acota, y exigirlo perdía el cruce de la medianoche.
 
 Uso:
     python3 agencias.py <minmag> <agencia1> [<agencia2> ...]
@@ -61,7 +62,7 @@ def _mejor_publicado(publicados, agencia_ev):
     mejor_dt = None
     for p in publicados:
         tp = p['_dt']
-        if tp is None or tp.date() != t.date():
+        if tp is None:
             continue
         dt = abs((tp - t).total_seconds())
         if dt > VENTANA_SEG:
@@ -117,34 +118,41 @@ def _escribir_csv(nombre, encabezados, filas):
     return ruta
 
 
+def _mismo_evento(ref, ev):
+    """True si 'ev' es el mismo evento que 'ref': ≤6 s y Δlat/Δlon ≤0.25°."""
+    tr = _instante(ref.get('fecha hora'))
+    t = _instante(ev.get('fecha hora'))
+    if tr is None or t is None:
+        return False
+    if abs((tr - t).total_seconds()) > VENTANA_SEG:
+        return False
+    rlat, rlon = _numero(ref.get('latitud')), _numero(ref.get('longitud'))
+    lat, lon = _numero(ev.get('latitud')), _numero(ev.get('longitud'))
+    if rlat is None or rlon is None or lat is None or lon is None:
+        return False
+    return abs(rlat - lat) <= TOL_LAT and abs(rlon - lon) <= TOL_LON
+
+
 def _asociar_entre_agencias(eventos):
     """
-    Agrupa eventos de agencias DISTINTAS que son el mismo (mismo día, ≤6 s y
-    Δlat/Δlon ≤0.25°). Devuelve una lista de grupos (listas de eventos).
+    Agrupa eventos de agencias DISTINTAS que son el mismo (≤6 s y Δlat/Δlon
+    ≤0.25°). Devuelve una lista de grupos (listas de eventos).
+
+    Un evento se suma a un grupo si coincide con CUALQUIER miembro (no solo con
+    el primero): así una cadena A-B-C se une entera en vez de partirse cuando C
+    queda a más de la ventana del representante pero dentro de la de B.
     """
     grupos = []
     for ev in eventos:
-        t = _instante(ev.get('fecha hora'))
-        lat = _numero(ev.get('latitud'))
-        lon = _numero(ev.get('longitud'))
         ag = ev.get('agencia')
         colocado = False
         for grupo in grupos:
             if any(m.get('agencia') == ag for m in grupo):
                 continue
-            ref = grupo[0]
-            tr = _instante(ref.get('fecha hora'))
-            if t is None or tr is None or t.date() != tr.date():
-                continue
-            if abs((tr - t).total_seconds()) > VENTANA_SEG:
-                continue
-            rlat, rlon = _numero(ref.get('latitud')), _numero(ref.get('longitud'))
-            if (rlat is None or rlon is None or lat is None or lon is None
-                    or abs(rlat - lat) > TOL_LAT or abs(rlon - lon) > TOL_LON):
-                continue
-            grupo.append(ev)
-            colocado = True
-            break
+            if any(_mismo_evento(m, ev) for m in grupo):
+                grupo.append(ev)
+                colocado = True
+                break
         if not colocado:
             grupos.append([ev])
     return grupos
