@@ -71,8 +71,8 @@ Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 
 Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
 analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso),
-`descargas` (nombres, escritura de archivos y la lógica de interfaz con dobles)
-y `traequery` (refactorizado: `solicitar`, armado de argumentos y flujo
+`descargas` (nombres, escritura de archivos y los avisos/carpeta sin Tk) y
+`traequery` (refactorizado: `solicitar`, armado de argumentos y flujo
 interactivo con `main()`).
 
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
@@ -94,8 +94,9 @@ Cubierto en `ampliacion/db/`: la capa de consulta de `exporta_ventana_seiscomp`
 (configuración, conexión, eventos, inventario, bindings, actividad, estimación y
 fases) y `verifica_entorno` (venv, requirements, base), con `psycopg2` mockeado.
 
-Cubierto en `ampliacion/gui/` (marcador `gui`, necesita pantalla): el diálogo de
-formato de `descargas` (`preguntar_formato`), la ventana principal de `app.py`
+Cubierto en `ampliacion/gui/` (marcador `gui`, necesita pantalla): la interfaz
+de `descargas` (diálogo de formato, `encima_de`, `_etiqueta_secundaria` y las
+descargas de tabla/texto), la ventana principal de `app.py`
 (toggles, gating y tooltip), las ventanas de consulta de `app.py` (No
 publicados, No actualizados, Catálogos, Repetidos) y los diálogos de `app.py`
 (contraseña, radio). El resto de la interfaz (`app.py` agencias, `plotear.py`,

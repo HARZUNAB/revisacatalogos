@@ -43,6 +43,7 @@ explorador).
 | Módulo | Superficie | Archivo de test | Dependencias | Estado |
 |---|---|---|---|---|
 | `descargas.py` | Diálogo de formato (`preguntar_formato`) | `test_descargas_dialogo.py` | real | cubierto |
+| `descargas.py` | `encima_de`, `_etiqueta_secundaria`, `descargar_tabla`/`_texto` | `test_descargas_widgets.py` | real | cubierto |
 | `app.py` | Ventana principal + toggles + tooltip | `test_app_principal.py` | sintético | cubierto |
 | `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | cubierto |
 | `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | pendiente |
