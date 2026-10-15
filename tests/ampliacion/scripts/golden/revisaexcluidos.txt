@@ -1,0 +1,16 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+
+--- archivos ---
+1b7ca4dd0df67013b54acfc61ee9db1a788d4a3df20794f477a6b752c03c7866  informes/excluidos.txt
+9e6ea86a1a0eb2c1b4c133156f86b3d1f7d11a873f40685d0cffa85a259f45c4  datos/excluidos.csv
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+
+--- archivos ---
+1b7ca4dd0df67013b54acfc61ee9db1a788d4a3df20794f477a6b752c03c7866  informes/excluidos.txt
+9e6ea86a1a0eb2c1b4c133156f86b3d1f7d11a873f40685d0cffa85a259f45c4  datos/excluidos.csv
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  descargas/revisar.txt

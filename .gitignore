@@ -32,6 +32,8 @@ eventquery_*.csv
 !tests/**/select.out
 !tests/**/trabajo/
 !tests/**/trabajo/**
+!tests/**/informes/
+!tests/**/informes/**
 
 # Residuo de cuando el flujo escribía en la raíz; ahora todo va a datos/.
 /eventos_eventquery.json
