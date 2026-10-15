@@ -70,8 +70,9 @@ Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 `exporta_ventana_seiscomp` (geometría).
 
 Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
-analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso) y
-`descargas` (nombres y escritura de archivos).
+analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso),
+`descargas` (nombres y escritura de archivos) y `traequery` (refactorizado:
+`solicitar`, armado de argumentos y flujo interactivo con `main()`).
 
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
 cuadrante de EMSC/USGS/GFZ) y la capa SSH/SCP de `traer_catalogos` (clase
@@ -96,5 +97,5 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
 - **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
   `ampliacion/gui/`, marcador `gui`.
-- **Otros módulos puros** sin cubrir (`descargas.py` con interfaz,
-  `traequery.py`): `ampliacion/modulos/` o la subcarpeta que corresponda.
+- **Otros módulos puros** sin cubrir (`descargas.py` con interfaz):
+  `ampliacion/modulos/` o la subcarpeta que corresponda.

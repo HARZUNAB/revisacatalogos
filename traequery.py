@@ -51,105 +51,156 @@ def solicitar(nombre, ejemplo, tipo_dato, obligatorio=False):
             # Sanear la entrada eliminando caracteres peligrosos para SSH
             return re.sub(r"[`$;\"']", "", entrada)
 
-# ==============================================================================
-# INTERFAZ DE USUARIO (CAPTURA DE PARÁMETROS)
-# ==============================================================================
-print("\n" + "="*70)
-print("             INGRESO DE PARÁMETROS PARA EL CATÁLOGO WEB")
-print("="*70)
 
-while True:
-    print("Ingrese tiempo en formato: AAAAMMDDHHMMSS")
-    start = solicitar("Start Time", "20260501000000", "tiempo_corto", obligatorio=True)
-    end   = solicitar("End Time",   "20260507235959", "tiempo_corto", obligatorio=True)
-    
-    t_start = datetime.strptime(start, "%Y-%m-%dT%H:%M:%S")
-    t_end   = datetime.strptime(end, "%Y-%m-%dT%H:%M:%S")
-    
-    if t_end > t_start:
-        break
-    else:
-        print("\n ❌ ERROR LÓGICO: La fecha de FIN debe ser posterior a la de INICIO.")
-        print("   Por favor, ingrese el rango de tiempo nuevamente.\n")
+def _normalizar_salida(output):
+    """Asegura la extensión .csv en el nombre del archivo de salida."""
+    if not output.lower().endswith('.csv'):
+        output += '.csv'
+    return output
 
-output = solicitar("Nombre archivo salida", "datos.csv", "texto", obligatorio=True)
-if not output.lower().endswith('.csv'):
-    output += '.csv'
 
-directorio = solicitar("Nombre carpeta imágenes", "analista", "texto", obligatorio=True)
+def _construir_args(start, end, opcionales, output):
+    """
+    Lista de argumentos de eventquery.
 
-print("-" * 70)
-min_lat = solicitar("Latitud Mínima", "-38.5", "numero")
-max_lat = solicitar("Latitud Máxima", "-32.0", "numero")
-min_lon = solicitar("Longitud Mínima", "-75.0", "numero")
-max_lon = solicitar("Longitud Máxima", "-69.5", "numero")
-min_dep = solicitar("Profundidad Mínima", "0", "numero")
-max_dep = solicitar("Profundidad Máxima", "150", "numero")
-min_mag = solicitar("Magnitud Mínima", "3.0", "numero")
-max_mag = solicitar("Magnitud Máxima", "9.0", "numero")
+    'opcionales' es una lista de (flag, valor); se incluyen solo los que tienen
+    valor (los filtros omitidos quedan en None). El archivo de salida va al final.
+    """
+    args = ["--start-time", start, "--end-time", end]
+    for flag, valor in opcionales:
+        if valor is not None:
+            args.extend([flag, valor])
+    args.append(output)
+    return args
 
-# ==============================================================================
-# CONSTRUCCIÓN DE ARGUMENTOS PARA EVENTQUERY
-# ==============================================================================
-args_list = ["--start-time", start, "--end-time", end]
 
-opcionales = [
-    ("--min-latitude", min_lat), ("--max-latitude", max_lat),
-    ("--min-longitude", min_lon), ("--max-longitude", max_lon),
-    ("--min-depth", min_dep), ("--max-depth", max_dep),
-    ("--min-magnitude", min_mag), ("--max-magnitude", max_mag)
-]
+def _comando_remoto(args_list):
+    """Comando que corre en el servidor: asegura el directorio y llama a eventquery."""
+    return "mkdir -p %s && cd %s && %s %s" % (
+        DIR_REMOTO, DIR_REMOTO, EXE_EVENTQUERY, " ".join(args_list))
 
-for flag, valor in opcionales:
-    if valor is not None:
-        args_list.extend([flag, valor])
 
-# Añadir el archivo de salida al final
-args_list.append(output)
+def _hay_datos(ruta):
+    """True si el archivo existe y no está vacío (0 bytes = sin datos)."""
+    return os.path.isfile(ruta) and os.path.getsize(ruta) > 0
 
-# Unimos los argumentos en una sola cadena para el entorno SSH remoto
-args_remotos_str = " ".join(args_list)
 
-# ==============================================================================
-# EJECUCIÓN REMOTA VÍA SSH (USANDO SUBPROCESS)
-# ==============================================================================
-print("\n" + "="*70)
-print(f"[+] Conectando a {USUARIO_REMOTO}@{IP_REMOTA} vía SSH...")
-print("="*70 + "\n")
+def _avisar_sin_datos(archivo_local):
+    """Avisa que la ventana no trajo datos y limpia el archivo vacío si quedó."""
+    print("\n[-] No hay datos en la ventana solicitada.")
+    if os.path.isfile(archivo_local):
+        try:
+            os.remove(archivo_local)
+        except OSError:
+            pass
 
-# Comando estructurado para asegurar el directorio y correr eventquery
-comando_remoto = f"mkdir -p {DIR_REMOTO} && cd {DIR_REMOTO} && {EXE_EVENTQUERY} {args_remotos_str}"
 
-try:
-    # Ejecutamos el SSH compartiendo los flujos estándar (el usuario verá el progreso en vivo)
-    ssh_resultado = subprocess.run(
-        ["ssh", f"{USUARIO_REMOTO}@{IP_REMOTA}", f"/bin/bash -c '{comando_remoto}'"],
-        check=True
-    )
-    
-    print("\n[+] Consulta finalizada con éxito en el servidor remoto.")
-    
+def main():
     # ==============================================================================
-    # TRANSFERENCIA DEL ARCHIVO GENERADO VÍA SCP
+    # INTERFAZ DE USUARIO (CAPTURA DE PARÁMETROS)
     # ==============================================================================
-    # Definimos la ruta local donde se está ejecutando el script
-    ruta_local_destino = os.getcwd()
-    print(f"[+] Descargando '{output}' hacia la ruta local: {ruta_local_destino}")
-    
-    subprocess.run(
-        ["scp", f"{USUARIO_REMOTO}@{IP_REMOTA}:{DIR_REMOTO}/{output}", ruta_local_destino],
-        check=True
-    )
-    
     print("\n" + "="*70)
-    print(f" 🌟 [¡ÉXITO!] Proceso completo terminado.")
-    print(f"    -> Archivo descargado: {os.path.join(ruta_local_destino, output)}")
-    print(f"    -> Carpeta asignada:  {directorio}")
+    print("             INGRESO DE PARÁMETROS PARA EL CATÁLOGO WEB")
+    print("="*70)
+
+    while True:
+        print("Ingrese tiempo en formato: AAAAMMDDHHMMSS")
+        start = solicitar("Start Time", "20260501000000", "tiempo_corto", obligatorio=True)
+        end   = solicitar("End Time",   "20260507235959", "tiempo_corto", obligatorio=True)
+        
+        t_start = datetime.strptime(start, "%Y-%m-%dT%H:%M:%S")
+        t_end   = datetime.strptime(end, "%Y-%m-%dT%H:%M:%S")
+        
+        if t_end > t_start:
+            break
+        else:
+            print("\n ❌ ERROR LÓGICO: La fecha de FIN debe ser posterior a la de INICIO.")
+            print("   Por favor, ingrese el rango de tiempo nuevamente.\n")
+
+    output = solicitar("Nombre archivo salida", "datos.csv", "texto", obligatorio=True)
+    output = _normalizar_salida(output)
+
+    directorio = solicitar("Nombre carpeta imágenes", "analista", "texto", obligatorio=True)
+
+    print("-" * 70)
+    min_lat = solicitar("Latitud Mínima", "-38.5", "numero")
+    max_lat = solicitar("Latitud Máxima", "-32.0", "numero")
+    min_lon = solicitar("Longitud Mínima", "-75.0", "numero")
+    max_lon = solicitar("Longitud Máxima", "-69.5", "numero")
+    min_dep = solicitar("Profundidad Mínima", "0", "numero")
+    max_dep = solicitar("Profundidad Máxima", "150", "numero")
+    min_mag = solicitar("Magnitud Mínima", "3.0", "numero")
+    max_mag = solicitar("Magnitud Máxima", "9.0", "numero")
+
+    # ==============================================================================
+    # CONSTRUCCIÓN DE ARGUMENTOS PARA EVENTQUERY
+    # ==============================================================================
+    opcionales = [
+        ("--min-latitude", min_lat), ("--max-latitude", max_lat),
+        ("--min-longitude", min_lon), ("--max-longitude", max_lon),
+        ("--min-depth", min_dep), ("--max-depth", max_dep),
+        ("--min-magnitude", min_mag), ("--max-magnitude", max_mag)
+    ]
+    args_list = _construir_args(start, end, opcionales, output)
+
+    # ==============================================================================
+    # EJECUCIÓN REMOTA VÍA SSH (USANDO SUBPROCESS)
+    # ==============================================================================
+    print("\n" + "="*70)
+    print(f"[+] Conectando a {USUARIO_REMOTO}@{IP_REMOTA} vía SSH...")
     print("="*70 + "\n")
 
-except subprocess.CalledProcessError as e:
-    print(f"\n❌ Error crítico durante la ejecución del comando del sistema: {e}", file=sys.stderr)
-    sys.exit(1)
-except Exception as e:
-    print(f"\n❌ Error inesperado: {e}", file=sys.stderr)
-    sys.exit(1)
+    # Comando estructurado para asegurar el directorio y correr eventquery
+    comando_remoto = _comando_remoto(args_list)
+
+    try:
+        # Ejecutamos el SSH compartiendo los flujos estándar (el usuario verá el progreso en vivo)
+        subprocess.run(
+            ["ssh", f"{USUARIO_REMOTO}@{IP_REMOTA}", f"/bin/bash -c '{comando_remoto}'"],
+            check=True
+        )
+        
+        print("\n[+] Consulta finalizada con éxito en el servidor remoto.")
+        
+        # ==============================================================================
+        # TRANSFERENCIA DEL ARCHIVO GENERADO VÍA SCP
+        # ==============================================================================
+        # Definimos la ruta local donde se está ejecutando el script
+        ruta_local_destino = os.getcwd()
+        archivo_local = os.path.join(ruta_local_destino, output)
+        print(f"[+] Descargando '{output}' hacia la ruta local: {ruta_local_destino}")
+
+        try:
+            subprocess.run(
+                ["scp", f"{USUARIO_REMOTO}@{IP_REMOTA}:{DIR_REMOTO}/{output}", ruta_local_destino],
+                check=True
+            )
+        except subprocess.CalledProcessError:
+            # Si el scp falla porque el remoto no generó el archivo (ventana sin
+            # eventos), no es un error del sistema: simplemente no hay datos.
+            if not _hay_datos(archivo_local):
+                _avisar_sin_datos(archivo_local)
+                return
+            raise
+
+        # Un archivo de 0 bytes (bajada vacía) tampoco es un resultado válido.
+        if not _hay_datos(archivo_local):
+            _avisar_sin_datos(archivo_local)
+            return
+
+        print("\n" + "="*70)
+        print(f" 🌟 [¡ÉXITO!] Proceso completo terminado.")
+        print(f"    -> Archivo descargado: {os.path.join(ruta_local_destino, output)}")
+        print(f"    -> Carpeta asignada:  {directorio}")
+        print("="*70 + "\n")
+
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Error crítico durante la ejecución del comando del sistema: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Error inesperado: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
