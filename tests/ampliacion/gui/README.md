@@ -40,6 +40,15 @@ verdad) sobre los mocks. Solo se sustituye cuando la dependencia real no está
 disponible (PostgreSQL, red) o es bloqueante/externa (messagebox modal, abrir el
 explorador).
 
+**No todos necesitan `DISPLAY`**: la carpeta agrupa lo que depende de las
+librerías pesadas de la app (Tk/ttkbootstrap, matplotlib/cartopy) y por eso se
+excluye del CI. Archivos que **no** necesitan pantalla (solo las librerías):
+
+- `test_plotear_helpers.py` — helpers puros de `plotear.py` (matplotlib/cartopy
+  al importar).
+
+El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
+
 | Módulo | Superficie | Archivo de test | Dependencias | Estado |
 |---|---|---|---|---|
 | `descargas.py` | Diálogo de formato (`preguntar_formato`) | `test_descargas_dialogo.py` | real | cubierto |
@@ -48,7 +57,7 @@ explorador).
 | `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | cubierto |
 | `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | cubierto |
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
-| `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | pendiente |
+| `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | cubierto |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | pendiente |
 | `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | pendiente |
 | `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | cubierto |
