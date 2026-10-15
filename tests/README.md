@@ -64,6 +64,9 @@ Instalación (una vez):
 
 ## Estado y pendientes
 
+Vista transversal de qué prueba cada grupo y qué archivo cubre cada módulo:
+**`COBERTURA.md`**.
+
 Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 `seiscomp_a_parametros`, `traer_catalogos`, `ajuste`, `sismicidad`,
 `asigna_perfiles`, `revisa_seiscomp` (funciones puras) y

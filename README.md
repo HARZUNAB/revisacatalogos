@@ -17,7 +17,8 @@ Hay dos niveles, y conviene no mezclarlos:
 - `tests/` — **tests unitarios** (pytest) de las funciones puras: sin pantalla,
   sin base y sin red. Corren en segundos y son la red de seguridad para
   desarrollar. Adentro, `tests/base/` es la suite entregada (congelada) y
-  `tests/ampliacion/` lo que se agrega después. Ver `tests/README.md`.
+  `tests/ampliacion/` lo que se agrega después. Ver `tests/README.md` y, para el
+  mapa módulo → grupo → archivo, `tests/COBERTURA.md`.
 - `verificacion/` — **comprobaciones end-to-end** de la app armada (ventanas
   reales, base simulada, datos de prueba). Ver `verificacion/README.md`.
 
