@@ -39,7 +39,7 @@ La columna **Dependencias** dice qué se sustituye: `real` (nada), `sintético`
 |---|---|---|---|---|
 | `descargas.py` | Diálogo de formato (`preguntar_formato`) | `test_descargas_dialogo.py` | real | cubierto |
 | `app.py` | Ventana principal + toggles + tooltip | `test_app_principal.py` | sintético | cubierto |
-| `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | pendiente |
+| `app.py` | No publicados / No actualizados / Catálogos / Repetidos | `test_app_ventanas.py` | sintético | cubierto |
 | `app.py` | Comparar agencias + Cobertura por agencia | `test_app_agencias.py` | sintético | pendiente |
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | pendiente |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | pendiente |
