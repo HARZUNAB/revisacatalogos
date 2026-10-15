@@ -1,0 +1,37 @@
+===== modo: app =====
+--- exit: 0 ---
+--- stdout ---
+ℹ️  .csv por analista no generados (use RV_ENTREGABLES=1 si los necesita).
+eventos sin estructura: 1
+eventos con station0: 2
+Archivos generados...
+trabajo/newcollect_final.txt
+datos/salida_collect.csv
+constation0.txt y sinestructura.txt no generados (use RV_ENTREGABLES=1 si los necesita)
+
+--- archivos ---
+328ba689723bee1beb35ecdfca3a75b7026fd5a1fb4ab3053a052c5dfee5f51e  datos/salida_collect.csv
+a0d56aaf9c45d7d2083cbe1db635b376f3b08fb7d9268805db0bffcd3f1403e2  trabajo/newcollect.txt
+
+===== modo: entregables =====
+--- exit: 0 ---
+--- stdout ---
+✅ archivos .csv de sismos por analista creados en carpeta descargas/analistas
+eventos sin estructura: 1
+eventos con station0: 2
+Archivos generados...
+trabajo/newcollect_final.txt
+datos/salida_collect.csv
+descargas/constation0.txt
+descargas/sinestructura.txt
+
+--- archivos ---
+328ba689723bee1beb35ecdfca3a75b7026fd5a1fb4ab3053a052c5dfee5f51e  datos/salida_collect.csv
+44e9fe2174831467935727abfc03ac4f4d31f6379cf6a697a3a79ab2b5d67655  descargas/analistas/beto.csv
+5f289ab1152368ab9b8fb0d8d480f00578beb9e543bc0e6e2eec41c4f2358a9f  descargas/sinestructura.txt
+71e2aaddc667abd15c9ac5ba420ced1f03aa5097469157119def7bc91da3c355  descargas/analistas/elena.csv
+92da5c4546dd840781b74fed3f8486df087bfa69de0be3d3aea76b55b2c9bb58  descargas/analistas/dani.csv
+a0d56aaf9c45d7d2083cbe1db635b376f3b08fb7d9268805db0bffcd3f1403e2  trabajo/newcollect.txt
+a56deb22d91e9e0d88a349d60fb1d18051fdb718f9ff47773fded10b9a2d6294  descargas/constation0.txt
+a8b99f1985af4ab877bc4523d242869cb01e88902f180e8b0b605ae30ee60751  descargas/analistas/ana.csv
+c92fb7af145c43defb8cd9a2bd0fa654ae13b27c4926c0af70b931575e8be09c  descargas/analistas/caro.csv

@@ -30,6 +30,8 @@ eventquery_*.csv
 
 # Excepción: las fixtures de los tests (casos del arnés) sí se versionan.
 !tests/**/select.out
+!tests/**/trabajo/
+!tests/**/trabajo/**
 
 # Residuo de cuando el flujo escribía en la raíz; ahora todo va a datos/.
 /eventos_eventquery.json
