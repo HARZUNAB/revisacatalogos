@@ -88,12 +88,13 @@ de `base/` (`comparacion`, `agencias`, `ajuste`, `sismicidad`,
 `asigna_perfiles`, `seiscomp_a_parametros`, `traer_catalogos`, `rutas`,
 `revisa_seiscomp`, `exporta_ventana_seiscomp`), un archivo por módulo.
 
+Cubierto en `ampliacion/db/`: la capa de consulta de `exporta_ventana_seiscomp`
+(configuración, conexión, eventos, inventario, bindings, actividad, estimación y
+fases) y `verifica_entorno` (venv, requirements, base), con `psycopg2` mockeado.
+
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
 - **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
   `ampliacion/gui/`, marcador `gui`.
-- **Base de datos** (`exporta_ventana_seiscomp.py`, `verifica_entorno.py`):
-  `ampliacion/db/`, marcador `db`.
-- **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
-  `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
-  subcarpeta que corresponda.
+- **Otros módulos puros** sin cubrir (`descargas.py` con interfaz,
+  `traequery.py`): `ampliacion/modulos/` o la subcarpeta que corresponda.
