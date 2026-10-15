@@ -10,7 +10,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 - `repetidos.py` (refactorizado)
 - `repetidosexclu.py` (refactorizado)
 - `revisaselect.py` (refactorizado)
-- `revisacollect.py`
+- `revisacollect.py` (refactorizado)
 - `revisaexcluidos.py`
 - `proc_query_harz_2.py` (refactorizado)
 

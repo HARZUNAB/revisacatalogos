@@ -77,8 +77,9 @@ Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
 cuadrante de EMSC/USGS/GFZ, con `requests` mockeado y sin pandas).
 
 Cubierto en `ampliacion/scripts/`: `compara`, `repetidos`, `repetidosexclu`,
-`revisaselect` y `proc_query_harz_2` (refactorizados; helpers puros con stub de
-pandas donde aplica, y un arnés de regresión antes/después con goldens por caso).
+`revisaselect`, `revisacollect` y `proc_query_harz_2` (refactorizados; helpers
+puros con stub de pandas/Levenshtein donde aplica, y un arnés de regresión
+antes/después con goldens por caso).
 
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
@@ -92,8 +93,7 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 - **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
   `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
   subcarpeta que corresponda.
-- **Módulos script-style** (`revisacollect.py`,
-  `revisaexcluidos.py`): hoy ejecutan código al importar y leen rutas fijas
-  relativas al cwd. Para testearlos hay que refactorizarlos primero para exponer
-  funciones y agregar el guard `if __name__ == "__main__"`; después van a
-  `ampliacion/scripts/`.
+- **Módulos script-style** (`revisaexcluidos.py`): hoy ejecuta código al
+  importar y lee rutas fijas relativas al cwd. Para testearlo hay que
+  refactorizarlo primero para exponer funciones y agregar el guard
+  `if __name__ == "__main__"`; después va a `ampliacion/scripts/`.
