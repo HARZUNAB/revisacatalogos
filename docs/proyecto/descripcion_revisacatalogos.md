@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.0 — 14 de octubre de 2026.
+Versión 1.1 — 15 de octubre de 2026.
 
 ---
 
@@ -317,11 +317,18 @@ selección de evento y ampliación de radio), están documentadas en detalle en
 
 ### 6.1 Estrategia
 
-La verificación del sistema se apoya en `verificacion/`, un conjunto de
-**comprobaciones end-to-end** (no tests unitarios) que ejercitan la aplicación
-de punta a punta: lógica de exportación, integración con base simulada,
-construcción de ventanas reales, diálogos y barras de herramientas. Se ejecutan
-con un runner único:
+La verificación del sistema se apoya en **dos niveles** complementarios:
+
+- `tests/` — **tests unitarios** (pytest) de las funciones puras y de la
+  interfaz, sin pantalla, base ni red en la corrida por defecto. Son rápidos y
+  constituyen la red de seguridad para desarrollar y refactorizar. En la corrida
+  por defecto suman **538 tests**; a eso se agregan los grupos que sí necesitan
+  pantalla o base (**146** de interfaz y **36** de base de datos). El detalle está
+  en el Anexo D.
+- `verificacion/` — **comprobaciones end-to-end** (no tests unitarios) que
+  ejercitan la aplicación de punta a punta: lógica de exportación, integración con
+  base simulada, construcción de ventanas reales, diálogos y barras de
+  herramientas. Se ejecutan con un runner único:
 
 ```
 ./verificacion/correr.sh          # offline + gui
@@ -346,8 +353,13 @@ con un runner único:
 
 ### 6.3 Resultado
 
-La suite se ejecutó completa sobre el sistema tras la reorganización del
-proyecto, con **23/23 comprobaciones OK** (10 offline + 13 GUI, 0 fallas).
+La suite de verificación se ejecutó completa sobre el sistema tras la
+reorganización del proyecto, con **23/23 comprobaciones OK** (10 offline + 13
+GUI, 0 fallas).
+
+La suite de **tests unitarios** corre completa y en verde: **538 tests** en la
+corrida por defecto, más los **146** de interfaz y los **36** de base de datos
+(ver Anexo D).
 
 ---
 
@@ -372,8 +384,8 @@ proyecto, con **23/23 comprobaciones OK** (10 offline + 13 GUI, 0 fallas).
 - Integrar disponibilidad de formas de onda (SDS, scardac o FDSN Availability)
   para reemplazar el indicador indirecto de actividad de las estaciones.
 - Ampliar la comparación con agencias y su cobertura temporal.
-- Añadir tests unitarios en `tests/` para las funciones puras, complementando
-  las comprobaciones end-to-end.
+- Extender los tests unitarios de `tests/` a nuevas funciones puras a medida que
+  se agreguen, complementando las comprobaciones end-to-end.
 
 ---
 
@@ -428,3 +440,12 @@ resumen así:
 - `docs/esquema_seiscomp.txt` — la misma información sin el diagrama.
 - `docs/esquema_seiscomp_mysql.sql` — versión importable en MySQL Workbench
   (diagrama EER); la base real es PostgreSQL.
+
+### Anexo D. Tests unitarios
+
+La suite de **tests unitarios** (pytest) vive en `tests/` y se documenta en
+`docs/proyecto/tests_unitarios.md` (versión `.docx` en
+`docs/versiones/tests_unitarios_v1.0_2026-10-15.docx`): grupos y marcadores,
+índice módulo → grupo → archivo, arnés de regresión y cómo correrla. El índice
+de cobertura resumido está además en `tests/COBERTURA.md` y las convenciones en
+`tests/README.md`.
