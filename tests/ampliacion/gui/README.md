@@ -61,13 +61,14 @@ El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | cubierto |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | cubierto |
 | `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | cubierto |
+| `plotear.py` | `abrir_eventos`/`abrir_evento`/`abrir_comparacion` (figuras) | `test_plotear_abrir.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Ventana detalle | `test_rs_detalle.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Estaciones + sin arribos ampliada | `test_rs_estaciones.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Análisis rápido | `test_rs_analisis.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | `main` (ventana propia) | `test_rs_main.py` | sintético | cubierto |
-| `solicita_catalogos.py` | Ventana de solicitud de catálogos | `test_solicita_catalogos.py` | mock | pendiente |
+| `solicita_catalogos.py` | Ventana de solicitud + helpers | `test_solicita_catalogos.py` | sintético/mock | cubierto |
 
 Orden de ejecución: **descargas → app → revisa_seiscomp → plotear →
 solicita_catalogos** (de lo chico y aislado a lo grande y acoplado).
