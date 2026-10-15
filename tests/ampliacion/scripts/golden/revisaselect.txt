@@ -2,23 +2,23 @@
 --- exit: 0 ---
 --- stdout ---
 
-Eventos a analizar: 6
+Eventos a analizar: 5
 
 --- archivos ---
-61da5739b1e242aa722f772e0aea8f2e49f9a346884446b295d5a283690e1136  trabajo/excluidostmp1.txt
-7f72b08a403bb9963c13b1988f669a486a0adb6fbb518441bf501191379b1da5  trabajo/newcollect.txt
-bc3adbe37c1ff40b90404bce657e97c25aa3db5b8448cfe8d899901f22d5e583  select.out
-e9fc1cd3e9a89ee864100af47b295de1b79d64e57e964431da5df348ce0b1516  informes/excluidos.txt
+38ae8efa7c9ba0070a3cbf27a3b6266f8a8e66f16a5959ce6e785039f71a656d  select.out
+515d9ebb7a899d3d17374b950bdaa62b4ad2df8c2fb3d1021f7b77b4951b54cb  informes/excluidos.txt
+55b5b1a906b40919257ae2968af26ec5b0638d8693dbb503bc7e6df61c6e4499  trabajo/excluidostmp1.txt
+8ff74d8ba5fdfa29bec15e3078e818f6269a42b896bcc5cd276b8600e29654da  trabajo/newcollect.txt
 
 ===== modo: entregables =====
 --- exit: 0 ---
 --- stdout ---
 
-Eventos a analizar: 6
+Eventos a analizar: 5
 
 --- archivos ---
-61da5739b1e242aa722f772e0aea8f2e49f9a346884446b295d5a283690e1136  trabajo/excluidostmp1.txt
-7f72b08a403bb9963c13b1988f669a486a0adb6fbb518441bf501191379b1da5  trabajo/newcollect.txt
-bc3adbe37c1ff40b90404bce657e97c25aa3db5b8448cfe8d899901f22d5e583  select.out
-cacf8a9b9767875e3e6dfe35d04703ce51e742e0c23064e142423d7cfcefcadb  descargas/cabeceras.txt
-e9fc1cd3e9a89ee864100af47b295de1b79d64e57e964431da5df348ce0b1516  informes/excluidos.txt
+26f5c732c2339253758c4507de114775b968f9e8cf595ae90655d1d96b0bb8f3  descargas/cabeceras.txt
+38ae8efa7c9ba0070a3cbf27a3b6266f8a8e66f16a5959ce6e785039f71a656d  select.out
+515d9ebb7a899d3d17374b950bdaa62b4ad2df8c2fb3d1021f7b77b4951b54cb  informes/excluidos.txt
+55b5b1a906b40919257ae2968af26ec5b0638d8693dbb503bc7e6df61c6e4499  trabajo/excluidostmp1.txt
+8ff74d8ba5fdfa29bec15e3078e818f6269a42b896bcc5cd276b8600e29654da  trabajo/newcollect.txt
