@@ -55,8 +55,8 @@ explorador).
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Ventana detalle | `test_rs_detalle.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Estaciones + sin arribos ampliada | `test_rs_estaciones.py` | sintético | cubierto |
-| `revisa_seiscomp.py` | Análisis rápido | `test_rs_analisis.py` | sintético | pendiente |
-| `revisa_seiscomp.py` | `main` (ventana propia) | `test_rs_main.py` | sintético | pendiente |
+| `revisa_seiscomp.py` | Análisis rápido | `test_rs_analisis.py` | sintético | cubierto |
+| `revisa_seiscomp.py` | `main` (ventana propia) | `test_rs_main.py` | sintético | cubierto |
 | `solicita_catalogos.py` | Ventana de solicitud de catálogos | `test_solicita_catalogos.py` | mock | pendiente |
 
 Orden de ejecución: **descargas → app → revisa_seiscomp → plotear →
