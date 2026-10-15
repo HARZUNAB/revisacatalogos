@@ -51,7 +51,7 @@ explorador).
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | pendiente |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | pendiente |
 | `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | pendiente |
-| `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | pendiente |
+| `revisa_seiscomp.py` | Panel y catálogo | `test_rs_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | pendiente |
 | `revisa_seiscomp.py` | Ventana detalle | `test_rs_detalle.py` | sintético | pendiente |
 | `revisa_seiscomp.py` | Estaciones + sin arribos ampliada | `test_rs_estaciones.py` | sintético | pendiente |
