@@ -971,7 +971,12 @@ def _resumen_fases(filas_fases):
         valor = fila.get("mag_estacion")
         if valor is None:
             continue
-        valor = float(valor)
+        try:
+            valor = float(valor)
+        except (TypeError, ValueError):
+            # Una magnitud de estación no numérica se ignora, igual que en
+            # _acumular_por_evento: antes cortaba el resumen con ValueError.
+            continue
         if valor < 0:
             negativas += 1
         if not RANGO_MAG_ESTACION[0] <= valor <= RANGO_MAG_ESTACION[1]:

@@ -3,12 +3,9 @@
 Tests de bordes de exporta_ventana_seiscomp.py
 =============================================
 Casos borde de la parte pura que el test base no cubre: magnitud de estación no
-numérica (asimetría con `_acumular_por_evento`), límites del rango creíble,
-append/vacío del CSV, celdas raras, radio y actividad en el borde, vigencia
-inclusiva, época abierta, antimeridiano y rutas derivadas.
-
-El módulo no se modifica en esta tanda: el `ValueError` de `_resumen_fases`
-queda anotado para revisarlo aparte.
+numérica (se ignora, igual que `_acumular_por_evento`), límites del rango
+creíble, append/vacío del CSV, celdas raras, radio y actividad en el borde,
+vigencia inclusiva, época abierta, antimeridiano y rutas derivadas.
 """
 
 import decimal
@@ -23,12 +20,13 @@ import exporta_ventana_seiscomp as ex
 # --------------------------------------------------------------------------
 # _resumen_fases: magnitud no numérica y límites de rango
 # --------------------------------------------------------------------------
-def test_resumen_fases_magnitud_no_numerica_revienta():
-    # A diferencia de _acumular_por_evento (que la ignora), acá float() va sin
-    # try. Comportamiento actual; revisar aparte.
-    with pytest.raises(ValueError):
-        ex._resumen_fases([{"tiene_magnitud": "Si", "mag_estacion": "xx",
-                            "mag_est_residuo": ""}])
+def test_resumen_fases_magnitud_no_numerica_se_ignora():
+    # Igual que _acumular_por_evento: una magnitud no numérica no corta el
+    # resumen, solo no entra al conteo de rango.
+    resumen = ex._resumen_fases([{"tiene_magnitud": "Si", "mag_estacion": "xx",
+                                  "mag_est_residuo": ""}])
+    assert resumen["con_magnitud"] == 1
+    assert resumen["fuera_de_rango"] == 0
 
 
 def test_resumen_fases_limites_del_rango():
