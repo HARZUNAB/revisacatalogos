@@ -13,3 +13,25 @@ Convención de nombre: `test_<modulo>_<tema>.py` (p. ej.
 ```bash
 ./tests/correr.sh bordes
 ```
+
+## Cobertura
+
+Un archivo por módulo de `base/`, con casos borde y regresiones de bugs:
+
+| Archivo | Módulo |
+|---|---|
+| `test_comparacion_bordes.py` | `comparacion.py` |
+| `test_agencias_bordes.py` | `agencias.py` |
+| `test_ajuste_bordes.py` | `ajuste.py` |
+| `test_sismicidad_bordes.py` | `sismicidad.py` |
+| `test_asigna_perfiles_bordes.py` | `asigna_perfiles.py` |
+| `test_seiscomp_a_parametros_bordes.py` | `seiscomp_a_parametros.py` |
+| `test_traer_catalogos_bordes.py` | `traer_catalogos.py` |
+| `test_rutas_bordes.py` | `rutas.py` |
+| `test_revisa_seiscomp_bordes.py` | `revisa_seiscomp.py` (helpers puros) |
+| `test_exporta_ventana_seiscomp_bordes.py` | `exporta_ventana_seiscomp.py` |
+
+Algunos casos **fijan el comportamiento actual** de puntos dudosos (p. ej. el
+cruce de medianoche en `agencias`, el `ValueError` de `_resumen_fases` o el
+agrupado por texto de `no_actualizados`). Quedan anotados en el docstring de cada
+test para revisarlos como trabajo aparte; acá solo se documentan.

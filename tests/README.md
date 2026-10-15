@@ -81,6 +81,11 @@ Cubierto en `ampliacion/scripts/`: `compara`, `repetidos`, `repetidosexclu`,
 (refactorizados; helpers puros con stub de pandas/Levenshtein donde aplica, y un
 arnés de regresión antes/después con goldens por caso).
 
+Cubierto en `ampliacion/bordes/`: casos borde y regresiones de los diez módulos
+de `base/` (`comparacion`, `agencias`, `ajuste`, `sismicidad`,
+`asigna_perfiles`, `seiscomp_a_parametros`, `traer_catalogos`, `rutas`,
+`revisa_seiscomp`, `exporta_ventana_seiscomp`), un archivo por módulo.
+
 Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
 
 - **Interfaz** (`plotear.py`, `app.py`, ventanas de `revisa_seiscomp.py`):
@@ -89,7 +94,6 @@ Pendiente (va a `ampliacion/`), según `ampliacion/README.md`:
   `ampliacion/db/`, marcador `db`.
 - **Red restante**: descargas SSH/SCP de `traer_catalogos.py` (helpers puros ya
   en `base/`), en `ampliacion/red/` con mock.
-- **Casos borde** de los módulos puros: `ampliacion/bordes/`.
 - **Otros módulos puros** sin cubrir (`verifica_entorno.py` sin base,
   `descargas.py` con interfaz, `traequery.py`): `ampliacion/modulos/` o la
   subcarpeta que corresponda.
