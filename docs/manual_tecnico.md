@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.8 — 14 de octubre de 2026.
+Versión 1.9 — 15 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -20,8 +20,9 @@ diario, ver `manual_usuario.md`. El esquema de la base de datos está en
 6. [Conexión remota y base de datos](#6-conexión-remota-y-base-de-datos)
 7. [Parámetros y dónde ajustarlos](#7-parámetros-y-dónde-ajustarlos)
 8. [Entradas y formatos](#8-entradas-y-formatos)
-9. [Cómo extender el sistema](#9-cómo-extender-el-sistema)
-10. [Verificación y pruebas](#10-verificación-y-pruebas)
+9. [Nombres de las columnas](#9-nombres-de-las-columnas)
+10. [Cómo extender el sistema](#10-cómo-extender-el-sistema)
+11. [Verificación y pruebas](#11-verificación-y-pruebas)
 
 ---
 
@@ -382,7 +383,46 @@ fecha/hora (nunca el id de una agencia).
 
 ---
 
-## 9. Cómo extender el sistema
+## 9. Nombres de las columnas
+
+Definiciones exactas de las columnas y campos que aparecen en las tablas de la
+interfaz y en los archivos de descarga. Los campos del JSON de eventos están en
+la [sección 8](#8-entradas-y-formatos).
+
+| Columna | Definición | Origen |
+|---|---|---|
+| **Along (km)** (`along_km`) | Proyección del evento sobre el eje del perfil, en km desde el inicio de la sección (recortada a los extremos). | `asigna_perfiles.distancia_al_perfil` |
+| **Perp (km)** (`perp_km`) | Distancia lateral (perpendicular) del evento al eje del perfil. | `asigna_perfiles.distancia_al_perfil` |
+| **Residuo (km)** (`residuo_km`) | `abs(prof_evento - profundidad_slab(along))`; vacío si el *slab* no cubre esa posición. | `asigna_perfiles.profundidad_slab_en` |
+| **Dist. asoc. (km)** (`dist_asoc`) | Distancia de asociación para elegir el perfil: combina `perp` y `residuo` con `K_PESO_PROFUNDIDAD`, con tope `UMBRAL_DIST_KM` (y `UMBRAL_PERP_KM` opcional). | `asigna_perfiles.asignar_perfil_evento` |
+| **Motivo** (`motivo`) | Causa de «sin perfil»: `fuera_cobertura_norte`, `fuera_cobertura_sur`, `fuera_cobertura_extremo`, `fuera_cobertura`, `fuera_umbral` o `sin_perfiles`. | `asigna_perfiles` |
+| **Δmáx (km)** | Distancia máxima entre las soluciones agrupadas de un mismo evento (comparación de agencias). | `agencias._max_distancia` |
+| **Δt (s)** | Diferencia de tiempo, en segundos, respecto de la solución de referencia. | `agencias` |
+| **Dist (km)** | Distancia horizontal, en km, entre dos soluciones. | `agencias` |
+| **Δprof (km)** / **Δmag** | Diferencia de profundidad (km) / de magnitud respecto de la referencia. | `agencias` |
+| **Fuera de rango** | La solución excede la tolerancia de asociación (≤ 6 s y Δlat/Δlon ≤ 0.25°): se lista pero no se asocia. | `agencias._mismo_evento` |
+| **Referencia** / **Asociado** / **Fuente** | Evento publicado de referencia del cruce / agencia asociada (formato largo) / origen de la fila. | `agencias` |
+| **Agencias** / **Rezago** | Fuentes que reportaron el evento (unidas con `≡` si caen en la misma ubicación) / cuánto antes del fin solicitado terminó el catálogo de la agencia. | `agencias` / `app._cobertura_agencias` |
+| **Loc** / **Cha** | Localización (2 dígitos) y canal del stream (código SEED). | `revisa_seiscomp` |
+| **Resid (s)** / **Residuo** | Residual del arribo (observado − teórico), en segundos. | `revisa_seiscomp` |
+| **Dist (°)** / **Azimut** | Distancia epicentral (grados) / azimut de la estación respecto del epicentro. | `revisa_seiscomp` |
+| **Usada** / **Modo** / **Peso** | Si el arribo entró a la solución / manual o automático / peso en la solución. | `revisa_seiscomp` |
+| **SNR** / **QC** | Relación señal-ruido / marca de control de calidad del *pick*. | `revisa_seiscomp` |
+| **Elev (m)** | Elevación de la estación, en metros. | `revisa_seiscomp` |
+| **Streams vig.** / **Loc ref.** / **Canal ref.** | Streams vigentes / localización y canal del stream de referencia. | `revisa_seiscomp` |
+| **Actividad ±24 h** | Otros eventos picados por esa estación entre 24 h antes y 24 h después del origen. | `exporta_ventana_seiscomp` |
+| **Destacadas** / **Cercanas** | Estaciones cercanas con actividad no usadas / cercanas sin actividad. | `revisa_seiscomp` |
+| **Dist. mín. (km)** / **Clasificación** | Distancia a la estación sin arribos más cercana / categoría del evento en el análisis. | `revisa_seiscomp` |
+| **Estatus** / **Base** / **Fases** | Estado de revisión / base de datos de origen / cantidad de fases. | `exporta_ventana_seiscomp` |
+| **Percib.** / **Referencia** / **Analista probable** | Percibido por la población / referencia del catálogo público / analista probable del evento. | `revisa_seiscomp` |
+
+Las constantes de asociación (`UMBRAL_DIST_KM`, `UMBRAL_PERP_KM`,
+`K_PESO_PROFUNDIDAD`) y las de sospechosos están en la
+[sección 7](#7-parámetros-y-dónde-ajustarlos).
+
+---
+
+## 10. Cómo extender el sistema
 
 - **Agregar una columna a una tabla**: añadir la tupla `(clave, título, ancho)`
   en la constante `COLUMNAS_*` correspondiente (`revisa_seiscomp.py`) y, si el
@@ -397,7 +437,7 @@ fecha/hora (nunca el id de una agencia).
 
 ---
 
-## 10. Verificación y pruebas
+## 11. Verificación y pruebas
 
 - **Diagnóstico de entorno**: `.venv/bin/python verifica_entorno.py` revisa el
   venv, los paquetes de `requirements.txt`, tkinter y la conexión a la base.

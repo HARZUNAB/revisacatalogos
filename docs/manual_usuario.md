@@ -1,7 +1,7 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.8 — 14 de octubre de 2026.
+Versión 1.9 — 15 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
@@ -26,7 +26,8 @@ parámetros, base de datos) está en el **`manual_tecnico.md`**.
 9. [Análisis rápido de sin arribos](#9-análisis-rápido-de-sin-arribos)
 10. [Descargas](#10-descargas)
 11. [Problemas frecuentes](#11-problemas-frecuentes)
-12. [Glosario](#12-glosario)
+12. [Nombres de las columnas](#12-nombres-de-las-columnas)
+13. [Glosario](#13-glosario)
 
 ---
 
@@ -571,7 +572,108 @@ El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla
 
 ---
 
-## 12. Glosario
+## 12. Nombres de las columnas
+
+Varias tablas usan abreviaturas o nombres que no se explican solos. Acá está qué
+significa cada uno, por vista. Lo que no figura en esta sección es de lectura
+directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
+
+### Comparar agencias — listado
+
+| Columna | Qué indica |
+|---|---|
+| **Agencias** | Fuentes que reportaron ese evento, separadas por `+` (p. ej. `CSN + EMSC + USGS`). Las que caen en la misma ubicación se unen con `≡`. |
+| **Δmáx (km)** | Distancia máxima, en km, entre las soluciones agrupadas de ese evento. |
+
+### Comparar agencias — cobertura por agencia
+
+| Columna | Qué indica |
+|---|---|
+| **Rezago** | Cuánto antes del fin solicitado terminó el catálogo de esa agencia (p. ej. GFZ llega con ~1 día de atraso). |
+
+### Comparar agencias — descarga
+
+| Columna | Qué indica |
+|---|---|
+| **Δt (s)** | Diferencia de tiempo, en segundos, respecto de nuestra solución. |
+| **Dist (km)** | Distancia, en km, entre la solución de la agencia y la nuestra. |
+| **Δprof (km)** | Diferencia de profundidad, en km. |
+| **Δmag** | Diferencia de magnitud. |
+| **Fuera de rango** | Marca la solución que excede la tolerancia de asociación (más de 6 s o más de 0.25° de separación): se lista, pero no se considera el mismo evento. |
+| **Referencia** | Nuestro evento publicado que se toma como referencia del cruce. |
+| **Asociado** | En el formato largo, la agencia cuya solución se asoció a la referencia. |
+| **Fuente** | Origen de la fila (nuestra solución o una agencia). |
+
+### Panel de análisis — tabla de perfiles
+
+| Columna | Qué indica |
+|---|---|
+| **Along (km)** | Rango de distancia, a lo largo del perfil, que cubren los eventos de ese perfil. |
+
+### Descarga de eventos
+
+| Columna | Qué indica |
+|---|---|
+| **Along (km)** | Posición del evento a lo largo del perfil (km desde el inicio de la sección). |
+| **Perp (km)** | Distancia lateral del evento al eje del perfil. |
+| **Residuo (km)** | Diferencia entre la profundidad del evento y la del *slab* en su posición `along`. |
+| **Dist. asoc. (km)** | Distancia de asociación usada para elegir el perfil (combina la distancia lateral y el residuo de profundidad). |
+| **Motivo** | Por qué el evento quedó **sin perfil** (p. ej. fuera de cobertura al norte/sur, en el extremo, o fuera del umbral). |
+
+### Estaciones del evento — con arribos
+
+| Columna | Qué indica |
+|---|---|
+| **Loc** | Localización (código de 2 dígitos) del stream de la estación. |
+| **Cha** | Canal del stream (p. ej. `HHZ`). |
+| **Resid (s)** | Residual del arribo: diferencia entre el tiempo observado y el teórico, en segundos. |
+| **Azimut** | Ángulo, en grados, de la estación respecto del epicentro. |
+| **Dist (°)** | Distancia epicentral, en grados. |
+| **Usada** | Si el arribo entró a la solución preferida. |
+| **Modo** | Si el *pick* fue **manual** o **automático**. |
+| **Peso** | Peso del arribo en la solución. |
+| **SNR** | Relación señal-ruido del arribo. |
+| **QC** | Marca de control de calidad del *pick*. |
+| **Residuo** | Residual del arribo (misma idea que **Resid (s)**). |
+| **Elev (m)** | Elevación de la estación, en metros. |
+
+### Estaciones del evento — sin arribos
+
+| Columna | Qué indica |
+|---|---|
+| **Loc ref.** | Localización del stream de **referencia** de esa estación. |
+| **Canal ref.** | Canal del stream de **referencia**. |
+| **Streams vig.** | Cuántos streams de esa estación había vigentes. |
+| **Actividad ±24 h** | Cuántos *otros* eventos picó esa estación entre 24 h antes y 24 h después del origen. |
+
+### Análisis rápido de sin arribos
+
+| Columna | Qué indica |
+|---|---|
+| **Destacadas** | Estaciones cercanas **y** con actividad que **no** se usaron en la solución. |
+| **Cercanas** | Estaciones cercanas sin actividad (posible caída). |
+| **Dist. mín. (km)** | Distancia a la estación sin arribos más cercana al evento. |
+| **Clasificación** | Categoría del evento en el análisis (según las estaciones cercanas). |
+
+### Catálogo de SeisComp
+
+| Columna | Qué indica |
+|---|---|
+| **Estatus** | Estado de revisión del evento en SeisComp (p. ej. `reviewed`). |
+| **Base** | Base de datos de origen del registro. |
+| **Fases** | Cantidad de fases (arribos) del evento. |
+
+### Catálogo eventquery
+
+| Columna | Qué indica |
+|---|---|
+| **Percib.** | Si el evento fue reportado como percibido por la población. |
+| **Referencia** | Texto de referencia del evento en el catálogo público. |
+| **Analista probable** | Analista que probablemente registró el evento (deducido por el patrón de *picks*). |
+
+---
+
+## 13. Glosario
 
 - **Evento**: un sismo con su solución (hora, latitud, longitud, profundidad,
   magnitud).
