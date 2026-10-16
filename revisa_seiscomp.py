@@ -2540,82 +2540,12 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     for hijo in contenedor.winfo_children():
         hijo.destroy()
 
-    # --- Barra superior: archivos, filtro y mínimo de magnitud ---
-    barra = ttk.Frame(contenedor)
-    barra.pack(fill="x", pady=(0, 6))
-    ttk.Label(barra, text="Mostrando", bootstyle="secondary").pack(side="left")
-    caja_filtro = ttk.Entry(barra, width=24)
-    caja_filtro.pack(side="left", padx=(4, 10))
-    ttk.Label(barra, text="magnitud mínima", bootstyle="secondary").pack(side="left")
-    caja_mag = ttk.Entry(barra, width=6)
-    caja_mag.pack(side="left", padx=4)
-    # Lat y Lon van en campos separados y no en la caja de texto: un -26 tiene
-    # que ser latitud y un -71 longitud, pero en la caja de texto un número no
-    # sabe a qué columna pertenece y además -26 aparece dentro de la fecha
-    # 2026-09-26. Como campos separados no hay ambigüedad, y un entero es el
-    # grado (banda de un grado) y un número con decimales es el punto exacto.
-    ttk.Label(barra, text="Lat", bootstyle="secondary").pack(side="left",
-                                                                padx=(10, 0))
-    caja_lat = ttk.Entry(barra, width=7)
-    caja_lat.pack(side="left", padx=(4, 0))
-    ttk.Label(barra, text="Lon", bootstyle="secondary").pack(side="left",
-                                                               padx=(8, 0))
-    caja_lon = ttk.Entry(barra, width=7)
-    caja_lon.pack(side="left", padx=(4, 4))
-    boton_exportar = ttk.Button(barra, text="Exportar lista",
-                                bootstyle="secondary-outline", width=17,
-                                state="disabled")
-    boton_exportar.pack(side="right", padx=(8, 8))
-    # El análisis rápido va sobre la lista, al lado de «Exportar lista», para
-    # dejar claro que recorre TODO el catálogo y no el filtro del panel.
-    boton_analisis = ttk.Button(barra, text="Análisis rápido",
-                                bootstyle="secondary-outline", width=15,
-                                state="normal" if hay_no_picadas else "disabled")
-    boton_analisis.pack(side="right")
-    _ayuda_emergente(boton_analisis,
-                     "Busca en TODO el catálogo los eventos con estaciones sin"
-                     " arribos cercanas (no usa el filtro del panel).")
-    etiqueta_estado = ttk.Label(barra, text="", bootstyle="secondary")
-    etiqueta_estado.pack(side="right")
-
     # --- Lista de eventos, con la miniatura del perfil al lado ---
     # El detalle del evento no va aquí: abre en su propia ventana al hacer
     # doble clic (o Enter) en una fila (_ventana_detalle). Al lado de la lista
-    # sí va la miniatura del perfil del evento seleccionado, que se actualiza
-    # al mover la selección con el mouse o con las flechas.
-    cuerpo = ttk.Frame(contenedor)
-    cuerpo.pack(fill="both", expand=True)
-    paned = ttk.PanedWindow(cuerpo, orient="horizontal")
-    paned.pack(fill="both", expand=True)
-    marco_lista = ttk.Frame(paned)
-    paned.add(marco_lista, weight=3)
-    marco_mini = ttk.Frame(paned)
-    paned.add(marco_mini, weight=1)
-
-    claves_ev = [c for c, _, _ in COLUMNAS_EVENTO]
-    arbol_ev = ttk.Treeview(marco_lista, columns=claves_ev,
-                            show="headings", selectmode="browse")
-    for clave, titulo, ancho in COLUMNAS_EVENTO:
-        arbol_ev.heading(clave, text=titulo)
-        arbol_ev.column(clave, width=ancho, minwidth=45, stretch=False)
-    barra_ev = ttk.Scrollbar(marco_lista, orient="vertical",
-                             command=arbol_ev.yview)
-    arbol_ev.configure(yscrollcommand=barra_ev.set)
-    # Barras antes que el árbol (ver _construir_arbol_fases): empaquetar el árbol
-    # primero las deja en 1x1 px.
-    barra_ev.pack(side="right", fill="y")
-    # Las columnas del panel suman 1275 px. Con la ventana que trae abrir_panel
-    # entran, pero en una achicada las últimas se van de la vista y no había
-    # forma de llegar: la barra horizontal evita perder columnas.
-    barra_h = ttk.Scrollbar(marco_lista, orient="horizontal",
-                            command=arbol_ev.xview)
-    arbol_ev.configure(xscrollcommand=barra_h.set)
-    barra_h.pack(side="bottom", fill="x")
-    arbol_ev.pack(side="left", fill="both", expand=True)
-
-    dibujar_mini = _panel_miniatura(marco_mini, ttk, "seiscomp")
-    var_hist = ttk.BooleanVar(value=False)
-
+    # va la miniatura del perfil del evento seleccionado, que sigue a la
+    # selección (mouse o flechas). El armado del listado (filtros, orden,
+    # descarga, miniatura) sale de abrir_tabla.
     def _evento_para_plotear(fila):
         """Dict del evento con las claves que espera plotear (una solución)."""
         fecha, hora = _partir_fecha_hora(_campo_tiempo(fila))
@@ -2630,29 +2560,18 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             "analista": fila.get("operador"),
         }
 
+    estado = {"evento": None}
+    mini = {"dibujar": None, "var_hist": None}
+
     def _actualizar_mini(_evento=None):
         """Redibuja la miniatura del perfil del evento seleccionado."""
-        if dibujar_mini is None:
+        if mini["dibujar"] is None:
             return
-        seleccion = arbol_ev.selection()
-        if not seleccion:
-            return
-        fila = next((f for f in estado["filas"]
-                     if str(id(f)) == seleccion[0]), None)
+        fila = tabla["fila_actual"]()
         if fila is None:
             return
-        dibujar_mini(_evento_para_plotear(fila), mostrar_hist=var_hist.get())
-
-    def _alternar_hist():
-        """Activa/desactiva la sismicidad histórica en la miniatura."""
-        _actualizar_mini()
-
-    # La casilla solo controla la miniatura (el detalle grande siempre trae la
-    # sismicidad histórica, igual que el panel de análisis). Solo se arma si
-    # hay miniatura, para no dejar un control que no hace nada.
-    if dibujar_mini is not None:
-        ttk.Checkbutton(barra, text="Sismicidad histórica", variable=var_hist,
-                        command=_alternar_hist).pack(side="left", padx=(10, 0))
+        mini["dibujar"](_evento_para_plotear(fila),
+                        mostrar_hist=mini["var_hist"].get())
 
     def _ver_mapa_evento(fila):
         """Plotea planta + perfil de un evento concreto (una sola solución)."""
@@ -2663,108 +2582,45 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             if log:
                 log("[error] no se pudo plotear: %s" % exc)
 
-    # Orden por columna: se guarda el sentido y se reordena al hacer clic.
-    orden = {"columna": None, "descendente": False}
-
-    def _aplicar_orden(columna):
-        """Marca la columna de orden y reordena. Un clic más invierte el sentido."""
-        if orden["columna"] == columna:
-            orden["descendente"] = not orden["descendente"]
-        else:
-            orden["columna"] = columna
-            orden["descendente"] = False
-        _llenar_eventos()
-
-    # La columna se cierra por defecto en el lambda y no se lee del evento a
-    # propósito: Tk invoca el comando de un encabezado con una cadena, no con
-    # un objeto de evento, así que uno que espere evento.widget revienta en el
-    # primer clic.
-    for clave, _, _ in COLUMNAS_EVENTO:
-        arbol_ev.heading(clave,
-                         command=lambda _e=None, c=clave: _aplicar_orden(c))
-
-    estado = {"filas": [], "evento": None}
-
-    def _elegidos():
-        """
-        Filas que pasan el filtro, ordenadas y SIN recortar.
-
-        El corte de MAX_FILAS es solo de la pantalla: el export usa esta misma
-        función y por eso trae todo lo que cumple el filtro. Si compartieran el
-        recorte, un CSV de más de 20000 eventos saldría incompleto sin
-        ningún aviso en el archivo.
-        """
-        mag_min = caja_mag.get().strip()
-        try:
-            mag_min = float(mag_min) if mag_min else None
-        except ValueError:
-            mag_min = None
-        elegidos = _filtrar_listado(eventos, _valores_evento,
-                                    caja_filtro.get(), mag_min,
-                                    clave_mag="magnitud",
-                                    lat=caja_lat.get(), lon=caja_lon.get(),
-                                    extra=CAMPOS_BUSQUEDA_EVENTO)
-        return _ordenar_eventos(elegidos, orden["columna"],
-                                orden["descendente"]), mag_min
-
-    def _llenar_eventos():
-        for item in arbol_ev.get_children():
-            arbol_ev.delete(item)
-        elegido_orden, _ = _elegidos()
-        total = len(elegido_orden)
-        if total > MAX_FILAS:
-            elegido_orden = elegido_orden[:MAX_FILAS]
-            etiqueta_estado.config(
-                text="Se muestran los primeros %d de %d eventos que cumplen"
-                     " el filtro. Afloja el filtro para ver el resto."
-                     % (MAX_FILAS, total))
-        else:
-            etiqueta_estado.config(text="%d de %d eventos"
-                                   % (len(elegido_orden), len(eventos)))
-        # Sin filas no hay nada que volcar, y un botón prendido que no hace
-        # nada es peor que uno apagado.
-        boton_exportar.configure(state="normal" if total else "disabled")
-        estado["filas"] = elegido_orden
-        for fila in elegido_orden:
-            arbol_ev.insert("", "end", iid=str(id(fila)),
-                            values=_valores_evento(fila))
-
-    def _al_exportar():
-        """
-        Exporta lo que se ve, con o sin filtro, a descargas/.
-
-        Vuelve a filtrar desde los eventos completos en vez de usar
-        estado["filas"], que a esta altura ya viene recortado a MAX_FILAS: si
-        usara esa lista, el CSV de una consulta grande saldría truncado sin
-        dejar rastro.
-        """
-        elegido_orden, _ = _elegidos()
-        etiqueta = etiqueta_fuente or "seiscomp"
-        try:
-            ruta = _exportar_listado(elegido_orden, _valores_evento,
-                                     COLUMNAS_EVENTO, cwd, etiqueta,
-                                     padre=contenedor)
-        except OSError as exc:
-            aviso = "No se pudo escribir el listado: %s" % exc
-            etiqueta_estado.config(text=aviso)
-            if log:
-                log(aviso)
+    def _extras_izquierda(barra, marco_mini):
+        # La casilla solo controla la miniatura; solo se arma si hay backend.
+        mini["dibujar"] = _panel_miniatura(marco_mini, ttk, "seiscomp")
+        if mini["dibujar"] is None:
             return
-        if ruta is None:
-            aviso = "No hay eventos que cumplan el filtro; no se escribió nada."
-            etiqueta_estado.config(text=aviso)
-            if log:
-                log(aviso)
-            return
-        aviso = "Exportados %d eventos a %s" % (len(elegido_orden), ruta)
-        etiqueta_estado.config(text="Exportados %d eventos a %s"
-                               % (len(elegido_orden), os.path.basename(ruta)))
-        if log:
-            log(aviso)
-            if len(elegido_orden) > MAX_FILAS:
-                log("El listado trae las %d filas que cumplen el filtro, más "
-                    "de las %d que muestra la pantalla."
-                    % (len(elegido_orden), MAX_FILAS))
+        mini["var_hist"] = ttk.BooleanVar(value=False)
+        ttk.Checkbutton(barra, text="Sismicidad histórica",
+                        variable=mini["var_hist"],
+                        command=_actualizar_mini).pack(side="left", padx=(10, 0))
+
+    def _extras_derecha(barra):
+        # El análisis rápido va sobre la lista, al lado de «Exportar lista»,
+        # para dejar claro que recorre TODO el catálogo y no el filtro del panel.
+        boton = ttk.Button(
+            barra, text="Análisis rápido", bootstyle="secondary-outline",
+            width=15, state="normal" if hay_no_picadas else "disabled",
+            command=lambda: _abrir_analisis())
+        boton.pack(side="right")
+        _ayuda_emergente(
+            boton, "Busca en TODO el catálogo los eventos con estaciones sin"
+                   " arribos cercanas (no usa el filtro del panel).")
+
+    def _formato_estado(elegidas, total, mostradas):
+        if len(mostradas) < len(elegidas):
+            return ("Se muestran los primeros %d de %d eventos que cumplen"
+                    " el filtro. Afloja el filtro para ver el resto."
+                    % (len(mostradas), len(elegidas)))
+        return "%d de %d eventos" % (len(elegidas), total)
+
+    tabla = abrir_tabla(
+        contenedor, eventos, COLUMNAS_EVENTO, _valores_evento,
+        cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
+        clave_mag="magnitud", extra=CAMPOS_BUSQUEDA_EVENTO,
+        claves_orden=CLAVES_ORDEN_EVENTO, max_filas=MAX_FILAS,
+        con_miniatura=True, etiqueta=etiqueta_fuente or "seiscomp",
+        descarga_texto="Exportar lista", verbo_descarga="Exportados",
+        extras_izquierda=_extras_izquierda, extras_derecha=_extras_derecha,
+        formato_estado=_formato_estado)
+    arbol_ev = tabla["arbol"]
 
     def _abrir_estaciones():
         """Abre la ventana de estaciones del evento que está seleccionado."""
@@ -2879,14 +2735,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             return
         seleccionando["activo"] = True
         try:
-            seleccion = arbol_ev.selection()
-            if not seleccion:
-                return
-            identificador = seleccion[0]
-            if identificador == "arb0":      # cabecera
-                return
-            fila = next((f for f in estado["filas"]
-                         if str(id(f)) == identificador), None)
+            fila = tabla["fila_actual"]()
             if fila is None:
                 return
             estado["evento"] = fila
@@ -2930,38 +2779,17 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             al_abrir_evento=_abrir_detalle_para,
             ventana_previa=ventana_analisis.get("ventana"))
 
-    def _al_filtrar(_evento=None):
-        # Solo repuebla la lista. No selecciona ni abre el detalle: si lo
-        # hiciera, cada tecla del filtro abriría una ventana de parámetros.
-        _llenar_eventos()
-
-    boton_exportar.configure(command=_al_exportar)
-    if hay_no_picadas:
-        boton_analisis.configure(command=_abrir_analisis)
-
-    # Los filtros se aplican con el botón «Aplicar» (o Enter en cualquier
-    # caja), no en cada tecla: con catálogos grandes, re-filtrar al teclear
-    # reconstruía la tabla entera en cada pulsación.
-    caja_filtro.bind("<Return>", _al_filtrar)
-    caja_mag.bind("<Return>", _al_filtrar)
-    for caja in (caja_lat, caja_lon):
-        caja.bind("<Return>", _al_filtrar)
-
     # El detalle abre con DOBLE clic (o Enter sobre la fila elegida). Con un
     # solo clic se seleccionaba y ya se abría la ventana, así que un clic
     # accidental la disparaba. La miniatura, en cambio, sigue a la selección
-    # (mouse o flechas): solo muestra, no abre nada.
+    # (mouse o flechas): solo muestra, no abre nada. Los filtros y la descarga
+    # los maneja abrir_tabla.
     arbol_ev.bind("<Double-1>", _al_seleccionar)
     arbol_ev.bind("<Return>", _al_seleccionar)
     arbol_ev.bind("<<TreeviewSelect>>", _actualizar_mini)
 
-    # El botón se crea aquí, con _al_filtrar ya definido. No es adorno: un camino
-    # que dependa solo de un binding de teclado es fácil que se pierda, y el
-    # filtrado es la función principal de esta pantalla.
-    ttk.Button(barra, text="Aplicar", bootstyle="secondary",
-               command=_al_filtrar).pack(side="left", padx=(8, 0))
+    return True
 
-    _llenar_eventos()
     return True
 
 
