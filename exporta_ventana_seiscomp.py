@@ -706,10 +706,10 @@ def configuracion(base=None):
     if not base_efectiva:
         raise FaltanParametros(
             "No se pudo determinar la base de datos.\n"
-            "    Probá una de estas opciones:\n"
+            "    Prueba una de estas opciones:\n"
             "      * indicarla explícitamente:  --base <nombre>\n"
             "      * definirla en el entorno:    export NEWPT_DB_DATABASE=<nombre>\n"
-            "      * revisá la línea 'database' del global.cfg de SeisComp\n"
+            "      * revisa la línea 'database' del global.cfg de SeisComp\n"
             "        (%s)"
             % (_ruta_global_cfg() or "no se encontró ningún global.cfg")
         )
@@ -717,9 +717,9 @@ def configuracion(base=None):
     if not host:
         raise FaltanParametros(
             "Se indicó la base (%s) pero no hay ningún servidor de dónde sacarlo.\n"
-            "    El host se lee del global.cfg, así que revisá que tenga la línea\n"
+            "    El host se lee del global.cfg, así que revisa que tenga la línea\n"
             "    'database' con el formato servicio://usuario:clave@host/base,\n"
-            "    o definí NEWPT_DB_HOST en el entorno.\n"
+            "    o define NEWPT_DB_HOST en el entorno.\n"
             "    (%s)"
             % (base_efectiva,
                _ruta_global_cfg() or "no se encontró ningún global.cfg")

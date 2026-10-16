@@ -343,7 +343,8 @@ try:
     check("abrir_evento con perfil llama a plotear_perfil",
           _llamados[-1][:3] == ("perfil", "P001", 1)
           and _llamados[-1][3] is None, _llamados)
-    # Comparación local vs publicado: mismo perfil (el del local) y título.
+    # Comparación de la solución contra lo publicado: mismo perfil (el de la
+    # solución) y título.
     _llamados.clear()
     pl.abrir_eventos([
         {"rol": "local", "fecha hora": "2026-01-01 00:00:00", "latitud": -33.3,
@@ -354,8 +355,8 @@ try:
     check("abrir_eventos con local+publicado llama a plotear_perfil",
           _llamados and _llamados[-1][0] == "perfil" and _llamados[-1][2] == 2,
           _llamados)
-    check("la comparación titula con el catálogo local",
-          _llamados[-1][3] == "Comparación local vs publicado"
+    check("la comparación titula con la fuente de la solución",
+          _llamados[-1][3] == "Comparación Seisan vs publicado"
           and _llamados[-1][4] and "Seisan" in _llamados[-1][4], _llamados)
     ap.asignar_perfil_evento = lambda *a, **k: {
         "perfil": None, "along_km": None, "perp_km": None, "residuo_km": None,

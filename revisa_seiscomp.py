@@ -1840,9 +1840,10 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                                 variable=var_sin_limite,
                                 command=_alternar_sin_limite)
     chk_limite.pack(side="left", padx=(0, 8))
-    _ayuda_emergente(ent_radio, "Radio de recorte local. Si supera el de la "
-                     "exportación (400 km por defecto), «Aplicar radio» consulta "
-                 "la base de metadatos y abre el resultado en otra ventana.")
+    _ayuda_emergente(ent_radio, "Radio de recorte sobre la lista cargada. Si "
+                     "supera el de la exportación (400 km por defecto), «Aplicar "
+                     "radio» consulta la base de metadatos y abre el resultado en "
+                     "otra ventana.")
     _ayuda_emergente(chk_limite, "Ignora el radio: consulta la base sin tope "
                      "de distancia y muestra el resultado en otra ventana.")
     boton_aplicar = _t.Button(distancias, text="Aplicar radio", bootstyle="secondary-outline")
@@ -1861,12 +1862,12 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
                               variable=var_solo)
     chk_solo.pack(side="left", padx=(0, 8))
     _ayuda_emergente(chk_solo, "Muestra solo las estaciones dentro del umbral"
-                     " «cerca». Al tildarlo se aplica el recorte inmediato (solo "
-                     "local).")
+                     " «cerca». Al tildarlo se aplica el recorte inmediato (sin "
+                     "consultar la base).")
 
     if not hay_no_picadas:
         _t.Label(ventana, text="Aviso: esta exportación no trae el archivo de"
-                 " estaciones sin arribos asociados. Volvé a exportar la"
+                 " estaciones sin arribos asociados. Vuelve a exportar la"
                  " ventana para tenerlo. La solapa de arribos funciona igual.",
                  bootstyle="warning").pack(anchor="w", padx=8, pady=(4, 0))
 
@@ -2666,7 +2667,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             base_datos = _texto(evento.get("base_datos"))
             if base_datos == VACIO:
                 raise RuntimeError("el evento no trae la columna base_datos;"
-                                   " re-exportá la ventana")
+                                   " re-exporta la ventana")
             instante = _instante_de_evento(evento)
             if instante is None:
                 raise RuntimeError("el evento no tiene una hora válida")
@@ -3055,22 +3056,25 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
 
 
 # Eventos que sí están publicados pero cuyos parámetros no coinciden con los de
-# la solución local. Los deltas son distancias (compara.py las toma positivas
-# antes de guardarlas), no desplazamientos con signo: 0.018 es que hay 18 m de
-# diferencia, no hacia dónde.
+# la solución de la fuente (Seisan o SeisComp). Los deltas son distancias
+# (compara.py las toma positivas antes de guardarlas), no desplazamientos con
+# signo: 0.018 es que hay 18 m de diferencia, no hacia dónde.
 #
-# Van juntos el valor local y el publicado de cada parámetro, y al final la
-# columna que dice cuál de ellos discrepó: sin el lado publicado a la vista, la
-# diferencia quedaba invisible (los deltas redondeados a 4 podían dar 0).
+# Van juntos el valor de la fuente y el publicado de cada parámetro, y al final
+# la columna que dice cuál de ellos discrepó: sin el lado publicado a la vista,
+# la diferencia quedaba invisible (los deltas redondeados a 4 podían dar 0).
+#
+# Los rótulos con '%s' llevan el nombre de la fuente al armar la tabla (ver
+# _columnas_no_actualizado): la misma lista sirve para Seisan y para SeisComp.
 COLUMNAS_NO_ACTUALIZADO = [
-    ("fecha_local", "Fecha y hora (local)", 150),
-    ("lat_local", "Lat. local", 90),
+    ("fecha_local", "Fecha y hora (%s)", 150),
+    ("lat_local", "Lat. (%s)", 90),
     ("lat_eventquery", "Lat. publicada", 90),
-    ("lon_local", "Lon. local", 90),
+    ("lon_local", "Lon. (%s)", 90),
     ("lon_eventquery", "Lon. publicada", 90),
-    ("prof_local", "Prof. local", 80),
+    ("prof_local", "Prof. (%s)", 80),
     ("prof_eventquery", "Prof. publicada", 80),
-    ("mag_local", "Mag. local", 80),
+    ("mag_local", "Mag. (%s)", 80),
     ("mag_eventquery", "Mag. publicada", 95),
     ("analista", "Analista", 90),
     ("dt_seg", "Δt (s)", 70),
@@ -3079,6 +3083,22 @@ COLUMNAS_NO_ACTUALIZADO = [
     ("dist_km", "Dist (km)", 80),
     ("discrepancias", "Parámetros que difieren", 170),
 ]
+
+# Nombre legible de cada fuente, para rotular las columnas de no actualizados.
+_ETIQUETA_FUENTE = {"seiscomp": "SeisComp", "seisan": "Seisan"}
+
+
+def _columnas_no_actualizado(fuente):
+    """COLUMNAS_NO_ACTUALIZADO con el nombre de la fuente puesto en el rótulo.
+
+    Se usa en la tabla y en la descarga para que las columnas digan «Lat.
+    (Seisan)» o «Lat. (SeisComp)» según lo que se esté mirando, en vez del
+    ambiguo «local».
+    """
+    etiqueta = _ETIQUETA_FUENTE.get(fuente, fuente)
+    return [(clave, titulo % etiqueta if "%s" in titulo else titulo, ancho)
+            for clave, titulo, ancho in COLUMNAS_NO_ACTUALIZADO]
+
 
 # Nombre legible de cada parámetro para la columna de discrepancias.
 ETIQUETAS_DISCREPANCIA = {
@@ -3213,7 +3233,7 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
         if not elegidas:
             return
         ruta = _exportar_listado(elegidas, _valores_no_actualizado,
-                                 COLUMNAS_NO_ACTUALIZADO, cwd,
+                                 _columnas_no_actualizado(fuente), cwd,
                                  "no actualizados %s" % fuente,
                                  padre=contenedor)
         if ruta is None:
@@ -3286,7 +3306,7 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     claves = [c for c, _, _ in COLUMNAS_NO_ACTUALIZADO]
     arbol = ttk.Treeview(marco_tabla, columns=claves, show="headings",
                          selectmode="browse")
-    for clave, titulo, ancho in COLUMNAS_NO_ACTUALIZADO:
+    for clave, titulo, ancho in _columnas_no_actualizado(fuente):
         arbol.heading(clave, text=titulo,
                       command=lambda c=clave: _al_ordenar(c))
         arbol.column(clave, width=ancho, minwidth=45, stretch=False)
@@ -3667,7 +3687,7 @@ def main():
     marco.pack(fill="both", expand=True)
 
     if not abrir_panel(marco, ruta_eventos, ruta_fases):
-        print("No se pudo abrir el panel. Revisá que existan los dos archivos:")
+        print("No se pudo abrir el panel. Revisa que existan los dos archivos:")
         print("   %s" % ruta_eventos)
         if ruta_fases:
             print("   %s" % ruta_fases)

@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.9 — 15 de octubre de 2026.
+Versión 1.10 — 16 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -82,7 +82,7 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 | `proc_query_harz_2.py` | Normaliza el CSV público a formato Seisan y `.dat`. | CSV eventquery | `datos/new_2_*.csv`, `.dat` | Sí |
 | `revisaselect.py` | Parsea `select.out`; separa válidos de excluidos. | `select.out` | `trabajo/newcollect.txt`, `trabajo/excluidostmp1.txt` | No |
 | `revisacollect.py` | Arma el CSV maestro y los CSV por analista. | `trabajo/newcollect.txt` | `datos/salida_collect.csv` | No |
-| `compara.py` | Compara público vs local: **no publicados** y **no actualizados**. | CSV público, CSV local | `datos/no_pub_desde_2_5_*.csv`, `datos/atribucion_*.csv`, `informes/no_act_*.txt` | Sí |
+| `compara.py` | Compara el público contra la solución de la fuente: **no publicados** y **no actualizados**. | CSV público, CSV de la fuente | `datos/no_pub_desde_2_5_*.csv`, `datos/atribucion_*.csv`, `informes/no_act_*.txt` | Sí |
 | `comparacion.py` | Comparación numérica de parámetros (funciones puras). | — | — | — |
 | `revisaexcluidos.py` | Normaliza excluidos y detecta líneas anómalas. | `informes/excluidos.txt` | `datos/excluidos.csv` | No |
 | `repetidos.py` | Detecta repetidos dentro de cada fuente (amplio/estricto). | CSV público, Seisan, SeisComp | `informes/rep_*.txt` | Sí |
@@ -98,7 +98,7 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 | `ajuste.py` | Ajuste de tamaño de ventanas (solo crecen). | — | — | — |
 | `traequery.py` | Bajada interactiva de eventquery (legado). | input() | CSV | — |
 | `supervisor.sh` | Lanzador con entorno virtual. | `requirements.txt` | — | — |
-| `agencias.py` | Consulta APIs de EMSC/USGS/GFZ y normaliza respuestas. | Referencia local publicada | Listado de eventos por agencia | — |
+| `agencias.py` | Consulta APIs de EMSC/USGS/GFZ y normaliza respuestas. | Nuestro catálogo publicado | Listado de eventos por agencia | — |
 | `consultaapi.py` | Cliente HTTP (timeout, reintentos) para catálogos remotos. | Config | JSON de eventos | — |
 | `agencias.py` / `consultaapi.py` | Comparación de agencias (UI de `app.py` + plotear). | Agencias seleccionadas | Tabla «Agencias sin contraparte» y mapas | — |
 
@@ -161,10 +161,11 @@ directorio de trabajo):
 3. **`revisacollect.py`** — normaliza y escribe `datos/salida_collect.csv` (y,
    con entregables, un CSV por analista). Unifica nombres de analista con
    distancia de Levenshtein (`DISTANCIA_MAXIMA = 1`).
-4. **`compara.py`** — compara el público contra el local. Un evento es el mismo
-   si Δdía 0 y Δsegundos ≤ tolerancia, con Δlat/Δlon ≤ tolerancia (amplio y
-   estricto). Escribe no publicados y **`datos/atribucion_<fuente>.csv`** (una
-   fila por cruce, con `dt_seg`, `dlat`, `dlon` y los valores local/publicado).
+4. **`compara.py`** — compara el público contra la solución de la fuente. Un
+   evento es el mismo si Δdía 0 y Δsegundos ≤ tolerancia, con Δlat/Δlon ≤
+   tolerancia (amplio y estricto). Escribe no publicados y
+   **`datos/atribucion_<fuente>.csv`** (una fila por cruce, con `dt_seg`,
+   `dlat`, `dlon` y los valores de la fuente/publicado).
 5. **Atribución a SeisComp** — `seiscomp_a_parametros.py` convierte la
    exportación cruda y `compara.py` la usa como fuente.
 6. **`revisaexcluidos.py`** — normaliza excluidos a `datos/excluidos.csv`.
@@ -332,8 +333,8 @@ de uno o más eventos sueltos**; `abrir_evento(evento, …)` es el caso de uno
 (delega). Es lo que dispara el **doble clic** (o Enter) en los listados de No
 publicados (`app.py`) y No actualizados (`revisa_seiscomp.py`). Con un evento:
 comportamiento de siempre. Con dos que traen `rol` `'local'` y `'publicado'`
-(comparación de un no actualizado): ubica **ambos** en el perfil del evento
-local (con `asigna_perfiles.distancia_al_perfil`/`profundidad_slab_en`), los
+(comparación de un no actualizado): ubica **ambos** en el perfil del evento de
+la fuente (con `asigna_perfiles.distancia_al_perfil`/`profundidad_slab_en`), los
 pinta distinto (`_estilo_marcadores`: el Evento Seisan/SeisComp amarillo
 relleno, el publicado como **anillo** —centro blanco, borde `COLOR_PUBLICADO`—),
 dibuja la **línea
@@ -343,9 +344,9 @@ conectora** y el **Δ ubicación/prof/mag** (`_dibujar_diferencia` y
 Δ parte de nuestra solución publicada, la **referencia entre paréntesis**
 —`_etiqueta_referencia` según el `rol`, p. ej. `Δ 10.3 km SE (ref. eventquery)`—;
 el Δ mag solo si difiere, con el tipo cuando cambia), y titula
-con el catálogo local (`titulo`). El tipo de magnitud viaja en
+con la fuente (`titulo`). El tipo de magnitud viaja en
 `datos/atribucion_<fuente>.csv` (`tipo_mag_local`/`tipo_mag_eventquery`, los
-escribe `compara.py`). Si el local
+escribe `compara.py`). Si el evento de la fuente
 no tiene `perfil` (o falta profundidad), cae a `plotear_planta`. Los eventos de
 esos listados **no llevan `id`**, así que no se etiquetan sobre el mapa ni
 muestran la línea «id:» en la viñeta (`_marcadores_planta` y

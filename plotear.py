@@ -3033,15 +3033,16 @@ def abrir_eventos(eventos, fuente, perfiles=None):
         except Exception:
             ev.setdefault("sospechoso", False)
 
-    # Título de la comparación local vs publicado: la identidad va en el
-    # suptitle y la fuente/fecha, en texto normal y más chico, en el subtítulo.
+    # Título de la comparación de la solución contra lo publicado: la identidad
+    # va en el suptitle y la fuente/fecha, en texto normal y más chico, en el
+    # subtítulo.
     titulo = None
     subtitulo = None
     pub = next((e for e in eventos if e.get('rol') == 'publicado'), None)
     if local.get('rol') == 'local' and pub is not None:
         etiqueta = _ETIQUETA_FUENTE.get(fuente, fuente)
         fecha = local.get('fecha hora') or ''
-        titulo = "Comparación local vs publicado"
+        titulo = "Comparación %s vs publicado" % etiqueta
         subtitulo = ("%s · %s" % (etiqueta, fecha)) if fecha else etiqueta
 
     if perfil_obj is not None and all(e.get("prof") is not None
@@ -3395,7 +3396,7 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         top.resizable(False, False)
         marco = ttk.Frame(top, padding=12)
         marco.pack(fill='both', expand=True)
-        ttk.Label(marco, text="¿Qué querés descargar?").pack(anchor='w')
+        ttk.Label(marco, text="¿Qué quieres descargar?").pack(anchor='w')
         marco_op = ttk.Frame(marco)
         marco_op.pack(anchor='w', fill='x', pady=(6, 4))
         # Una sola variable para todas: hace que sean un grupo excluyente.

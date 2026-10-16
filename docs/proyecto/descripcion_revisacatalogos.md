@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.1 — 15 de octubre de 2026.
+Versión 1.2 — 16 de octubre de 2026.
 
 ---
 
@@ -27,13 +27,13 @@ Versión 1.1 — 15 de octubre de 2026.
 **RCS** (Revisor de Catálogos Sísmicos) es una aplicación de escritorio que
 apoya la **revisión de los catálogos de eventos sísmicos** que produce y
 publica la OPA-CSN. Toma como insumo tres catálogos de la misma ventana de
-tiempo —el catálogo local de Seisan (`select.out`), el catálogo público
+tiempo —el catálogo de Seisan (`select.out`), el catálogo público
 consultado por `eventquery2` y la exportación de la base de SeisComp— y los
 cruza para responder preguntas operativas concretas de control de calidad:
 
 - qué eventos del catálogo público **no fueron publicados** por el sistema;
 - qué eventos publicados tienen parámetros que **no coinciden** con la solución
-  local (no actualizados);
+  de la fuente (no actualizados);
 - qué eventos aparecen **repetidos** en cada fuente;
 - qué soluciones quedaron **desactualizadas** respecto de SeisComp;
 - qué eventos difieren respecto de **agencias internacionales** (EMSC, USGS,
@@ -176,8 +176,8 @@ rehace lo que cambió.
 - RF2.2 Separar los eventos revisables de los excluidos (sin agencia,
   magnitud, coordenadas o RMS).
 - RF2.3 Armar el CSV maestro y los CSV por analista.
-- RF2.4 Comparar público contra local (no publicados y no actualizados), con
-  tolerancias amplia y estricta.
+- RF2.4 Comparar el público contra la solución de la fuente (no publicados y no
+  actualizados), con tolerancias amplia y estricta.
 - RF2.5 Atribuir cada cruce a la solución de SeisComp.
 - RF2.6 Detectar repetidos dentro de cada fuente y contra los excluidos.
 - RF2.7 Asignar un perfil de subducción y clasificar eventos sospechosos.
@@ -187,7 +187,7 @@ rehace lo que cambió.
 - RF3.1 Comparar numéricamente los parámetros (lat, lon, prof, mag) a la
   precisión de los datos.
 - RF3.2 Mostrar «No publicados» y «No actualizados», con el Δ por parámetro.
-- RF3.3 Presentar el detalle y el Δ entre solución local y publicada.
+- RF3.3 Presentar el detalle y el Δ entre la solución de la fuente y la publicada.
 
 **Módulo 4 — Revisión SeisComp.**
 
@@ -201,7 +201,7 @@ rehace lo que cambió.
 **Módulo 5 — Comparación con agencias.**
 
 - RF5.1 Consultar catálogos de EMSC, USGS y GFZ por HTTP/JSON.
-- RF5.2 Normalizar y comparar contra la solución local publicada.
+- RF5.2 Normalizar y comparar contra nuestro catálogo publicado.
 - RF5.3 Reutilizar la comparación si no cambió ningún insumo.
 - RF5.4 Resumir la cobertura temporal real por agencia.
 
@@ -284,8 +284,8 @@ principales y sus relaciones de `include`/`extend` se muestran a continuación.
 | Solicitar y descargar catálogos | Supervisor | Baja Seisan, eventquery y la exportación de SeisComp. |
 | Procesar catálogos | Supervisor | Corre el análisis por etapas. |
 | Ver repetidos | Supervisor | Lista duplicados por fuente. |
-| Ver No publicados | Supervisor | Eventos del público ausentes del local. |
-| Ver No actualizados | Supervisor | Parametros publicados que difieren del local. |
+| Ver No publicados | Supervisor | Eventos del público ausentes de la fuente. |
+| Ver No actualizados | Supervisor | Parámetros publicados que difieren de la fuente. |
 | Revisar catálogo de SeisComp | Supervisor | Parámetros, fases y estaciones. |
 | Ver estaciones del evento | Supervisor | `extend` de la revisión de SeisComp. |
 | Análisis rápido | Supervisor | `extend`; estaciones sin arribos cercanas. |
@@ -417,10 +417,10 @@ resumen así:
 |---|---|---|
 | `CATALOGO_ORIGEN` (`select.out`, `eventquery_*.csv`, export SeisComp) | archivo | Insumos por ventana. |
 | `EVENTO` (`datos/eventos_<vista>.json`) | vista + id | Evento con perfil, distancias y bandera de sospechoso. |
-| `SALIDA_COLLECT` (`datos/salida_collect.csv`) | fila | Catálogo local normalizado (Seisan). |
+| `SALIDA_COLLECT` (`datos/salida_collect.csv`) | fila | Catálogo de Seisan normalizado. |
 | `EXCLUIDO` (`datos/excluidos.csv`) | fila | Descartados por falta de dato o RMS. |
-| `ATRIBUCION` (`datos/atribucion_<fuente>.csv`) | fuente + fila | Un cruce local↔publicado con Δt/Δlat/Δlon. |
-| `NO_PUBLICADO` (`datos/no_pub_desde_2_5_*estricto.csv`) | fuente + fila | Ausentes del local. |
+| `ATRIBUCION` (`datos/atribucion_<fuente>.csv`) | fuente + fila | Un cruce solución↔publicado con Δt/Δlat/Δlon. |
+| `NO_PUBLICADO` (`datos/no_pub_desde_2_5_*estricto.csv`) | fuente + fila | Ausentes de la fuente. |
 | `SEISCOMP_PARAMETROS` (`datos/seiscomp_parametros.csv`) | id_evento | Export normalizado de SeisComp. |
 | `PERFIL` (`grillas/slabP###`, `topoP###`) | código | Perfiles de subducción. |
 | `CONSULTA_AGENCIA` (`datos/agencias/consultaapi_<AG>.csv`) | agencia + id | Catálogo por agencia. |

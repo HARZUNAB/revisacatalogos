@@ -590,7 +590,7 @@ def asignar_eventos(eventos, umbral=UMBRAL_DIST_KM, k_peso=K_PESO_PROFUNDIDAD,
               "profundidad negativa (el primero en el índice {}). El residuo "
                 "se calcula como suma y no como diferencia contra el slab, así "
                 "que dist_asoc queda inflado y el umbral de asociación puede "
-                "dejar de ser correcto. Revisá el origen de los datos "
+                "dejar de ser correcto. Revisa el origen de los datos "
                 "antes de confiar en los perfiles ni en los conteos de "
                 "sismicidad.".format(prof_negativos, total_ev, primero_negativo))
 

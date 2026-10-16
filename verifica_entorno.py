@@ -67,7 +67,7 @@ def verificar_venv():
         "detalle": ("%s%s" % (sys.prefix, "" if dentro else
                               "  <-- NO es un entorno virtual")),
         "aviso": ("" if dentro else
-                  "Instalá los módulos con '%s -m pip install -r requirements.txt'"
+                  "Instala los módulos con '%s -m pip install -r requirements.txt'"
                   % os.path.join(sys.prefix, "bin", "python")),
     }
 
@@ -156,7 +156,7 @@ def verificar_tkinter():
             "titulo": "Interfaz gráfica (tkinter)",
             "detalle": "no está disponible",
             "aviso": "Falta a nivel de máquina, no se arregla con pip.\n"
-                     "        Instalá el paquete '%s' del sistema y volvé a probar."
+                     "        Instala el paquete '%s' del sistema y vuelve a probar."
                      % paquete,
             "error": str(e),
         }
@@ -202,7 +202,7 @@ def verificar_base(config=None):
                      "Hay que pedirle al administrador de SeisComp que habilite "
                      "este usuario desde esta máquina.")
         elif "could not translate host name" in texto or "Name or service" in texto:
-            aviso = ("No se puede resolver el servidor. Revisá la red o el nombre "
+            aviso = ("No se puede resolver el servidor. Revisa la red o el nombre "
                      "en el global.cfg.")
         elif "does not exist" in texto:
             aviso = "Esa base no existe en el servidor."

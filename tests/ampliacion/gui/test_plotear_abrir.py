@@ -117,7 +117,7 @@ def test_abrir_eventos_comparacion_titulo(raiz_tk):
     publicado = {"latitud": 0.1, "longitud": 1.1, "prof": 65.0,
                  "rol": "publicado"}
 
-    plotear.abrir_eventos([local, publicado], "eventquery",
+    plotear.abrir_eventos([local, publicado], "seisan",
                           perfiles=[_perfil()])
 
-    assert plt.gcf()._suptitle.get_text() == "Comparación local vs publicado"
+    assert plt.gcf()._suptitle.get_text() == "Comparación Seisan vs publicado"

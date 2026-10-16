@@ -162,7 +162,7 @@ está ese botón; separarlo deja ver todo sin apretar ninguna mitad. Al abrir la
 pestaña, la ventana principal se agranda para que entren las columnas de la
 lista.
 
-Las ventanas emergentes se abren ocultas y se muestran recién con su tamaño y
+Las ventanas emergentes se abren ocultas y se muestran ya con su tamaño y
 posición finales (no se ve el salto desde la esquina), no pasan del tope de la
 app (1920x1080) y se centran sobre el monitor de la ventana principal, no sobre
 el escritorio virtual: con dos monitores, centrar en el escritorio completo las

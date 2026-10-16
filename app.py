@@ -632,7 +632,7 @@ class App:
                     continue
             if anydesk:
                 self._log("aviso: AnyDesk está activo; si la pantalla se "
-                          "congela, cerralo (la sesión gráfica y nvidia "
+                          "congela, ciérralo (la sesión gráfica y nvidia "
                           "pueden interferir).")
         except Exception:
             pass
@@ -645,7 +645,7 @@ class App:
             if "Failed to grab modeset" in (salida.stdout or ""):
                 self._log("aviso: el kernel reportó fallas de modeset de "
                           "nvidia en las últimas 2 horas; si la pantalla se "
-                          "congela, reiniciá la sesión gráfica.")
+                          "congela, reinicia la sesión gráfica.")
         except Exception:
             pass
 
@@ -2539,7 +2539,7 @@ class App:
                 return
             agencias = [ag for ag, v in vars_ag.items() if v.get()]
             if not agencias:
-                lbl_error.config(text="Elegí al menos una agencia.")
+                lbl_error.config(text="Elige al menos una agencia.")
                 return
             modo = "ahora" if var_ahora.get() else "ventana"
             desde14 = None
@@ -2549,7 +2549,7 @@ class App:
                 dt_hasta = _leer_fecha_hora(de_hasta, ent_hasta)
                 if dt_desde is None or dt_hasta is None:
                     lbl_error.config(
-                        text="Fecha/hora inválida. Usá AAAA-MM-DD y HH:MM:SS.")
+                        text="Fecha/hora inválida. Usa AAAA-MM-DD y HH:MM:SS.")
                     return
                 if dt_desde >= dt_hasta:
                     lbl_error.config(
@@ -2828,7 +2828,7 @@ class App:
         if len(filas) > TOPE:
             ttk.Label(
                 padre, bootstyle="warning", wraplength=900, justify=LEFT,
-                text="Mostrando %d de %d eventos — usá «Descargar» para el "
+                text="Mostrando %d de %d eventos — usa «Descargar» para el "
                      "listado completo." % (TOPE, len(filas))
             ).pack(anchor=W, padx=6, pady=(4, 0))
             filas = filas[:TOPE]

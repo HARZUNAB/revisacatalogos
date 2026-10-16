@@ -1,14 +1,14 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.9 — 15 de octubre de 2026.
+Versión 1.10 — 16 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.6, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.9, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -141,7 +141,8 @@ final.
 - **«No publicados»**: abre el listado de eventos publicados que el sistema no
   publicó (magnitud ≥ 2.5), en una pestaña por fuente (SeisComp, Seisan).
 - **«No actualizados»**: abre el listado de eventos publicados cuyos parámetros
-  difieren de la solución local, en una pestaña por fuente (SeisComp, Seisan).
+  difieren de la solución de la fuente, en una pestaña por cada una (SeisComp,
+  Seisan).
 - **«Comparar agencias»**: consulta los catálogos de **EMSC**, **USGS** y
   **GFZ** (por API, para los cuadrantes continental/insular, Rapa Nui y
   antártico) y los compara con **nuestro catálogo publicado**. Pide una
@@ -186,8 +187,8 @@ se abren desde **«Catálogos»**, en la barra lateral.
   fila se abre el detalle (mapa en planta y perfil).
 - **No publicados** / **No actualizados**: son **paneles de mapas y perfiles**
   con los eventos de control de calidad (los no publicados y los publicados
-  cuyos parámetros no coinciden). El mini-mapa muestra la solución local; al
-  abrir el detalle de un perfil, los **no actualizados** muestran además la
+  cuyos parámetros no coinciden). El mini-mapa muestra la solución de la fuente;
+  al abrir el detalle de un perfil, los **no actualizados** muestran además la
   solución publicada (anillo negro con centro blanco) con el Δ. El listado completo en tabla está
   en las ventanas laterales **«No publicados»** y **«No actualizados»**.
 
@@ -214,7 +215,7 @@ informe»** baja el completo:
 ### No publicados
 
 Listado de eventos que están en el catálogo público pero no en la solución
-local, con filtro por texto y descargas:
+de la fuente, con filtro por texto y descargas:
 
 ![Ventana de no publicados](img/10_no_publicados.png)
 
@@ -230,16 +231,16 @@ local, con filtro por texto y descargas:
 ### No actualizados
 
 Listado de eventos **sí publicados** pero cuyos parámetros difieren de los
-procesados. Muestra, por parámetro, el valor local y el publicado, los deltas,
-la **distancia (km)** entre ambas ubicaciones y una columna final con **qué
-parámetros discreparon**:
+procesados. Muestra, por parámetro, el valor de la fuente y el publicado, los
+deltas, la **distancia (km)** entre ambas ubicaciones y una columna final con
+**qué parámetros discreparon**:
 
 ![Ventana de no actualizados](img/09_no_actualizados.png)
 
 La comparación es **numérica**. Como el catálogo publicado (el que arma
-«publica») guarda lat/lon con **2 decimales** y la solución local con 3, las
-coordenadas se comparan con una **tolerancia de 0,005°** (media centésima) para
-no marcar como distinto el mismo evento por el redondeo de la publicación.
+«publica») guarda lat/lon con **2 decimales** y la solución de la fuente con 3,
+las coordenadas se comparan con una **tolerancia de 0,005°** (media centésima)
+para no marcar como distinto el mismo evento por el redondeo de la publicación.
 Profundidad y magnitud se comparan **exactas a 1 decimal**. Se puede ordenar por
 cualquier columna (incluida **Dist (km)**) haciendo clic en su encabezado.
 
@@ -251,13 +252,14 @@ la magnitud aparece solo si difiere, y con el **tipo** cuando cambia, p. ej.
 `Mlv vs ML`). Así se ve en el
 mapa la diferencia hipocentral, no solo el km de la tabla:
 
-![Comparación local vs publicado](img/15_comparacion.png)
+![Comparación de la solución vs publicado](img/15_comparacion.png)
 
 Además del listado, el grupo **No actualizados** de la barra de pestañas abre un
-**panel de mapas y perfiles** de los eventos locales que quedaron desactualizados.
-Su mini-mapa muestra la solución local; al abrir el detalle de un perfil se
-dibujan **las dos soluciones** (local y publicada) con una línea y el Δ por cada
-evento (el de ubicación, con su **dirección cardinal**).
+**panel de mapas y perfiles** de los eventos de la fuente que quedaron
+desactualizados. Su mini-mapa muestra la solución de la fuente; al abrir el
+detalle de un perfil se dibujan **las dos soluciones** (de la fuente y publicada)
+con una línea y el Δ por cada evento (el de ubicación, con su **dirección
+cardinal**).
 
 ### Comparar agencias
 
@@ -287,7 +289,7 @@ comparación**: el resto del análisis (No publicados, No actualizados, etc.) si
 calculado sobre la ventana cargada y **no se altera**. Ojo: las soluciones muy recientes pueden ser
 **preliminares** (luego las agencias las revisan) y **GFZ llega con ~1 día** de
 atraso; EMSC y USGS están casi en tiempo real. Con la misma ventana elegida, si
-volvés a abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
+vuelves a abrir dentro de los **15 minutos**, se reusa lo ya consultado; pasado ese plazo
 se vuelve a consultar.
 
 Cuando no cambió nada (misma ventana, magnitud, agencias y catálogos), la
@@ -334,7 +336,7 @@ comparación— el **Δ de cada una** respecto de nuestro publicado (con la
 **dirección cardinal**, p. ej. `Δ 10.3 km SE (ref. eventquery)`).
 
 Si el listado supera las **2000** filas, se muestra un aviso («Mostrando 2000 de
-N — usá «Descargar» para el listado completo») y la descarga trae todo. Cuando no
+N — usa «Descargar» para el listado completo») y la descarga trae todo. Cuando no
 hay datos para plotear, la app lo **avisa por pantalla** (no solo por consola).
 
 Ambas pestañas tienen un botón **«Descargar»**: la de **Comparación** baja en un
@@ -476,18 +478,19 @@ Controles del encabezado (bloque **Distancias**):
   de distancia (ignora el radio) y muestra el resultado en otra ventana.
 - **«Resaltar cerca ≤ (km)»**: umbral de resaltado «cerca» (50 km por defecto).
   **Solo cambia el color, no recorta la lista.** Se aplica en vivo mientras
-  escribís.
+  escribes.
 - **«Solo cercanas»**: marcado, recorta la lista a las estaciones dentro del
-  umbral «cerca» (además del radio). Se aplica de inmediato, solo en local.
+  umbral «cerca» (además del radio). Se aplica de inmediato, sin consultar la
+  base.
 - **«Aplicar radio»** (o Enter en la casilla de radio): si el radio pedido no
   supera el de la exportación (o «Sin límite» está desmarcado y no hay
-  archivo de sin arribos), aplica el recorte local y el estado de «Solo
-  cercanas»; si lo supera, **consulta la base** y abre el resultado en otra
-  ventana.
+  archivo de sin arribos), aplica el recorte sobre la lista cargada y el estado
+  de «Solo cercanas»; si lo supera, **consulta la base** y abre el resultado en
+  otra ventana.
 
 Debajo de los controles hay una **línea de estado** que aclara qué se está
 viendo, por ejemplo: *«Mostrando 7 de 7 estaciones (≤ 400 km) · 6 resaltadas
-como cerca (≤ 50 km)»*. Si cambiás el radio y no lo aplicaste, agrega
+como cerca (≤ 50 km)»*. Si cambias el radio y no lo aplicaste, agrega
 *(radio sin aplicar)*.
 
 Cada solapa tiene su botón de descarga (**«Descargar llegadas»** /
@@ -556,14 +559,14 @@ El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla
 - **La pantalla se congeló** (el mouse no responde ni en el escritorio). Suele
   pasar cuando la pila gráfica está frágil: el kernel reporta fallas de
   *modeset* de nvidia y/o hay AnyDesk activo. Qué hacer:
-  1. **No pierdas el trabajo**: la app sigue viva; si podés, matala desde otra
+  1. **No pierdas el trabajo**: la app sigue viva; si puedes, mátala desde otra
      terminal (`pkill -f app.py` por SSH) — el directorio de trabajo no se
      toca.
-  2. **Cerrá AnyDesk** durante las sesiones largas (inyecta entrada y puede
+  2. **Cierra AnyDesk** durante las sesiones largas (inyecta entrada y puede
      interferir con la sesión gráfica).
-  3. Si el mouse sigue muerto, **reiniciá la sesión gráfica** (cerrar la sesión
+  3. Si el mouse sigue muerto, **reinicia la sesión gráfica** (cerrar la sesión
      de X) o la máquina.
-  4. **Mirá el registro**: todo lo que la app loguea va a
+  4. **Mira el registro**: todo lo que la app loguea va a
      `informes/app.log` del directorio de trabajo (con hora y errores). Ahí
      también aparecen avisos si AnyDesk estaba activo o si hubo fallas de
      modeset al arrancar.
@@ -682,13 +685,13 @@ directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
 - **Arribo / *pick***: la lectura de una fase (P, S…) en una estación. Un *pick*
   es **manual** si lo hizo un analista y **automático** si lo hizo el autopicker.
 - **Catálogo público (`eventquery`)**: los eventos publicados oficialmente.
-- **`select` / Seisan**: la selección y solución local procesada por el sistema.
+- **`select` / Seisan**: la selección y la solución procesadas por Seisan.
 - **SeisComp**: el sistema de adquisición y procesamiento que aporta su propia
   solución, inventario y *bindings*.
 - **No publicado**: evento detectado localmente que no aparece en el catálogo
   público.
 - **No actualizado**: evento publicado cuyos parámetros difieren de la solución
-  local.
+  de la fuente (Seisan o SeisComp).
 - **Repetido**: dos o más eventos que coinciden en tiempo y coordenadas dentro de
   una tolerancia.
 - **Excluido**: evento del `select` al que le faltan datos (magnitud, coordenadas

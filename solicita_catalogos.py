@@ -76,7 +76,7 @@ PLAN_DESCARGAR = [
 ]
 
 PLAN_USAR = [
-    {"nombre": "Preparando catálogos locales", "peso": 0.05,
+    {"nombre": "Preparando los catálogos", "peso": 0.05,
      "texto": "Preparando catálogos"},
     {"nombre": "Verificando entorno de SeisComp", "peso": 0.05,
      "texto": "Verificando SeisComp"},

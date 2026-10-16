@@ -35,6 +35,10 @@ MAX_LAT_LON_AMPLIO=2.0
 MAX_SEG_ESTRICTO=3
 MAX_LAT_LON_ESTRICTO=1.0
 
+# Nombre legible de cada prefijo de fuente, para la línea "( fuente ... )" del
+# informe.
+_ETIQUETA_FUENTE = {"seiscomp": "SeisComp", "seisan": "Seisan"}
+
 # Dentro de esa ventana, un evento se considera actualizado si sus parámetros
 # coinciden con la solución local a la precisión con la que se manejan:
 # profundidad y magnitud a 1 decimal, y las coordenadas con una tolerancia de
@@ -375,7 +379,8 @@ def main(argv=None):
         numsis_csv_2+=1
     print('total eventos', argv[2], numsis_csv_2,
           "( fuente select de seisan )" if not PREFIJO
-          else "( fuente local %s )" % PREFIJO.rstrip("_"))
+          else "( fuente %s )" % _ETIQUETA_FUENTE.get(
+              PREFIJO.rstrip("_"), PREFIJO.rstrip("_")))
 
     print("Comparando con filtro amplio ({}s/{}°/{}°)...".format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO))
     total_eventos_amplio, total_diferentes_amplio, totsobre2_5_amplio, salida_amplio, sinmag_amplio = comparar(listacsv_1, listacsv_2, MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO, "amplio", PREFIJO, numsis_csv_2)

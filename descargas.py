@@ -256,7 +256,7 @@ def preguntar_formato(padre, titulo="Formato de descarga"):
     top.resizable(False, False)
     marco = ttk.Frame(top, padding=12)
     marco.pack(fill="both", expand=True)
-    ttk.Label(marco, text="¿En qué formato querés el archivo?").pack(anchor="w")
+    ttk.Label(marco, text="¿En qué formato quieres el archivo?").pack(anchor="w")
 
     opciones = [("csv", "CSV  (.csv)   para planillas"),
                 ("txt", "TXT  (.txt)   separado por tabulaciones")]

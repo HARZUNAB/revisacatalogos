@@ -19,7 +19,7 @@ Toda la jerarquía de objetos de SeisComp comparte dos piezas:
 - **`publicobject`**: mapea `_oid` → `m_publicid` (el identificador "público" en
   texto, por ejemplo `NLL.20260901...` o `Pick/...`). Es el puente que usa el
   proyecto: cuando se une por `m_preferredoriginid`, `m_pickID`, `m_amplitudeID`,
-  etc., se pasa por acá.
+  etc., se pasa por aquí.
 
 O sea, hay **dos formas de enlazar** objetos:
 
