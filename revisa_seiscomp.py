@@ -2976,6 +2976,7 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
                 descarga_todo=False,
                 columnas_exportar=None, valores_exportar=None,
                 verbo_descarga="Descargados",
+                texto_filtro="Mostrando",
                 texto_detalle=None, extras_izquierda=None, extras_derecha=None,
                 al_llenar=None, formato_estado=None):
     """
@@ -3030,7 +3031,7 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     barra.pack(fill="x", pady=(0, 6))
     entradas = {}
     if "texto" in filtros:
-        ttk.Label(barra, text="Mostrando",
+        ttk.Label(barra, text=texto_filtro,
                   bootstyle="secondary").pack(side="left")
         entradas["texto"] = ttk.Entry(barra, width=24)
         entradas["texto"].pack(side="left", padx=(4, 10))
@@ -3468,11 +3469,10 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     del análisis: no consulta nada ni recalcula el cruce, solo lo muestra. La
     fuente es 'seisan' o 'seiscomp'.
 
-    Se ordena haciendo clic en cualquier encabezado (el clic repetido invierte
-    el sentido) y se filtra por texto en cualquier columna. Las dos descargas
-    van a descargas/: la normal arma el archivo con el filtro y el orden puestos,
-    y «Descargar todo» lo escribe sin filtrar, que es lo que uno quiere para
-    repartir el listado completo.
+    Se apoya en abrir_tabla: ordena por encabezado (el clic repetido invierte el
+    sentido), filtra por texto con «Aplicar» y descarga a descargas/. «Descargar»
+    baja con el filtro y el orden puestos; «Descargar todo» lo escribe sin
+    filtrar, que es lo que uno reparte.
     """
     log = log or (lambda _t: None)
     if contenedor is None:
@@ -3488,51 +3488,12 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     except ImportError:
         return False
 
-    for hijo in contenedor.winfo_children():
-        hijo.destroy()
-
-    estado = {"orden": None, "desc": False, "elegidas": list(filas)}
-
-    marco = ttk.Frame(contenedor)
-    marco.pack(fill="both", expand=True, padx=8, pady=6)
-
-    # --- Controles: filtro, estado y descargas ---
-    marco_controles = ttk.Frame(marco)
-    marco_controles.pack(fill="x", pady=(0, 4))
-    ttk.Label(marco_controles, text="Filtrar:").pack(side="left")
-    caja_filtro = ttk.Entry(marco_controles, width=24)
-    caja_filtro.pack(side="left", padx=(4, 10))
-    # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada tecla:
-    # con listados grandes, re-filtrar al teclear era costoso.
-    ttk.Button(marco_controles, text="Aplicar", bootstyle="secondary",
-               command=lambda: _llenar()).pack(side="left", padx=(0, 10))
-    etiqueta_estado = ttk.Label(marco_controles, text="",
-                               bootstyle="secondary")
-    etiqueta_estado.pack(side="left")
-
-    def _al_descargar(todas=False):
-        elegidas = filas if todas else estado["elegidas"]
-        if not elegidas:
-            return
-        ruta = _exportar_listado(elegidas, _valores_no_actualizado,
-                                 _columnas_no_actualizado(fuente), cwd,
-                                 "no actualizados %s" % fuente,
-                                 padre=contenedor)
-        if ruta is None:
-            return
-        aviso = "Descargados %d eventos a %s" % (len(elegidas),
-                                                  os.path.basename(ruta))
-        etiqueta_estado.config(text=aviso)
-        log(aviso)
+    columnas = _columnas_no_actualizado(fuente)
 
     def _ver_mapa(_evento=None):
         """Abre planta+perfil de la solución local vs la publicada del evento."""
-        seleccion = arbol.selection()
-        if not seleccion:
-            return
-        try:
-            fila = estado["elegidas"][int(seleccion[0])]
-        except (ValueError, IndexError):
+        fila = tabla["fila_actual"]()
+        if fila is None:
             return
 
         def _num(clave):
@@ -3542,7 +3503,7 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
                 return None
 
         if _num("lat_local") is None or _num("lon_local") is None:
-            etiqueta_estado.config(text="El evento no tiene coordenadas.")
+            tabla["etiqueta_estado"].config(text="El evento no tiene coordenadas.")
             return
         local = {
             "rol": "local", "fecha hora": fila.get("fecha_local", ""),
@@ -3568,93 +3529,24 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
             plotear.abrir_eventos(eventos, fuente)
         except Exception as e:
             log("[error] no se pudo plotear: %s" % e)
-            etiqueta_estado.config(text="No se pudo plotear el evento.")
+            tabla["etiqueta_estado"].config(text="No se pudo plotear el evento.")
 
-    boton_descargar = ttk.Button(marco_controles, text="Descargar",
-                                 bootstyle="primary-outline",
-                                 command=_al_descargar)
-    boton_descargar.pack(side="right")
-    ttk.Button(marco_controles, text="Descargar todo",
-               bootstyle="primary-outline",
-               command=lambda: _al_descargar(todas=True)).pack(
-                   side="right", padx=(6, 0))
-    # Aviso corto: el detalle se abre con doble clic, no hay botón.
-    ttk.Label(marco_controles, text="Doble clic plotea",
-              bootstyle="secondary").pack(side="right", padx=(10, 0))
+    # La tabla lleva el padding del marco, como antes del refactor.
+    marco = ttk.Frame(contenedor)
+    marco.pack(fill="both", expand=True, padx=8, pady=6)
+    tabla = abrir_tabla(marco, filas, columnas, _valores_no_actualizado,
+                        cwd=cwd, log=log, filtros=("texto",),
+                        claves_orden=_claves_numericas(_COLUMNAS_ORDENABLES),
+                        iid_por_id=False, etiqueta="no actualizados %s" % fuente,
+                        descarga_texto="Descargar",
+                        descarga_bootstyle="primary-outline", descarga_todo=True,
+                        texto_filtro="Filtrar:", texto_detalle="Doble clic plotea")
 
-    # --- Tabla ---
-    marco_tabla = ttk.Frame(marco)
-    marco_tabla.pack(fill="both", expand=True)
-    claves = [c for c, _, _ in COLUMNAS_NO_ACTUALIZADO]
-    arbol = ttk.Treeview(marco_tabla, columns=claves, show="headings",
-                         selectmode="browse")
-    for clave, titulo, ancho in _columnas_no_actualizado(fuente):
-        arbol.heading(clave, text=titulo,
-                      command=lambda c=clave: _al_ordenar(c))
-        arbol.column(clave, width=ancho, minwidth=45, stretch=False)
-    barra_v = ttk.Scrollbar(marco_tabla, orient="vertical",
-                            command=arbol.yview)
-    arbol.configure(yscrollcommand=barra_v.set)
-    barra_h = ttk.Scrollbar(marco_tabla, orient="horizontal",
-                            command=arbol.xview)
-    arbol.configure(xscrollcommand=barra_h.set)
-    # Barras antes que el árbol (ver _construir_arbol_fases).
-    barra_v.pack(side="right", fill="y")
-    barra_h.pack(side="bottom", fill="x")
-    arbol.pack(side="left", fill="both", expand=True)
-
-    # Doble clic (o Enter con la fila elegida) abre planta+perfil del evento.
+    arbol = tabla["arbol"]
     arbol.bind("<Double-1>", _ver_mapa)
     arbol.bind("<Return>", _ver_mapa)
 
-    # Cómo ordenar cada columna: las numéricas por su propio nombre, el resto
-    # por texto. La columna visible ya es la clave cruda.
-    claves_orden = _claves_numericas(_COLUMNAS_ORDENABLES)
-
-    def _coincide(fila, texto):
-        """True si el texto buscado aparece en alguna celda de la fila."""
-        if not texto:
-            return True
-        return texto in " ".join(str(v).lower() for v in fila.values())
-
-    def _al_ordenar(columna):
-        if estado["orden"] == columna:
-            estado["desc"] = not estado["desc"]
-        else:
-            estado["orden"] = columna
-            estado["desc"] = False
-        _llenar()
-
-    def _elegidas():
-        texto = caja_filtro.get().strip().lower()
-        return _ordenar_eventos([f for f in filas if _coincide(f, texto)],
-                                estado["orden"], estado["desc"], claves_orden)
-
-    def _llenar(_evento=None):
-        for item in arbol.get_children():
-            arbol.delete(item)
-        elegidas = _elegidas()
-        estado["elegidas"] = elegidas
-        if len(elegidas) == len(filas):
-            etiqueta_estado.config(text="%d evento%s"
-                                    % (len(filas),
-                                       "" if len(filas) == 1 else "s"))
-        else:
-            etiqueta_estado.config(text="%d de %d eventos"
-                                    % (len(elegidas), len(filas)))
-        # Sin filas el botón queda apagado: un botón prendido que no hace nada
-        # es peor que uno apagado.
-        boton_descargar.configure(state="normal" if elegidas else "disabled")
-        for indice, fila in enumerate(elegidas):
-            arbol.insert("", "end", iid=str(indice),
-                         values=_valores_no_actualizado(fila))
-
-    # Los filtros se aplican con el botón «Aplicar» (o Enter), no en cada tecla.
-    caja_filtro.bind("<Return>", _llenar)
-    _llenar()
-
-    log("No actualizados de %s: %d eventos."
-        % (fuente, len(filas)))
+    log("No actualizados de %s: %d eventos." % (fuente, len(filas)))
     return True
 
 
