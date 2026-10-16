@@ -1025,32 +1025,68 @@ def _parametros_evento_en_linea(evento, separador=" · "):
     return separador.join(partes)
 
 
-def _tiene_dato(fila, columna):
+# Cómo ordenar cada columna del panel de SeisComp: las numéricas por su clave
+# cruda (la que trae el número) y fecha/hora por el instante completo, que viene
+# en un solo campo. Es el mapa por defecto de _ordenar_eventos; las listas de
+# catálogo y de No publicados/No actualizados pasan el suyo, porque ahí la
+# columna visible ya es la clave cruda y la fecha y la hora van en campos
+# separados.
+CLAVES_ORDEN_EVENTO = {c: ("num", crudo) for c, crudo in COLUMNA_NUMERICA.items()}
+CLAVES_ORDEN_EVENTO["fecha"] = ("tiempo", None)
+CLAVES_ORDEN_EVENTO["hora"] = ("tiempo", None)
+
+
+def _modo_orden(columna, claves_orden):
+    """
+    Cómo se ordena una columna: ('num', clave_cruda), ('tiempo',) o
+    ('texto', clave_cruda). Lo que no está en el mapa ordena por texto sobre la
+    propia columna.
+    """
+    if claves_orden is None:
+        claves_orden = CLAVES_ORDEN_EVENTO
+    return claves_orden.get(columna, ("texto", columna))
+
+
+def _claves_numericas(claves):
+    """
+    Mapa de orden para una tabla cuyas columnas visibles ya son las claves
+    crudas: cada clave de 'claves' se ordena por su propio nombre, como número.
+    Sirve para catálogos y No publicados/No actualizados.
+    """
+    return {c: ("num", c) for c in claves}
+
+
+def _tiene_dato(fila, columna, claves_orden=None):
     """Si la columna tiene un valor usable en esa fila."""
-    if columna in COLUMNA_NUMERICA:
-        return str(fila.get(COLUMNA_NUMERICA[columna], "")).strip() != ""
-    if columna in ("fecha", "hora"):
+    tipo, clave = _modo_orden(columna, claves_orden)
+    if tipo == "tiempo":
         return str(_campo_tiempo(fila)).strip() != ""
-    return str(fila.get(columna, "")).strip() != ""
+    return str(fila.get(clave, "")).strip() != ""
 
 
-def _ordenar_eventos(eventos, columna, descendente=False):
+def _ordenar_eventos(eventos, columna, descendente=False, claves_orden=None):
     """
     Ordena por una columna del árbol, dejando lo que no tiene dato al final.
 
     Va en dos grupos a propósito: si se ordenara con un solo key, al invertir el
     sentido los eventos sin magnitud quedarían PRIMERO, que es lo contrario de
     lo que uno espera al pedir el orden inverso.
+
+    'claves_orden' dice cómo ordenar cada columna (ver _modo_orden); por defecto
+    usa el mapa del panel de SeisComp.
     """
     if columna is None:
         return list(eventos)
-    con_dato = [f for f in eventos if _tiene_dato(f, columna)]
-    sin_dato = [f for f in eventos if not _tiene_dato(f, columna)]
-    con_dato.sort(key=lambda f: _clave_orden(f, columna), reverse=descendente)
+    con_dato = [f for f in eventos
+                if _tiene_dato(f, columna, claves_orden)]
+    sin_dato = [f for f in eventos
+                if not _tiene_dato(f, columna, claves_orden)]
+    con_dato.sort(key=lambda f: _clave_orden(f, columna, claves_orden),
+                  reverse=descendente)
     return con_dato + sin_dato
 
 
-def _clave_orden(fila, columna):
+def _clave_orden(fila, columna, claves_orden=None):
     """
     Clave para ordenar un evento por una columna del árbol.
 
@@ -1062,17 +1098,18 @@ def _clave_orden(fila, columna):
     Devuelve una tupla (grupo, valor) para que todos los tipos sean comparables
     entre sí dentro de la misma columna.
     """
-    if columna in COLUMNA_NUMERICA:
+    tipo, clave = _modo_orden(columna, claves_orden)
+    if tipo == "num":
         try:
-            return (0, float(fila.get(COLUMNA_NUMERICA[columna], "")))
+            return (0, float(str(fila.get(clave, "")).strip()))
         except (TypeError, ValueError):
             return (1, 0.0)
-    if columna in ("fecha", "hora"):
+    if tipo == "tiempo":
         # El instante viene en un solo campo, en ISO ('AAAA-MM-DD HH:MM:SS'), y
         # ordenando por el texto se ordena cronológicamente igual que con un
         # datetime, porque el formato tiene los campos en orden de magnitud.
         return (0, str(_campo_tiempo(fila)))
-    return (0, str(fila.get(columna, "")).strip().lower())
+    return (0, str(fila.get(clave, "")).strip().lower())
 
 
 def _texto_filtrable(valores):
@@ -3119,26 +3156,9 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
                 out.append(_texto(v))
         return out
 
-    def _clave_ord(fila, columna):
-        for c, _, _, n in columnas:
-            if c == columna and n:
-                try:
-                    return (0, float(str(fila.get(c, "")).strip() or "inf"))
-                except Exception:
-                    return (1, float("inf"))
-        if columna == "fecha":
-            return (0, str(fila.get("fecha", "")).strip())
-        if columna == "hora":
-            return (0, str(fila.get("hora", "")).strip())
-        return (0, str(fila.get(columna, "")).strip().lower())
-
-    def _ordenar(evs, columna, desc=False):
-        if columna is None:
-            return list(evs)
-        con = [f for f in evs if str(f.get(columna, "")).strip() != ""]
-        sin = [f for f in evs if str(f.get(columna, "")).strip() == ""]
-        con.sort(key=lambda x: _clave_ord(x, columna), reverse=desc)
-        return con + sin
+    # Cómo ordenar cada columna: las numéricas por su propio nombre, el resto
+    # por texto (ver _ordenar_eventos). La columna visible ya es la clave cruda.
+    claves_orden = _claves_numericas([c for c, _, _, n in columnas if n])
 
     def _elegidos():
         """
@@ -3155,7 +3175,8 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
         elegidos = _filtrar_listado(eventos, _valores, caja_filtro.get(),
                                     mag_min, clave_mag="mag",
                                     lat=caja_lat.get(), lon=caja_lon.get())
-        return _ordenar(elegidos, orden["columna"], orden["descendente"])
+        return _ordenar_eventos(elegidos, orden["columna"],
+                                orden["descendente"], claves_orden)
 
     def _llenar_eventos():
         for item in arbol_ev.get_children():
@@ -3492,22 +3513,9 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     arbol.bind("<Double-1>", _ver_mapa)
     arbol.bind("<Return>", _ver_mapa)
 
-    def _clave_orden(fila, columna):
-        """Clave de orden de una fila. Las numéricas no salen de la columna."""
-        if columna in _COLUMNAS_ORDENABLES:
-            try:
-                return (0, float(str(fila.get(columna, "")).strip()), "")
-            except (TypeError, ValueError):
-                pass
-        return (1, 0.0, str(fila.get(columna, "")).strip().lower())
-
-    def _ordenar(evs, columna, desc=False):
-        if columna is None:
-            return list(evs)
-        con = [f for f in evs if str(f.get(columna, "")).strip() != ""]
-        sin = [f for f in evs if str(f.get(columna, "")).strip() == ""]
-        con.sort(key=lambda f: _clave_orden(f, columna), reverse=desc)
-        return con + sin
+    # Cómo ordenar cada columna: las numéricas por su propio nombre, el resto
+    # por texto. La columna visible ya es la clave cruda.
+    claves_orden = _claves_numericas(_COLUMNAS_ORDENABLES)
 
     def _coincide(fila, texto):
         """True si el texto buscado aparece en alguna celda de la fila."""
@@ -3525,8 +3533,8 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
 
     def _elegidas():
         texto = caja_filtro.get().strip().lower()
-        return _ordenar([f for f in filas if _coincide(f, texto)],
-                        estado["orden"], estado["desc"])
+        return _ordenar_eventos([f for f in filas if _coincide(f, texto)],
+                                estado["orden"], estado["desc"], claves_orden)
 
     def _llenar(_evento=None):
         for item in arbol.get_children():
