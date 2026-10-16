@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.11 — 16 de octubre de 2026.
+Versión 1.12 — 16 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -318,11 +318,15 @@ nuevo botón «Planta y perfil», ver `al_planta_perfil`); en Seisan y eventquer
 doble clic o Enter llama directo a `plotear.abrir_evento`.
 
 Los **filtros se aplican a demanda** —botón «Aplicar» o Enter en la casilla—,
-no en cada tecla. Las cuatro listas con filtro de texto
-(`abrir_panel`, `abrir_catalogo`, `abrir_no_actualizados` y
-`app._construir_tabla_no_publicados`) comparten el criterio: escribir no
-reconstruye la tabla (con catálogos grandes, re-filtrar al teclear era costoso);
-solo el botón o Enter llaman a `_filtrar_listado`/`_llenar_eventos`/`_llenar`.
+no en cada tecla. Las cuatro listas con filtro de texto (`abrir_panel`,
+`abrir_catalogo`, `abrir_no_actualizados` y `app._construir_tabla_no_publicados`)
+comparten el criterio y el **mismo constructor**: `revisa_seiscomp.abrir_tabla`,
+que arma el árbol, los encabezados que ordenan, los filtros, la descarga y la
+miniatura opcional, y devuelve los ganchos (`arbol`, `fila_actual`, `marco_mini`,
+…). Cada lista aporta solo sus columnas, sus valores y su ploteo; el orden usa
+`_ordenar_eventos` con un mapa de columnas (`_claves_numericas`). El mapa
+funcional de la aplicación (qué hace y dónde está cada cosa) está en
+`docs/proyecto/img/09_mapa_funcional.png` y en el manual de usuario.
 
 ### Ajuste de ventanas (`ajuste.py`) y arranque (`app.py`)
 

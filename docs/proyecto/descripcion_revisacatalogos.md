@@ -298,6 +298,16 @@ principales y sus relaciones de `include`/`extend` se muestran a continuación.
 | Comparar con agencias | Supervisor | Cruce con EMSC/USGS/GFZ. |
 | Descargar entregables | Supervisor | Listados y mapas. |
 
+#### 5.2.6 Mapa funcional de la aplicación
+
+Complementa las vistas anteriores con un **mapa de navegación**: qué hace el
+sistema y dónde está cada cosa (barra lateral, pestañas y ventanas). Deja
+explícito que «No publicados» y «No actualizados» tienen **dos vistas del mismo
+dato**: por perfil (pestañas con paneles de mapas, para el contexto del
+conjunto) e individual (ventana con listado, caso por caso).
+
+![Mapa funcional de RCS](img/09_mapa_funcional.png)
+
 ### 5.3 Modelo relacional de la base de SeisComp
 
 El proyecto consulta un subconjunto de la base de SeisComp (`seiscomp2`). Toda

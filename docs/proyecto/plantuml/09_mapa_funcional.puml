@@ -1,0 +1,50 @@
+@startmindmap 09_mapa_funcional
+' Mapa funcional de RCS: qué hace el sistema y dónde está cada cosa.
+' Estilo de navegación por zonas (barra lateral, pestañas, ventanas).
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam monochrome false
+skinparam NodeSep 18
+
+* RCS\nRevisor de Catálogos Sísmicos\n(qué hace y dónde está)
+
+** 0 · Solicitud de catálogos (al arrancar)
+*** Seisan (select.out), eventquery y exportación de SeisComp
+*** Reusa lo que ya está en disco; baja solo lo que falta
+
+** Barra lateral · TRABAJO
+*** Procesar catálogos\ncorre el análisis por etapas
+*** Estado y aviso de catálogos (OK / faltan / fallaron / cambiaron)
+
+** Barra de pestañas · PANELES embebidos
+*** Registro\ntraza de la corrida
+*** Panel de mapas y perfiles\nSeisan / eventquery / SeisComp\n(tabla de perfiles, mini-perfil, mapas sin perfil)
+*** No publicados · por perfil\nSeisan / SeisComp\n(contexto sísmico del conjunto)
+*** No actualizados · por perfil\nSeisan / SeisComp\n(solución de la fuente vs publicada)
+
+** Barra lateral · CONSULTAR (ventanas)
+*** Catálogos\npestañas SeisComp / Seisan / eventquery\n(miniatura del perfil + detalle)
+*** Repetidos\nlistado de duplicados por fuente
+*** No publicados · individual\nlistado; doble clic plotea planta + perfil
+*** No actualizados · individual\nlistado; doble clic compara fuente vs publicado
+*** Comparar agencias\nmapas y listados (EMSC / USGS / GFZ)
+
+** Barra lateral · DESCARGAS
+*** Abrir carpeta\ndescargas/
+
+** Barra lateral · RE-EXPORTAR
+*** Forzar actualización + Seisan / eventquery / SeisComp\n(reimportar obliga a rehacer el análisis)
+
+left side
+
+** Ventanas de detalle
+*** Parámetros del evento
+*** Estaciones del evento (con arribos / sin arribos)
+*** Análisis rápido (estaciones sin arribos cercanas)
+*** Planta y perfil del evento
+
+** Mismo dato, dos vistas
+*** Por perfil (pestañas): contexto del conjunto
+*** Individual (ventana): caso por caso
+
+@endmindmap
