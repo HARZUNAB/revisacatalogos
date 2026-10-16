@@ -3505,15 +3505,27 @@ class App:
             elegidas = filas if todas else estado["elegidas"]
             if not elegidas:
                 return
-            escrito = descargas.descargar_tabla(
-                contenedor, [t for _, t, _ in columnas],
-                [_valores(f) for f in elegidas],
-                "no publicados %s" % fuente, aviso=False)
-            if not escrito:
+            # Se usa el mismo exportador de los listados del revisor, para no
+            # tener dos caminos que pregunten el formato y escriban por su
+            # cuenta (ver revisa_seiscomp._exportar_listado).
+            rs = self._importar_revisor()
+            if rs is None:
+                return
+            try:
+                ruta = rs._exportar_listado(elegidas, _valores, columnas,
+                                            self.cwd,
+                                            "no publicados %s" % fuente,
+                                            padre=contenedor)
+            except OSError as exc:
+                aviso = "No se pudo escribir el listado: %s" % exc
+                etiqueta_estado.config(text=aviso)
+                self._log(aviso)
+                return
+            if ruta is None:
                 return
             aviso = "%d evento%s descargados a %s" % (
                 len(elegidas), "" if len(elegidas) == 1 else "s",
-                os.path.basename(escrito))
+                os.path.basename(ruta))
             etiqueta_estado.config(text=aviso)
             self._log(aviso)
 

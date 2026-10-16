@@ -245,13 +245,15 @@ def test_no_publicados_tabla_y_descargar_todo(app_factory, raiz_gui, cwd_tmp,
               _CSV_NO_PUB)
     descargado = {}
 
-    def descargar_tabla(padre, encabezados, filas, etiqueta, cwd=None,
-                        aviso=True):
-        descargado["filas"] = filas
+    def exportar_listado(filas, valores, columnas, cwd, etiqueta,
+                         padre=None, formato=None):
+        descargado["filas"] = [valores(f) for f in filas]
         descargado["etiqueta"] = etiqueta
         return "datos/descarga.csv"
 
-    monkeypatch.setattr(appmod.descargas, "descargar_tabla", descargar_tabla)
+    # La descarga de No publicados pasa por el exportador del revisor.
+    import revisa_seiscomp as rsv
+    monkeypatch.setattr(rsv, "_exportar_listado", exportar_listado)
 
     inst._ver_no_publicados()
 
