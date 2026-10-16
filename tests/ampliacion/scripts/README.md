@@ -14,7 +14,7 @@ y envolver la ejecución en `if __name__ == "__main__"`. Módulos pendientes:
 - `revisaexcluidos.py` (refactorizado)
 - `proc_query_harz_2.py` (refactorizado)
 
-Una vez refactorizado un módulo, su test va acá con nombre
+Una vez refactorizado un módulo, su test va aquí con nombre
 `test_<modulo>_<tema>.py` (con **stub de pandas** si el módulo lo importa, para
 que corra en CI).
 

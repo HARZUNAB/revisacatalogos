@@ -117,16 +117,16 @@ def comparar(listacsv_1, listacsv_2, max_seg, max_lat, max_lon, sufijo,
     avance=0
     listanopub=[]
 
-    # Cada coincidencia real (tiempo Y espacio) se guarda acá para poder decir
+    # Cada coincidencia real (tiempo Y espacio) se guarda aquí para poder decir
     # de quién es cada evento publicado. Se registran TODAS, no solo la última:
     # el bucle de abajo no corta en el primer cruce, así que cuando dos
     # soluciones locales caen dentro de la tolerancia del mismo evento
-    # publicado hay más de una fila acá y eso es justamente el caso ambiguo
+    # publicado hay más de una fila aquí y eso es justamente el caso ambiguo
     # que hay que poder mostrar en vez de tapar. No altera los txt/.csv de
-    # siempre: acá solo se agrega information que antes se perdía.
+    # siempre: aquí solo se agrega information que antes se perdía.
     cruces=[]
 
-    # Un archivo local sin eventos (solo encabezado) haría 0/0 acá. Con la
+    # Un archivo local sin eventos (solo encabezado) haría 0/0 aquí. Con la
     # fuente SeisComp eso es esperable: la ventana puede no tener eventos.
     total_a_comparar = max(1, num_eventos_locales)
 

@@ -99,7 +99,7 @@ TAMANIO_INICIAL = (980, 820)
 
 # De qué archivo se arma cada pestaña de «Catálogo». El de eventquery es el
 # concatenado de los new_2_*.csv, que arma _concatenar_eventquery; el de Seisan
-# es el collect del análisis; el de SeisComp no entra acá porque lo elige
+# es el collect del análisis; el de SeisComp no entra aquí porque lo elige
 # _par_seiscomp_para_catalogo por cobertura.
 ARCHIVO_CATALOGO = {
     "seisan": "salida_collect.csv",
@@ -179,7 +179,7 @@ VISTAS_POR_CLAVE = {v["clave"]: v for v in VISTAS}
 # el que usa el cuaderno.
 #
 # Cada pestaña de este cuaderno es un panel de análisis (prefijo panel:); el
-# catálogo crudo y el listado de no actualizados ya no van acá: se consultan
+# catálogo crudo y el listado de no actualizados ya no van aquí: se consultan
 # desde los botones «Catálogos» y «No actualizados» de la barra lateral.
 GRUPOS_PESTANAS = [
     {"titulo": None, "pestanas": ["log"]},
@@ -395,7 +395,7 @@ class App:
         self.raiz.protocol("WM_DELETE_WINDOW", self._salir_app)
         self._after_drenar = self.raiz.after(100, self._drenar)
         # La exportación de SeisComp la deja la solicitud de catálogos antes
-        # de llegar acá, y su pestaña se llena al procesar los catálogos,
+        # de llegar aquí, y su pestaña se llena al procesar los catálogos,
         # igual que las de Seisan y eventquery.
 
     def _salir_app(self):
@@ -568,7 +568,7 @@ class App:
         self.eventquery_frame = None
 
         # Ahora que ya existen todas las páginas, se arma la barra de pestañas
-        # agrupadas y recién después se empaqueta el cuaderno: la barra va
+        # agrupadas y solo después se empaqueta el cuaderno: la barra va
         # primero (side=TOP) para quedar arriba, y el cuaderno ocupa el resto.
         self._construir_barra_pestanas(derecha)
         self.cuaderno.pack(side=LEFT, fill=BOTH, expand=YES)
@@ -1000,7 +1000,7 @@ class App:
 
             def tarea():
                 self._tarea_re_exportar_seiscomp(radio)
-                # Refresca el panel con la exportación recién escrita.
+                # Refresca el panel con la exportación que se acaba de escribir.
                 self._procesar_fuente("seiscomp")
         else:
             contrasena = self._pedir_contrasena()
@@ -1073,8 +1073,9 @@ class App:
                                        log=self._log,
                                        progreso=self._progreso_local,
                                        forzar=True)
-                # copy2 preserva la fecha del select recién bajado; copyfile
-                # la pondría en "ahora" y select.out parecería más nuevo.
+                # copy2 preserva la fecha del select que se acaba de bajar;
+                # copyfile la pondría en "ahora" y select.out parecería más
+                # nuevo.
                 shutil.copy2(ruta, os.path.join(self.cwd, "select.out"))
                 self._log("select.out actualizado desde %s"
                           % os.path.basename(ruta))
@@ -1218,7 +1219,7 @@ class App:
         """
         Tooltip mínimo que sale solo con el botón apagado.
 
-        ttkbootstrap.tooltip no se puede usar acá: usa typing.Literal, que
+        ttkbootstrap.tooltip no se puede usar aquí: usa typing.Literal, que
         existe desde Python 3.8, y la app corre en 3.7. Por eso son veinte
         líneas de Toplevel en vez de un import.
 
@@ -1877,9 +1878,9 @@ class App:
         if etiqueta == "eventquery" and (not os.path.isfile(ruta)
                                          or os.path.getsize(ruta) == 0):
             # El catálogo publicado es la unión de los new_2_*.csv, que arma
-            # _concatenar_eventquery. Sin esto, consultar el catálogo por acá
+            # _concatenar_eventquery. Sin esto, consultar el catálogo por aquí
             # exigiría antes haber corrido «Datos de eventquery», que es un paso
-            # extra que no tiene nada que ver con consultar: se arma acá y se
+            # extra que no tiene nada que ver con consultar: se arma aquí y se
             # abre en un solo paso, como el de Seisan.
             self._concatenar_eventquery()
         if not os.path.isfile(ruta):
@@ -1911,7 +1912,7 @@ class App:
         Hace falta porque el botón de una fuente ya procesada queda apagado, así
         que la pestaña es la única vía para volver a ver el panel (por ejemplo,
         al reabrir la aplicación sobre una carpeta ya analizada). Si el CSV de
-        entrada existe pero el JSON no (o quedó viejo), se genera acá en
+        entrada existe pero el JSON no (o quedó viejo), se genera aquí en
         segundo plano.
         """
         self._marcar_pestana_activa()
@@ -2059,7 +2060,7 @@ class App:
         Ventana con el listado de no actualizados, una pestaña por fuente.
 
         SeisComp va primero y por defecto; Seisan después. Cada pestaña se
-        arma recién al seleccionarla, reutilizando _abrir_no_actualizados
+        arma solo al seleccionarla, reutilizando _abrir_no_actualizados
         sobre el marco de esa pestaña.
         """
         top = ttk.Toplevel(title="No actualizados", master=self.raiz)
@@ -2095,7 +2096,7 @@ class App:
         Abre (o trae al frente) la ventana con los catálogos crudos.
 
         Una pestaña por fuente (SeisComp, Seisan, eventquery; SeisComp por
-        defecto). Cada pestaña se arma recién al seleccionarla, reutilizando
+        defecto). Cada pestaña se arma solo al seleccionarla, reutilizando
         _construir_catalogo con su caché por firma. Al cerrar se oculta
         (withdraw) en vez de destruirse, para conservar los frames y que
         _poblar_catalogos pueda rehacerlos tras un análisis nuevo.
@@ -2645,8 +2646,8 @@ class App:
             return
         minmag, agencias, refrescar, modo, actualizar, desde14, hasta14 = params
 
-        # Referencia: la del análisis, o la recién bajada si se pide actualizar
-        # eventquery en modo "hasta ahora".
+        # Referencia: la del análisis, o la que se acaba de bajar si se pide
+        # actualizar eventquery en modo "hasta ahora".
         referencia = ("eventquery_ahora"
                       if (modo == "ahora" and actualizar) else "eventquery")
 
@@ -3011,7 +3012,7 @@ class App:
     def _detalles_cobertura(self, padre, cobertura):
         """
         Ventana de consulta (NO modal) con la ventana solicitada y la real por
-        agencia. Se abre oculta, se arma entera y recién ahí se muestra (un
+        agencia. Se abre oculta, se arma entera y solo entonces se muestra (un
         solo mapeo, para no dejar un destello de caja fantasma).
         """
         top = ttk.Toplevel(title="Cobertura por agencia", master=padre)
@@ -3228,7 +3229,7 @@ class App:
                 usadas.append(etiqueta)
         # Atribuir es un extra y no bloquea el panel, así que una fuente que
         # falta no es un error: pero SÍ tiene que quedar a la vista. El silencio
-        # es lo peligroso acá, porque el panel igual abre con todos los eventos
+        # es lo peligroso aquí, porque el panel igual abre con todos los eventos
         # y parece completo, solo que casi ninguno muestra responsable.
         if usadas:
             self._log("Atribución de eventquery: %s."
@@ -3377,7 +3378,7 @@ class App:
         Ventana con el listado de no publicados, una pestaña por fuente.
 
         SeisComp va primero y por defecto; Seisan después. Cada pestaña se
-        arma recién al seleccionarla, para no construir las dos de golpe (el
+        arma solo al seleccionarla, para no construir las dos de golpe (el
         listado de Seisan se pide a demanda). Si se pasa 'fuente' se abre
         directo en esa pestaña, para no romper al generador de capturas.
         """
@@ -3416,7 +3417,7 @@ class App:
         """
         Listado de los eventos no publicados (mag >= 2.5) de una fuente.
 
-        Complementa al panel/mapa: acá se ve el conjunto completo en una tabla,
+        Complementa al panel/mapa: aquí se ve el conjunto completo en una tabla,
         sin tener que ir evento por evento en el ploteo.
 
         Se ordena con clic en el encabezado y se filtra por texto. La descarga
@@ -3598,7 +3599,7 @@ class App:
     # ----------------------------------------------------------- SeisComp
     # Todo lo de SeisComp se apoya en revisa_seiscomp.py, que ya sabe qué es
     # una exportación, cómo se lee la ventana del catálogo y cómo se dibuja la
-    # revisión. Acá solo se orquesta: qué se le pregunta al usuario, cuándo se
+    # revisión. Aquí solo se orquesta: qué se le pregunta al usuario, cuándo se
     # exporta y en qué pestaña se muestra.
 
     def _importar_revisor(self):
@@ -3614,7 +3615,7 @@ class App:
         """
         (desde, hasta) con las fechas del catálogo de entrada, o None.
 
-        Se le pregunta al revisor y no se recalcula acá: el formato del
+        Se le pregunta al revisor y no se recalcula aquí: el formato del
         catálogo tiene variantes (con 'T' y 'Z', con espacio) y duplicar esa
         lógica haría que un día los dos caminos dejaran de coincidir.
         """

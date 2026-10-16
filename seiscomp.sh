@@ -2,7 +2,7 @@
 # ==============================================================================
 # seiscomp.sh
 # Lanzador de la extracción desde SeisComp6 y su revisión, en un solo comando.
-# Vive al lado de supervisor.sh, pero NO es la aplicación: acá no hay ventana de
+# Vive al lado de supervisor.sh, pero NO es la aplicación: aquí no hay ventana de
 # supervisor, solo la exportación de SeisComp y la pantalla que la revisa.
 # Sigue siendo útil para trabajar un período suelto sin lanzar todo el análisis;
 # desde la app, el mismo trabajo se hace con «Obtener de SeisComp».
@@ -162,7 +162,7 @@ fi
 # usuario no escribe nada se usa esta, y si escribe, se usa lo que escribió. La
 # ventana es libre y no tiene por qué ser la del catálogo.
 #
-# Se resuelve acá y no en el exportador porque el catálogo es del flujo de
+# Se resuelve aquí y no en el exportador porque el catálogo es del flujo de
 # revisión, y el exportador no tiene por qué saber de catálogos. Va antes de la
 # verificación del entorno a propósito: leer el catálogo es local y tarda nada,
 # mientras que la verificación se va a la base, y tener el archivo malo es el
@@ -238,7 +238,7 @@ else
 fi
 
 # --- 6. Revisar ------------------------------------------------------------
-# El mismo catálogo que se usó para decidir la ventana. Acá se elige el par de
+# El mismo catálogo que se usó para decidir la ventana. Aquí se elige el par de
 # CSV que MEJOR cubre esa ventana, que es lo contrario de abrir la última
 # escrita: al revisar varios períodos en la misma carpeta, la más reciente no
 # siempre es la que interesa.

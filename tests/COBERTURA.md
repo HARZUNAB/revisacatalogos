@@ -7,7 +7,7 @@ está el test de algo y a qué grupo pertenece.
 - El **detalle por grupo** (convenciones, dependencias real/sintético/mock,
   tableros) vive en el `README.md` de cada carpeta.
 - Se **mantiene a mano**: al agregar, mover o renombrar un test, se actualiza la
-  fila del módulo correspondiente acá.
+  fila del módulo correspondiente aquí.
 - Convenciones generales y regla base/ampliación: `README.md`.
 
 ## Grupos

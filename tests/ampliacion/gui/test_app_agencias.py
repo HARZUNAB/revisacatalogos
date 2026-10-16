@@ -134,7 +134,7 @@ def test_ver_comparacion_agencias(app_factory, raiz_gui, cwd_tmp, monkeypatch):
     _escribir(cwd_tmp, "datos/comparacion_agencias.json", "[]")
     _escribir(cwd_tmp, "datos/agencias_sin_par.json", "[]")
     # El panel embebido de plotear tiene su propia fila y abre figuras de
-    # matplotlib que interfieren con la raíz compartida; se acota acá.
+    # matplotlib que interfieren con la raíz compartida; se acota aquí.
     import plotear
     monkeypatch.setattr(plotear, "abrir_panel", lambda *a, **k: False)
 

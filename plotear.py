@@ -1503,7 +1503,7 @@ def _avisar_sin_datos(texto, padre=None):
                 pass
         top.protocol("WM_DELETE_WINDOW", _cerrar)
         top.update_idletasks()
-        # Único mapeo: recién acá la ventana se hace visible.
+        # Único mapeo: solo aquí la ventana se hace visible.
         top.deiconify()
         try:
             top.lift()
@@ -1625,7 +1625,7 @@ def _lineas_posible_analista(ev):
     trae en su propio CSV. Cuando viene de eventquery no hay ningún dato de
     responsable, y lo que se muestra es una inferencia hecha cruzando por
     tiempo y distancia el evento publicado con las soluciones locales. Por eso
-    acá se dice siempre "posible" y se acompaña el Δt y la distancia, que es lo
+    aquí se dice siempre "posible" y se acompaña el Δt y la distancia, que es lo
     que permite juzgar si el cruce es creíble o una conjetura.
 
     Si más de una fuente nombró a alguien, se listan las dos en vez de elegir
@@ -1844,7 +1844,7 @@ def _resaltar_evento(ax, ev, lon=None, lat=None, x_km=None, prof_km=None,
         contenido = _texto_parametros_evento(ev)
         # En el panel de no actualizados el evento trae su par publicado; en el
         # de comparar agencias, la referencia (nuestro publicado) va en
-        # '_referencia'. El Δ va acá, así aparece solo en el evento clickeado.
+        # '_referencia'. El Δ va aquí, así aparece solo en el evento clickeado.
         par = ev.get('publicado')
         if isinstance(par, dict):
             delta = _texto_diferencia(ev, par, _etiqueta_referencia(ev))
@@ -2452,7 +2452,7 @@ def _titular_ventana(fig, titulo):
     """
     Pone el título de la ventana de la figura.
 
-    matplotlib titula las ventanas "Figure 1", "Figure 2"… por número. Acá se
+    matplotlib titula las ventanas "Figure 1", "Figure 2"… por número. Aquí se
     reemplaza por un nombre que describe lo que muestra. Es texto plano de la
     barra del SO: sin conteos ni formato.
     """
@@ -3160,7 +3160,7 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         except Exception:
             pass
         if embebido:
-            # Ya no hay ninguna vía para llegar acá con un panel embebido (el
+            # Ya no hay ninguna vía para llegar aquí con un panel embebido (el
             # botón «Cerrar panel» se quitó). Se corta en vez de seguir por el
             # cierre de abajo, que destruiría el frame: es una pestaña de la
             # aplicación principal y quedaría muda.
@@ -3330,7 +3330,7 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         Diálogo de qué parte del panel se quiere descargar.
 
         Devuelve (eventos, etiqueta) ya resueltos, o None si se cancela o no
-        hay nada que ofrecer. Se resuelve acá adentro y no en _descargar_panel
+        hay nada que ofrecer. Se resuelve aquí adentro y no en _descargar_panel
         porque la alternativa depende de qué fila esté seleccionada en el
         momento de armar el diálogo: si se volviera a leer la selección
         después de responder, el diálogo podría ofrecer un ámbito y exportar

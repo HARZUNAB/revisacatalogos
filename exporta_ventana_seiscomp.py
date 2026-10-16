@@ -31,7 +31,7 @@ ESTACIONES NO PICADAS
 El tercer archivo responde a la pregunta de por qué una estación cercana no
 aparece en la solución. Sale del INVENTARIO y no de las fases, porque una
 estación sin arribos asociados no tiene fila de llegada: el INNER JOIN de las
-fases descarta justamente lo que acá se busca.
+fases descarta justamente lo que aquí se busca.
 
 Importante, porque el nombre puede hacer pensar otra cosa: esto NO dice que la
 estación no haya grabado. La base de metadatos de SeisComp no registra qué
@@ -152,7 +152,7 @@ from datetime import datetime, timedelta
 import prog
 
 try:
-    # El módulo de mediciones solo existe en el proyecto NewPT; acá es opcional.
+    # El módulo de mediciones solo existe en el proyecto NewPT; aquí es opcional.
     import mediciones as med
 except ImportError:
     med = None
@@ -177,7 +177,7 @@ AVISO_DE_LOTES = 200000
 
 # Rango en el que una magnitud de estación es creíble. Medido sobre la base real
 # en la ventana de septiembre 2026: el mínimo fue -1.438 y el máximo 10.330, con
-# 3 valores bajo -1 y 4 sobre 10 de 169.130. Salirse de acá es un cálculo roto.
+# 3 valores bajo -1 y 4 sobre 10 de 169.130. Salirse de aquí es un cálculo roto.
 RANGO_MAG_ESTACION = (-1.0, 10.0)
 
 # Radio, en kilómetros, para la búsqueda de estaciones que NO fueron picadas en
@@ -376,7 +376,7 @@ INNER JOIN publicobject po_p ON po_p.m_publicid = a.m_pickID
 INNER JOIN pick p ON p._oid = po_p._oid
 LEFT JOIN LATERAL (
     -- Sin alias propio a propósito: la verificación de aliases mira todo el
-    -- SQL, y acá las columnas ya se llaman como las espera el SELECT exterior.
+    -- SQL, y aquí las columnas ya se llaman como las espera el SELECT exterior.
     -- Se trae también el id público de la amplitud porque es lo que permite
     -- colgarle la magnitud de esa fase en particular (sm.m_amplitudeID).
     SELECT
@@ -412,7 +412,7 @@ LEFT JOIN LATERAL (
     -- valor, y con un join plano esa fase salía repetida. Cuando hay varias,
     -- gana la que efectivamente aportó a la magnitud preferida (tiene fila en
     -- stationmagnitudecontribution), y si ninguna aportó, la más reciente.
-    -- El id público sale acá porque es lo que necesita el join del residuo.
+    -- El id público sale aquí porque es lo que necesita el join del residuo.
     SELECT
         po_v.m_publicid AS smid,
         smv.m_magnitude_value,
@@ -447,7 +447,7 @@ ORDER BY o.m_time_value, p.m_waveformID_stationCode, a.m_azimuth NULLS LAST;
 # Esta es la consulta al revés: en vez de las estaciones que tienen arribos, las
 # que estaban en el inventario y no los tienen. Sale del inventario, no de las
 # fases, porque una estación sin arribos no aparece en la tabla de llegadas: el
-# INNER JOIN de CONSULTA_FASES_SQL descarta justo lo que se busca acá.
+# INNER JOIN de CONSULTA_FASES_SQL descarta justo lo que se busca aquí.
 #
 # OJO, y es lo que hay que tener claro al leer el archivo: el inventario dice
 # que la estación estaba CONFIGURADA, no que grabara este evento. La base de
@@ -543,7 +543,7 @@ ORDER BY red, estacion, instante
 
 # Valor por defecto de waveform_status mientras no se consulte una fuente de
 # disponibilidad. Es una cadena explícita y no una celda vacía a propósito:
-# vacío se lee como "no se sabe", y acá lo correcto es "no se consultó".
+# vacío se lee como "no se sabe", y aquí lo correcto es "no se consultó".
 ESTADO_SIN_CONSULTAR = "NO_CONSULTADO"
 
 CABECERA_NO_PICADAS = [
@@ -1126,7 +1126,7 @@ WHERE 6371.0 * 2 * asin(sqrt(
 # estimación de filas a megabytes para el aviso previo.
 NO_PICADAS_BYTES_FILA = 154
 # A partir de esta estimación (en MB) la interfaz pide confirmación antes de
-# exportar. Un mes de datos ronda los 20 MB, así que 200 avisa recién en
+# exportar. Un mes de datos ronda los 20 MB, así que 200 avisa solo en
 # ventanas grandes (varios meses).
 AVISO_NO_PICADAS_MB = 200.0
 
@@ -1160,7 +1160,7 @@ def _distancia_km(lat1, lon1, lat2, lon2):
     Se usa 'latitud' para el Este/Oeste. Es aproximada (el radio de la Tierra
     crece con la latitud), y se elige esa a propósito porque en un radio de unos
     cientos de km el error también es de metro y medio. Importa que la dirección
-    sea la misma para todos los puntos, que es lo que acá se cumple.
+    sea la misma para todos los puntos, que es lo que aquí se cumple.
     """
     radio = 6371.0088
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -1272,7 +1272,7 @@ def _estaciones_en_el_radio(indice, latitud, longitud, radio_km):
     Las estaciones del inventario que podrían estar dentro del radio.
 
     Devuelve candidatos por celda, sin medir: el filtro por distancia exacta,
-    vigencia y picadas lo hace _no_picadas_de_evento. Acá solo se agranda el
+    vigencia y picadas lo hace _no_picadas_de_evento. Aquí solo se agranda el
     radio una celda a cada lado para no perder ninguna por el redondeo del
     índice.
 
@@ -1491,7 +1491,7 @@ def _parametros_estatus(solo_confirmados):
 def _consultar_eventos_de_base(base, inicio, fin, solo_confirmados):
     """
     Trae los eventos de una base. Son pocos (decenas de miles como máximo), así
-    que acá no hace falta ir por lotes.
+    que aquí no hace falta ir por lotes.
     """
     config = configuracion(base)
     conn = conectar(config)
@@ -1519,7 +1519,7 @@ def _consultar_inventario_de_base(base, inicio, fin):
     Trae las estaciones del inventario cuya época se solapa con la ventana.
 
     No filtra por la hora de cada evento: eso lo hace _stream_valido, porque
-    depende del evento y no de la ventana. Acá solo se traen las que podrían
+    depende del evento y no de la ventana. Aquí solo se traen las que podrían
     llegar a estar vigentes en algún momento del período, que son muy pocas
     comparadas con la tabla completa.
 
@@ -1859,7 +1859,7 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
     vieja sin el de no picadas se vuelve a exportar.
     """
     if med is not None:
-        # Se arranca el cronómetro acá para incluir el import de psycopg2.
+        # Se arranca el cronómetro aquí para incluir el import de psycopg2.
         med.arranque("consulta")
 
     # Cada exportación informa su propio avance; si el proceso se reusa (no es
@@ -1971,7 +1971,7 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
     prog.avance(0.50)
 
     # Las fases van por lotes. Lo único que se retiene es el resumen por evento.
-    # El archivo se crea acá, con su encabezado, y después todas las bases
+    # El archivo se crea aquí, con su encabezado, y después todas las bases
     # agregan. Si se esperara al primer lote para escribirlo, y la primera base
     # no trajera nada, el archivo quedaría con lo de una corrida anterior.
     _escribir_csv(salida_fases, [], CABECERA_FASES)
@@ -1984,7 +1984,7 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
         def _avance_fases(escritas, esperado=esperado, i=i):
             # Dentro de la base se avanza según la estimación; si no hay
             # estimación (o es 0) se deja el sub-bloque a media asta y se
-            # completa recién al terminar la base.
+            # completa solo al terminar la base.
             frac = min(1.0, escritas / esperado) if esperado else 0.5
             prog.avance(0.50 + 0.50 * ((i + frac) / n))
 
@@ -2013,7 +2013,7 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
         print("      Estimado      : ~%s estaciones (~%.1f MB)."
               % ("{:,}".format(estimadas).replace(",", "."), mb))
         if mb >= AVISO_NO_PICADAS_MB:
-            print("      [Aviso] Es un archivo grande; considerá bajar el radio"
+            print("      [Aviso] Es un archivo grande; considera bajar el radio"
                   " o partir la ventana.")
     inventario = []
     for nombre in bases:

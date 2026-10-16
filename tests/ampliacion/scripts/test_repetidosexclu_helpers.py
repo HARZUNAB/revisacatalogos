@@ -3,7 +3,7 @@
 Tests de repetidosexclu.py
 ==========================
 Cubre el ayudante puro `_parsear_fecha_hora` y `detecta_excluidos`, que escribe
-su informe en el archivo abierto que recibe (acá un `io.StringIO`). La corrida
+su informe en el archivo abierto que recibe (aquí un `io.StringIO`). La corrida
 completa se valida con el golden del arnés (`golden/repetidosexclu.txt`).
 """
 

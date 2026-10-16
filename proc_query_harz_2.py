@@ -49,7 +49,7 @@ def main(argv=None):
     # csvData_<fecha>.csv ordenado, que se escribía y se borraba sin que nadie lo
     # leyera: el script vuelve a abrir el original más abajo y arma el diccionario
     # desde ahí, ordenando por llave al final. Medido sobre un CSV de 25 MB, el sort
-    # más la copia que se escribían acá costaban 2.2 s, y el read entero 0.24 s
+    # más la copia que se escribían aquí costaban 2.2 s, y el read entero 0.24 s
     # contra 0.16 s de leer una sola columna.
     #
     # No se cuenta con len(lineas) porque un salto de línea dentro de un campo

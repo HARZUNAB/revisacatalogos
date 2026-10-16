@@ -34,4 +34,4 @@ Un archivo por módulo de `base/`, con casos borde y regresiones de bugs:
 Algunos casos **fijan el comportamiento actual** de puntos que conviene revisar
 más adelante (p. ej. `a_numero("nan")`, `a_iso` con 13 dígitos, `ajuste` con
 posición negativa, `_banda_numero` en el borde de redondeo). Quedan anotados en
-el docstring de cada test; acá solo se documentan.
+el docstring de cada test; aquí solo se documentan.

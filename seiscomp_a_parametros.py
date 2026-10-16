@@ -66,7 +66,7 @@ import prog
 
 # Columnas de la exportación que hacen falta para convertir. Si el esquema de
 # la base cambiara y el SELECT dejara de devolver alguna, el nombre nuevo
-# aparecería acá y el error lo diría, en vez de escribir una columna de vacío.
+# aparecería aquí y el error lo diría, en vez de escribir una columna de vacío.
 COLUMNAS_DE_LA_EXPORTACION = (
     "ot_utc", "latitud", "longitud", "profundidad_km", "magnitud",
     "tipo_magnitud", "operador",
@@ -196,7 +196,7 @@ def _ruta_completo(ruta_eventos):
     Nombre de la marca que dice que la exportación terminó.
 
     Es la misma regla que usa exporta_ventana_seiscomp.py: la marca va pegada
-    al nombre del CSV de eventos. Se replica acá en vez de importarse para que
+    al nombre del CSV de eventos. Se replica aquí en vez de importarse para que
     este script no dependa del exportador, que necesita psycopg2.
     """
     base, extension = os.path.splitext(ruta_eventos)

@@ -12,7 +12,7 @@ Lee los tres CSV que produce exporta_ventana_seiscomp.py:
 
 No consulta la base de datos. Eso es a propósito: la interfaz necesita
 ttkbootstrap y el acceso a la base necesita psycopg2. En el proyecto NewPT de
-donde viene, cada uno vivía en un intérprete distinto; acá los dos están en el
+donde viene, cada uno vivía en un intérprete distinto; aquí los dos están en el
 .venv, así que este script y el exportador conviven sin problema, y el lanzador
 seiscomp.sh los encadena. Aun así sigue sin tocar la base: leer los archivos es
 lo que permite que la revisión funcione aunque el servidor no esté disponible.
@@ -62,7 +62,7 @@ import rutas
 MAX_FILAS = 20000
 
 # Lo que se muestra cuando la celda viene vacía. Nunca 0: un cero falso entra
-# en los promedios en silencio, y acá lo que falta es que la estación no calculó
+# en los promedios en silencio, y aquí lo que falta es que la estación no calculó
 # esa magnitud, no que valga cero.
 VACIO = "—"
 
@@ -451,7 +451,7 @@ def _indexar_fases(ruta):
 
     Esto es lo que evita cargar el archivo entero en memoria. Con el histórico
     completo son más de 680.000 llegadas, y parsearlas todas como diccionarios
-    ocuparía varios gigabytes; acá solo se retienen unos miles de entradas
+    ocuparía varios gigabytes; aquí solo se retienen unos miles de entradas
     mínimas, y al elegir un evento se lee únicamente su tramo.
     """
     indice = {}
@@ -522,7 +522,7 @@ def _texto_modo(valor):
     """
     Traduce el modo del pick de SeisComp a algo legible.
 
-    En la base es 'manual' o 'automatic'; el CSV guarda ese valor crudo y acá
+    En la base es 'manual' o 'automatic'; el CSV guarda ese valor crudo y aquí
     se muestra en castellano. Cualquier otra cosa (incluido el vacío de una
     exportación vieja) cae en _texto, que devuelve el guion de vacío.
     """
@@ -999,7 +999,7 @@ def _parametros_evento_en_linea(evento, separador=" · "):
     con el mismo formato que la ventana de parámetros (lat/lon con
     DECIMALES_COORD, profundidad y magnitud con uno).
 
-    El analista NO va acá: se muestra aparte, en negrita, para que resalte.
+    El analista NO va aquí: se muestra aparte, en negrita, para que resalte.
     """
     fecha, hora = _partir_fecha_hora(_campo_tiempo(evento))
     partes = []
@@ -1215,7 +1215,7 @@ def _filtrar_listado(filas, valores, texto="", mag_min=None, clave_mag="mag",
 # Interfaz
 # ---------------------------------------------------------------------------
 # Los listados que se descargan van a descargas/, no a listados/. La carpeta se
-# llama así porque lo que sale por acá lo elige el usuario y no se relee nunca:
+# llama así porque lo que sale por aquí lo elige el usuario y no se relee nunca:
 # el análisis no lo usa para nada, así que se puede vaciar sin romper la
 # reapertura de la app.
 CARPETA_LISTADOS = rutas.DIR_DESCARGAS
@@ -1257,7 +1257,7 @@ def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,
     Esto se muestra en la ventana emergente que abre _ventana_detalle al hacer
     clic en una fila, no embebido en el panel: ahí compartía el ancho con la
     lista de eventos y abajo se cortaba, justo donde va el botón «Estaciones».
-    El árbol de llegadas tampoco va acá: vive en su propia ventana, a la que se
+    El árbol de llegadas tampoco va aquí: vive en su propia ventana, a la que se
     entra con ese botón.
 
     'al_estaciones' es el callback del botón. Va como parámetro y no se arma
@@ -1504,7 +1504,7 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
     arbol.pack(side="left", fill="both", expand=True)
     _ayuda_emergente(arbol, AYUDA_ACTIVIDAD)
 
-    # Los colores ya se calcularon arriba (leyenda); acá se aplican los tags.
+    # Los colores ya se calcularon arriba (leyenda); aquí se aplican los tags.
     arbol.tag_configure("destacada", background=fondo, foreground=texto_color,
                         font=("", 9, "bold"))
     arbol.tag_configure("activa", foreground=color_activa)
@@ -1589,7 +1589,7 @@ def _construir_arbol_no_picadas(ttk, marco, filas_no_picadas, padre=None,
     Devuelve (contenedor, arbol) —o (None, None) si no hay archivo— para que el
     encabezado de la ventana pueda repintar la tabla al recortar por radio y
     retintarla en vivo al cambiar el umbral «cerca». El control de radio y el
-    botón «Aplicar radio» NO van acá: viven en el encabezado de la ventana,
+    botón «Aplicar radio» NO van aquí: viven en el encabezado de la ventana,
     siempre visibles, porque esta solapa no es la que abre por defecto.
 
     Con 'hay_archivo=False' no es que no haya estaciones: es que el CSV no está,
@@ -1681,7 +1681,7 @@ def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
     Abre (o reusa) la ventana con los parámetros del evento.
 
     El detalle ya no vive embebido en el panel: compartía el ancho con la lista
-    y abajo se cortaba justo donde está el botón «Estaciones». Acá entra
+    y abajo se cortaba justo donde está el botón «Estaciones». Aquí entra
     completo y el panel queda solo para la lista, a todo el ancho.
 
     Es una ventana de consulta, no un diálogo: va sin grab, para que se pueda
@@ -1699,7 +1699,7 @@ def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
         nueva = False
     else:
         ventana = _t.Toplevel(padre)
-        # Se arma oculta y se muestra recién con la geometría final: si no, el
+        # Se arma oculta y se muestra ya con la geometría final: si no, el
         # gestor de ventanas la enseña un instante en su posición por defecto
         # (arriba a la izquierda) y después salta al lugar y tamaño definitivos.
         ventana.withdraw()
@@ -2012,7 +2012,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
         """Atiende el resultado de la consulta a la base (que corre en un hilo).
 
         El hilo no puede tocar Tk, así que deposita el resultado (o la
-        excepción) en una cola y acá, en el hilo principal, se presenta.
+        excepción) en una cola y aquí, en el hilo principal, se presenta.
         """
         if not ventana.winfo_exists():
             return
@@ -2065,7 +2065,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
             estado_control.config(
                 text="Ya hay una consulta a la base en curso…")
             return
-        # El umbral se lee acá, en el hilo principal: la casilla puede cambiar
+        # El umbral se lee aquí, en el hilo principal: la casilla puede cambiar
         # mientras la consulta corre, y el hilo no la mira.
         umbral = umbral_cercano
         estado_control.config(text="Consultando la base…")
@@ -2074,7 +2074,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
         _consulta["activa"] = True
 
         def _en_hilo():
-            # Nada de Tk acá: solo datos puros.
+            # Nada de Tk aquí: solo datos puros.
             try:
                 filas = al_ampliar(radio, umbral)
             except Exception as exc:
@@ -2411,7 +2411,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
         # reventar con un AttributeError.
         return False
 
-    # El import va acá y no arriba del todo a propósito: las funciones de
+    # El import va aquí y no arriba del todo a propósito: las funciones de
     # lógica son puras y se prueban sin pantalla, y esto evita que importar el
     # módulo para probarlas exija tener tkinter y un display.
     try:
@@ -2585,7 +2585,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             elegido_orden = elegido_orden[:MAX_FILAS]
             etiqueta_estado.config(
                 text="Se muestran los primeros %d de %d eventos que cumplen"
-                     " el filtro. Aflojá el filtro para ver el resto."
+                     " el filtro. Afloja el filtro para ver el resto."
                      % (MAX_FILAS, total))
         else:
             etiqueta_estado.config(text="%d de %d eventos"
@@ -2645,7 +2645,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
 
         Recibe el evento en vez de leerlo de la selección para que el Análisis
         rápido pueda abrir el detalle de un evento aunque no esté seleccionado
-        en la lista. Las llegadas y las estaciones sin arribos se leen acá: se
+        en la lista. Las llegadas y las estaciones sin arribos se leen aquí: se
         leen solo del evento que se va a mostrar, no de todos.
         """
         if evento is None:
@@ -2690,7 +2690,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             Presenta la ampliación contra la base en una ventana aparte.
 
             Corre en el hilo principal (lo llama _drenar_consulta de la ventana
-            de estaciones): acá sí se puede tocar Tk. Pide confirmación si el
+            de estaciones): aquí sí se puede tocar Tk. Pide confirmación si el
             resultado es enorme y abre la ventana aparte, descargable. Devuelve
             cuántas estaciones quedaron (o None si el usuario cancela por el
             aviso de cordura), para que el encabezado lo muestre.
@@ -2739,7 +2739,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     ventana_detalle = {"ventana": None}
     ventana_analisis = {"ventana": None}
     # _ventana_detalle llama a update_idletasks, que puede procesar un
-    # <<TreeviewSelect>> que haya quedado encolado y reentrar acá antes de que
+    # <<TreeviewSelect>> que haya quedado encolado y reentrar aquí antes de que
     # se guarde la ventana; sin esta guarda se abrirían dos ventanas iguales.
     seleccionando = {"activo": False}
 
@@ -2823,7 +2823,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     arbol_ev.bind("<Double-1>", _al_seleccionar)
     arbol_ev.bind("<Return>", _al_seleccionar)
 
-    # El botón se crea acá, con _al_filtrar ya definido. No es adorno: un camino
+    # El botón se crea aquí, con _al_filtrar ya definido. No es adorno: un camino
     # que dependa solo de un binding de teclado es fácil que se pierda, y el
     # filtrado es la función principal de esta pantalla.
     ttk.Button(barra, text="Aplicar", bootstyle="secondary",
@@ -2983,7 +2983,7 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
         """
         Filas que pasan el filtro, ordenadas.
 
-        No hay tope acá, pero el export usa esta misma función para no tener dos
+        No hay tope aquí, pero el export usa esta misma función para no tener dos
         caminos distintos que puedan discrepar sobre qué se está mostrando.
         """
         mag_min = caja_mag.get().strip()
@@ -3548,7 +3548,7 @@ def _directorio_datos():
       * los ARCHIVOS DEL PROYECTO (requirements.txt, los módulos) quedan junto
         a los scripts, y no se mueven con el directorio de ejecución.
 
-    Por eso acá va os.getcwd() y no la carpeta del script: si se usara esta
+    Por eso aquí va os.getcwd() y no la carpeta del script: si se usara esta
     última, al ejecutar desde la carpeta de trabajo buscaría los datos en la del
     proyecto, que es justo donde no están.
     """
@@ -3711,7 +3711,7 @@ def _pares_disponibles(raiz):
     """
     Los pares de CSV de SeisComp de ./datos, del más reciente al más viejo.
 
-    Esta búsqueda vive acá y no en el verificador de entorno a propósito: saber
+    Esta búsqueda vive aquí y no en el verificador de entorno a propósito: saber
     cómo se llaman los archivos de esta funcionalidad es parte de la
     funcionalidad, no del entorno. Así el verificador no conoce a SeisComp y
     esta interfaz no depende de nada de nivel proyecto.

@@ -185,7 +185,7 @@ def main():
         args = args[1:]
     tiene_cwd = os.path.isdir(os.path.join(DIR_CASOS, ns.caso, "cwd"))
     if not args and not tiene_cwd:
-        raise SystemExit("Faltan las fixtures de entrada: usá '-- a.csv b.csv' "
+        raise SystemExit("Faltan las fixtures de entrada: usa '-- a.csv b.csv' "
                          "o una carpeta cwd/ en el caso.")
 
     script = _ruta_script(ns.script)

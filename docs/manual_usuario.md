@@ -577,7 +577,7 @@ El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla
 
 ## 12. Nombres de las columnas
 
-Varias tablas usan abreviaturas o nombres que no se explican solos. Acá está qué
+Varias tablas usan abreviaturas o nombres que no se explican solos. Aquí está qué
 significa cada uno, por vista. Lo que no figura en esta sección es de lectura
 directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
 

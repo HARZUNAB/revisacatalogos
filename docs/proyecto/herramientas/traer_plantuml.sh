@@ -4,7 +4,7 @@
 # Baja el plantuml.jar (no versionado, pesado) y renderiza los .puml de
 # docs/proyecto/plantuml/ a PNG en docs/proyecto/img/.
 #
-# El .jar NO va al repositorio: se baja acá. El render necesita Java (y, para
+# El .jar NO va al repositorio: se baja aquí. El render necesita Java (y, para
 # algunos diagramas, Graphviz; este proyecto no lo usa: los diagramas se
 # eligieron para que rendericen con el motor propio de PlantUML).
 #

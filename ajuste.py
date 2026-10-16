@@ -8,7 +8,7 @@ Por qué hace falta
 -----------------
 Tk ya sabe cuánto mide cada contenido: ``winfo_reqwidth()`` y
 ``winfo_reqheight()`` devuelven lo que la ventana tendría que medir para que
-nada quede recortado. Acá se usa eso en vez de un tamaño fijo, porque el de
+nada quede recortado. Aquí se usa eso en vez de un tamaño fijo, porque el de
 la ventana principal no daba abasto para el panel de análisis: esa vista pide
 1182x953 y con la ventana en 980x820 el gráfico y parte de la tabla quedaban
 fuera de pantalla sin avisar.

@@ -417,7 +417,7 @@ class App:
 
         Siempre en estilo neutro: antes de descargar que falten los catálogos
         es el estado esperado, no un error, y en rojo se leía como que algo
-        estaba mal. El error de verdad aparece recién al pulsar «Ya los tengo»,
+        estaba mal. El error de verdad aparece solo al pulsar «Ya los tengo»,
         en el aviso de arriba.
         """
         if self.trabajando:
@@ -690,7 +690,7 @@ class App:
         self._log("$ " + " ".join(args))
         env = dict(os.environ)
         # Los scripts que hablan el protocolo de prog.py emiten marcadores
-        # @@PROGRESO@@ <fracción> por stdout; acá se traducen a la etapa en
+        # @@PROGRESO@@ <fracción> por stdout; aquí se traducen a la etapa en
         # curso y no se muestran en el registro.
         env["RV_PROG"] = "1"
         try:

@@ -4,7 +4,7 @@ traer_catalogos.py
 ==================
 Capa de red (SSH/SCP) para obtener los catálogos de Seisan y eventquery desde
 el servidor remoto. No tiene interfaz gráfica: la ventana de solicitud la
-armá solicita_catalogos.py, y acá vive solo lo que habla con el servidor.
+arma solicita_catalogos.py, y aquí vive solo lo que habla con el servidor.
 
 El catálogo de eventquery se baja con el binario remoto **eventquery2**, la
 versión nueva. La vieja (`eventquery`) traía soluciones duplicadas para un mismo
@@ -14,7 +14,7 @@ Por qué está separado
 ---------------------
 La conexión se prueba y se depura sin levantar la ventana, y la lógica de red
 queda en un solo archivo. Si algún día cambia el servidor o el usuario, se toca
-solo acá.
+solo aquí.
 
 Cómo se entrega la contraseña
 -----------------------------
@@ -259,7 +259,7 @@ def traer_seisan(inicio14, fin14, conexion, cwd=".", log=None, progreso=None,
         # copia que quedó en tmp/. No es caché de nada — con forzar=True (que es
         # lo que usa «Re-exportar») se regenera siempre desde
         # plantillas/select.inp, y sin forzar el catálogo ya está en disco y no
-        # se llega acá. Se borra en el finally para que tampoco quede si la
+        # se llega aquí. Se borra en el finally para que tampoco quede si la
         # corrida remota falla.
         try:
             os.remove(select_inp_local)

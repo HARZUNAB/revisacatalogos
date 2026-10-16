@@ -404,7 +404,7 @@ if raiz is not None:
     # La app oculta la tira de pestañas del cuaderno PRINCIPAL con un estilo
     # propio ("Principal.TNotebook") para no afectar a otros cuadernos. Si se
     # anulara "TNotebook.Tab", la ventana de Estaciones se quedaría sin
-    # pestañas. Se simula acá y se comprueba que "TNotebook.Tab" sobrevive.
+    # pestañas. Se simula aquí y se comprueba que "TNotebook.Tab" sobrevive.
     estilo_raiz = tb.Style.get_instance()
     estilo_raiz.layout("Principal.TNotebook.Tab", [])
     check("ocultar pestañas del cuaderno principal no afecta al resto",

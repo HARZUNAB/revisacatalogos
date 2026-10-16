@@ -2,8 +2,8 @@
 """
 _plantilla.py — molde para un test de la suite en ampliación
 ============================================================
-NO se colecta (no empieza con ``test_`` ni termina en ``_test``). Copialo a la
-subcarpeta que corresponda y renombralo ``test_<modulo>_<tema>.py``.
+NO se colecta (no empieza con ``test_`` ni termina en ``_test``). Cópialo a la
+subcarpeta que corresponda y renómbralo ``test_<modulo>_<tema>.py``.
 
 Recordatorios
 -------------
@@ -12,12 +12,12 @@ Recordatorios
 * Nombres y docstrings en español, como el resto del proyecto.
 * Basename único en toda la suite (pytest sin ``__init__.py`` lo exige): por eso
   los archivos de ampliación llevan sufijo de tema.
-* Elegí la subcarpeta y descomentá el/los marcadores que correspondan.
+* Elige la subcarpeta y descomenta el/los marcadores que correspondan.
 """
 
 import pytest
 
-# Descomentá según la carpeta:
+# Descomenta según la carpeta:
 #   gui/     -> pytestmark = pytest.mark.gui
 #   db/      -> pytestmark = pytest.mark.db
 #   red/     -> pytestmark = pytest.mark.red
@@ -32,7 +32,7 @@ def test_descripcion_del_caso():
     """Una frase que diga qué se prueba y por qué."""
     # Arrange / Act / Assert
     # assert funcion_a_probar(...) == ...
-    raise NotImplementedError("reemplazá este test")
+    raise NotImplementedError("reemplaza este test")
 
 
 # Fixtures disponibles (definidas en tests/conftest.py):

@@ -17,7 +17,7 @@ que cambiarlas a mano, con el riesgo de que un día dijeran cosas distintas.
 
 Comparar por texto, como se hacía antes, marcaba como distinto el mismo valor
 escrito con distinta cantidad de decimales (-31.64 contra -31.639999...), que
-es justo el falso positivo que este módulo evita: acá se comparan los números
+es justo el falso positivo que este módulo evita: aquí se comparan los números
 redondeados a la precisión de cada campo.
 """
 
@@ -222,7 +222,7 @@ def no_actualizados(filas):
             mejores[clave] = fila
     resultado = list(mejores.values())
     # dist_km la escribe compara.py; con un atribucion de una corrida vieja se
-    # calcula acá para no dejarla vacía.
+    # calcula aquí para no dejarla vacía.
     for fila in resultado:
         if not str(fila.get("dist_km", "")).strip():
             distancia = distancia_km(

@@ -160,7 +160,7 @@ def escribir_filas(ruta, encabezados, filas, formato="csv"):
     filas es una lista de listas ya formateadas a texto: entra exactamente lo
     que se ve en pantalla, con el guion de "sin dato" y los números ya
     redondeados. Lo de formatear es del caller, que es quien sabe de qué tipo
-    es cada campo; acá solo se elige el separador.
+    es cada campo; aquí solo se elige el separador.
 
     Para CSV usa csv.writer porque entrecomilla los campos que bringan coma o
     salto, que en coordenadas y comentarios pasa siempre. Para TXT se hace a
@@ -208,13 +208,13 @@ def exportar_lineas(lineas, etiqueta, cwd=None):
 
     A diferencia de exportar_tabla no formatea nada: lo que se descarga es el
     informe completo, no lo que entra en pantalla. Los listados se muestran
-    recortados para que la ventana siga siendo usable; acá va todo, porque un
+    recortados para que la ventana siga siendo usable; aquí va todo, porque un
     informe que se corta a la primera fila no sirve para nada.
 
     Siempre .txt y siempre sin BOM. Estos informes vienen separados por espacios
     con las columnas alineadas a lo ancho (ver repetidos.py), no son tablas: no
     hay un CSV que corresponda sin inventar columnas que no están. Por eso
-    preguntar el formato acá no tenía sentido.
+    preguntar el formato aquí no tenía sentido.
     """
     if not lineas:
         return None

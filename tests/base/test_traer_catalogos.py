@@ -4,7 +4,7 @@ Tests de traer_catalogos.py
 ===========================
 Cubre las dos funciones puras de la capa de red: la conversión de marca de
 tiempo y la generación del ``select.inp`` a partir de la plantilla. La parte que
-habla con el servidor (SSH/SCP) no se testea acá.
+habla con el servidor (SSH/SCP) no se testea aquí.
 """
 
 import pytest

@@ -51,7 +51,7 @@ class TextoDescartado:
     Un archivo que acepta escrituras y no guarda nada.
 
     Para los entregables opcionales: el script escribe siempre y, cuando no se
-    pidieron, las llamadas caen acá. Evita llenar el código de if alrededor de
+    pidieron, las llamadas caen aquí. Evita llenar el código de if alrededor de
     cada escritura y deja el flujo del script sin cortarse a mitad.
     """
 

@@ -6,7 +6,7 @@ interfaz con dobles, sin Tk real) y `traequery.py` (refactorizado a
 `main()` + guard). Son tests sin pantalla, sin base y sin red, así que corren
 siempre y entran al CI.
 
-Van acá y no en `bordes/` porque `bordes/` es para casos borde de módulos **ya
+Van aquí y no en `bordes/` porque `bordes/` es para casos borde de módulos **ya
 cubiertos** por la base; esto es cubrir lógica que todavía no tenía ningún
 test.
 

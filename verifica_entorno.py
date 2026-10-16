@@ -224,7 +224,7 @@ def informe():
     Solo se revisa el ENTORNO: el entorno virtual, los módulos, tkinter y la
     conexión a la base. Saber qué archivos hay exportados no es una condición
     del entorno sino un dato de la funcionalidad de SeisComp, y esa búsqueda
-    vive con esa funcionalidad, no acá.
+    vive con esa funcionalidad, no aquí.
     """
     revisiones = [
         ("venv", verificar_venv()),

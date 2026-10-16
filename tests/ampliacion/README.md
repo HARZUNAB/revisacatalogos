@@ -1,13 +1,13 @@
 # tests/ampliacion/ — suite en ampliación
 
-Acá va **todo lo que se agrega después de la base**. La base
+Aquí va **todo lo que se agrega después de la base**. La base
 (`../base/`) queda congelada; lo nuevo se desarrolla en esta carpeta, bajo
 supervisión, a medida que se cubren módulos que hoy no tienen tests o se
 profundiza en los que sí.
 
 ## Subcarpetas
 
-| Carpeta | Qué va acá | Marcador | Corre en CI |
+| Carpeta | Qué va aquí | Marcador | Corre en CI |
 |---|---|---|---|
 | `modulos/` | Cobertura nueva de módulos puros que no estaban en `base/` (`generajson.py`, `prog.py`, `descargas.py`) | — | Sí |
 | `bordes/` | Casos borde y escenarios complejos de módulos puros ya cubiertos en `base/` | — | Sí |
@@ -20,14 +20,14 @@ Cada subcarpeta tiene su propio `README.md` con más detalle.
 
 ## Cómo agregar un test
 
-1. Elegí la subcarpeta según la tabla.
-2. Copiá `_plantilla.py` (al lado de este README) y renombralo.
-3. Nombrá el archivo **`test_<modulo>_<tema>.py`**, p. ej.
+1. Elige la subcarpeta según la tabla.
+2. Copia `_plantilla.py` (al lado de este README) y renómbralo.
+3. Nombra el archivo **`test_<modulo>_<tema>.py`**, p. ej.
    `bordes/test_comparacion_bordes.py`, `gui/test_revisa_seiscomp_ventana.py`.
 
 > **Ojo con los nombres de archivo.** pytest, sin `__init__.py`, exige que el
 > basename sea único en toda la suite. Por eso en `ampliacion/` los archivos
-> llevan sufijo de tema: un `test_comparacion.py` acá chocaría con el de
+> llevan sufijo de tema: un `test_comparacion.py` aquí chocaría con el de
 > `base/` y pytest falla con «import file mismatch».
 
 ## Marcadores

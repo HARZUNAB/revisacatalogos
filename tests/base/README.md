@@ -5,7 +5,7 @@ cobertura que ya existe, con un test por módulo puro del proyecto.
 
 **Base congelada: no se edita.** Es la referencia conocida y verde (232 tests).
 Si aparece algo nuevo por cubrir —un módulo sin tests, casos borde, GUI, base,
-red— va a `../ampliacion/`, no acá. Así se distingue de un vistazo lo que ya
+red— va a `../ampliacion/`, no aquí. Así se distingue de un vistazo lo que ya
 estaba de lo que se fue agregando.
 
 | Archivo | Módulo |

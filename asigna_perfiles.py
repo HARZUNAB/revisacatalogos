@@ -36,7 +36,7 @@ umbral de asociación como los criterios de sismicidad se romperían sin que
 nada fallara visiblemente: el módulo seguiría devolviendo números, solo que
 todos sospechosos. Por eso asignar_eventos() cuenta las profundidades
 negativas y avisa por el log. Si aparece ese aviso, el problema está en el
-origen de los datos, no acá, y conviene no mirar los conteos hasta
+origen de los datos, no aquí, y conviene no mirar los conteos hasta
 corregirlo.
 
 El evento se asigna al perfil de menor dist_asoc si dist_asoc <= UMBRAL.
@@ -548,7 +548,7 @@ def asignar_eventos(eventos, umbral=UMBRAL_DIST_KM, k_peso=K_PESO_PROFUNDIDAD,
     # Cuenta profundidades negativas para avisar al final. Ver la nota de
     # PRECONDICIÓN en el docstring: con profundidad negativa el residuo se
     # convierte en suma y todos los eventos terminan pareciendo sospechosos,
-    # sin que nada falle. Acumular acá y avisar una vez evita inundar el log
+    # sin que nada falle. Acumular aquí y avisar una vez evita inundar el log
     # cuando el problema es de origen y afecta a todo el lote.
     prof_negativos = 0
     primero_negativo = None
