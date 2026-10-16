@@ -1,14 +1,14 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.10 — 16 de octubre de 2026.
+Versión 1.11 — 16 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.9, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.10, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -21,7 +21,7 @@ parámetros, base de datos) está en el **`manual_tecnico.md`**.
 4. [Ventana principal](#4-ventana-principal)
 5. [Recorridos: procesar y consultar](#5-recorridos-procesar-y-consultar)
 6. [El panel de análisis](#6-el-panel-de-análisis)
-7. [El catálogo de SeisComp](#7-el-catálogo-de-seiscomp)
+7. [Las pestañas de catálogo](#7-las-pestañas-de-catálogo)
 8. [Parámetros y Estaciones del evento](#8-parámetros-y-estaciones-del-evento)
 9. [Análisis rápido de sin arribos](#9-análisis-rápido-de-sin-arribos)
 10. [Descargas](#10-descargas)
@@ -219,6 +219,8 @@ de la fuente, con filtro por texto y descargas:
 
 ![Ventana de no publicados](img/10_no_publicados.png)
 
+- **«Filtrar»** + **«Aplicar»** (o Enter): filtra el listado por texto libre
+  (busca en todas las columnas). No se aplica al escribir.
 - **«Descargar»** baja lo que se ve (con el filtro puesto); **«Descargar
   todo»** baja el listado entero.
 - **Doble clic** en una fila (la ventana lo recuerda: «Doble clic plotea»)
@@ -233,7 +235,8 @@ de la fuente, con filtro por texto y descargas:
 Listado de eventos **sí publicados** pero cuyos parámetros difieren de los
 procesados. Muestra, por parámetro, el valor de la fuente y el publicado, los
 deltas, la **distancia (km)** entre ambas ubicaciones y una columna final con
-**qué parámetros discreparon**:
+**qué parámetros discreparon**. Tiene un filtro por texto que se aplica con
+**«Aplicar»** (o Enter), no al escribir:
 
 ![Ventana de no actualizados](img/09_no_actualizados.png)
 
@@ -398,10 +401,26 @@ un arrastre hace zoom o mueve la vista; **Esc** sale del modo. El botón
 
 ---
 
-## 7. El catálogo de SeisComp
+## 7. Las pestañas de catálogo
 
-La pestaña **SeisComp** de la ventana **«Catálogos»** (barra lateral) muestra
-el listado de eventos de la exportación de SeisComp:
+La ventana **«Catálogos»** (barra lateral) tiene una pestaña por fuente:
+**SeisComp**, **Seisan** y **eventquery**. En las tres, la lista comparte la
+ventana con una **miniatura del perfil** del evento seleccionado: al elegir una
+fila —con el mouse o con las flechas del teclado— la miniatura se redibuja con el
+perfil de ese evento. La miniatura usa el mismo perfil del panel de análisis, con
+los ejes comparables, y para un evento sin perfil asignado (fuera de cobertura o
+sin coordenadas o profundidad) muestra un aviso en lugar del dibujo.
+
+La casilla **«Sismicidad histórica»** de la barra superior agrega o quita el
+fondo de sismicidad histórica en la miniatura. Afecta **solo** a la miniatura
+(las ventanas de detalle siempre traen el fondo) y es independiente en cada
+pestaña.
+
+Los filtros de texto, magnitud y coordenadas **no se aplican al escribir**: se
+escriben y se aplican con el botón **«Aplicar»** (o Enter en cualquier casilla).
+Así, con catálogos grandes, no se reconstruye la tabla en cada tecla.
+
+### Pestaña de SeisComp
 
 ![Catálogo de SeisComp](img/03_catalogo_seiscomp.png)
 
@@ -410,7 +429,8 @@ Controles de la barra superior:
 - **«Mostrando»**: filtro de texto libre (busca en todo lo visible).
 - **«magnitud mínima»**: filtra por magnitud.
 - **«Lat»** / **«Lon»**: filtran por latitud/longitud.
-- **«Aplicar»**: aplica los filtros.
+- **«Aplicar»** (o Enter): aplica los filtros anteriores.
+- **«Sismicidad histórica»**: agrega o quita ese fondo en la miniatura.
 - **«Análisis rápido»**: abre la revisión acotada de *sin arribos* (ver
   [sección 9](#9-análisis-rápido-de-sin-arribos)). Solo aparece si la
   exportación trae el archivo de estaciones sin arribos.
@@ -419,11 +439,24 @@ Controles de la barra superior:
 Se puede **ordenar por cualquier columna** haciendo clic en su encabezado (un
 clic ordena ascendente, otro descendente).
 
+### Pestañas de Seisan y eventquery
+
+![Catálogo de Seisan](img/03b_catalogo_seisan.png)
+
+Son listados simples (sin detalle de llegadas), con su propio filtro por texto,
+magnitud mínima y coordenadas (también con **«Aplicar»** o Enter), y la misma
+casilla **«Sismicidad histórica»** para la miniatura.
+
 ### Abrir un evento
 
-Al hacer **doble clic** en una fila (o Enter con la fila elegida) se abren los
-**Parámetros del evento** en una ventana aparte, que se reutiliza al cambiar de
-evento y **no bloquea** la lista.
+El detalle del evento abre aparte, y difiere según la fuente:
+
+- En **SeisComp**, al hacer **doble clic** en una fila (o Enter con la fila
+  elegida) se abren los **Parámetros del evento** en una ventana aparte, que se
+  reutiliza al cambiar de evento y **no bloquea** la lista. Desde ahí, el botón
+  **«Planta y perfil»** plotea la vista en planta y el perfil del evento.
+- En **Seisan** y **eventquery**, que no tienen esa ventana de parámetros, el
+  **doble clic** (o Enter) plotea directamente planta + perfil del evento.
 
 ---
 
@@ -435,7 +468,8 @@ evento y **no bloquea** la lista.
 
 Muestra los datos del evento agrupados en **Identificación**, **Ubicación**,
 **Solución** y **Control** (donde está el **operador/analista**). El botón
-**«Estaciones»** abre la ventana de estaciones.
+**«Estaciones»** abre la ventana de estaciones, y **«Planta y perfil»** plotea la
+vista en planta y el perfil del evento en una ventana nueva.
 
 ### Estaciones del evento
 

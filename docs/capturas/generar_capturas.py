@@ -206,6 +206,23 @@ def _preparar_demo():
                     "Longitud": "-71.410", "Prof.": "35.0", "Mag.": "2.9",
                     "Tipo_mag.": "Mlv", "Analista": "eatl"}], cab_np)
 
+    # Catálogo de Seisan (para la pestaña de catálogo de Seisan/eventquery).
+    _escribir_csv(
+        os.path.join(DEMO, "datos", "salida_collect.csv"),
+        [{"Fecha_Hora": "2026-09-06 00:42:45", "Latitud": "-33.420",
+          "Longitud": "-70.592", "Prof.": "92.0", "Mag.": "2.2",
+          "Tipo_mag.": "Mlv", "Analista": "tark"},
+         {"Fecha_Hora": "2026-09-10 15:06:00", "Latitud": "-32.980",
+          "Longitud": "-71.540", "Prof.": "38.0", "Mag.": "3.1",
+          "Tipo_mag.": "Mlv", "Analista": "eatl"},
+         {"Fecha_Hora": "2026-09-17 07:13:21", "Latitud": "-34.110",
+          "Longitud": "-70.310", "Prof.": "52.5", "Mag.": "1.0",
+          "Tipo_mag.": "M", "Analista": "tark"},
+         {"Fecha_Hora": "2026-09-24 08:18:30", "Latitud": "-33.640",
+          "Longitud": "-72.010", "Prof.": "21.0", "Mag.": "3.7",
+          "Tipo_mag.": "Mlv", "Analista": "cris"}],
+        cab_np)
+
     # Informes de repetidos (para «Ver repetidos»).
     rep = ("# Publicados repetidos (estricto)\n"
            "2026-09-06 00:42:31  -33.410 -70.580  2.3  csn_sc62026rlgry\n"
@@ -258,6 +275,28 @@ def _raiz(titulo="Revisión de eventos sísmicos"):
     raiz = tb.Window(themename="flatly")
     raiz.title(titulo)
     return raiz
+
+
+def _primer_arbol(widget):
+    from tkinter import ttk
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, ttk.Treeview):
+            return hijo
+        encontrado = _primer_arbol(hijo)
+        if encontrado is not None:
+            return encontrado
+    return None
+
+
+def _seleccionar_primera(widget):
+    """Selecciona la primera fila del primer árbol, para la miniatura."""
+    arbol = _primer_arbol(widget)
+    if arbol is None:
+        return
+    hijos = arbol.get_children()
+    if hijos:
+        arbol.selection_set(hijos[0])
+        arbol.event_generate("<<TreeviewSelect>>")
 
 
 def _leer(path):
@@ -316,8 +355,26 @@ def shot_catalogo():
     rs.abrir_panel(marco, base, base[:-4] + "_fases.csv",
                    base[:-4] + "_no_picadas.csv", etiqueta_fuente="seiscomp",
                    cwd=DEMO)
-    raiz.geometry("1280x640+40+40")
+    raiz.geometry("1480x640+40+40")
+    raiz.update()
+    # Con una fila elegida se ve la miniatura del perfil.
+    _seleccionar_primera(marco)
     _capturar(raiz, "03_catalogo_seiscomp")
+    raiz.destroy()
+
+
+def shot_catalogo_seisan():
+    import ttkbootstrap as tb
+    import revisa_seiscomp as rs
+    raiz = _raiz("Catálogo de Seisan")
+    marco = tb.Frame(raiz, padding=6)
+    marco.pack(fill="both", expand=True)
+    ruta = os.path.join(DEMO, "datos", "salida_collect.csv")
+    rs.abrir_catalogo(marco, ruta, "seisan", cwd=DEMO)
+    raiz.geometry("1240x560+40+40")
+    raiz.update()
+    _seleccionar_primera(marco)
+    _capturar(raiz, "03b_catalogo_seisan")
     raiz.destroy()
 
 
@@ -331,7 +388,8 @@ def shot_parametros():
     raiz.update()
     ventana = rs._ventana_detalle(contenedor, eventos[0], fases,
                                   etiqueta_fuente="seiscomp",
-                                  al_estaciones=lambda: None)
+                                  al_estaciones=lambda: None,
+                                  al_planta_perfil=lambda: None)
     _capturar(ventana, "04_parametros_evento")
     ventana.destroy()
     raiz.destroy()
@@ -494,6 +552,7 @@ SHOTS = [
     ("solicitud", shot_solicitud),
     ("principal", shot_principal),
     ("catalogo", shot_catalogo),
+    ("catalogo_seisan", shot_catalogo_seisan),
     ("parametros", shot_parametros),
     ("estaciones", shot_estaciones),
     ("analisis", shot_analisis),

@@ -197,6 +197,11 @@ rehace lo que cambió.
   solución.
 - RF4.4 Ejecutar el «Análisis rápido» de estaciones sin arribos cercanas.
 - RF4.5 Ampliar el radio de un evento consultando la base.
+- RF4.6 Mostrar, en cada pestaña de catálogo (SeisComp, Seisan y eventquery), una
+  **miniatura del perfil** del evento seleccionado, con una casilla de
+  **sismicidad histórica** que la afecta; el detalle abre planta + perfil en
+  ventana nueva (en Seisan y eventquery de forma directa; en SeisComp desde el
+  botón «Planta y perfil» de la ventana de parámetros).
 
 **Módulo 5 — Comparación con agencias.**
 
@@ -286,7 +291,8 @@ principales y sus relaciones de `include`/`extend` se muestran a continuación.
 | Ver repetidos | Supervisor | Lista duplicados por fuente. |
 | Ver No publicados | Supervisor | Eventos del público ausentes de la fuente. |
 | Ver No actualizados | Supervisor | Parámetros publicados que difieren de la fuente. |
-| Revisar catálogo de SeisComp | Supervisor | Parámetros, fases y estaciones. |
+| Revisar catálogo de SeisComp | Supervisor | Parámetros, fases y estaciones; miniatura del perfil y «Planta y perfil». |
+| Revisar catálogos de Seisan y eventquery | Supervisor | Listados con miniatura del perfil; doble clic plotea planta y perfil. |
 | Ver estaciones del evento | Supervisor | `extend` de la revisión de SeisComp. |
 | Análisis rápido | Supervisor | `extend`; estaciones sin arribos cercanas. |
 | Comparar con agencias | Supervisor | Cruce con EMSC/USGS/GFZ. |

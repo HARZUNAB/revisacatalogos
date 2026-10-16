@@ -76,6 +76,24 @@ def test_detalle_sin_boton_estaciones(raiz_tk):
                    lambda w: w.cget("text") == "Estaciones") is None
 
 
+def test_detalle_boton_planta_perfil(raiz_tk):
+    # Con callback se arma «Planta y perfil» junto a «Estaciones».
+    win = rs._ventana_detalle(_padre(raiz_tk), EVENTO, FASES,
+                              al_estaciones=lambda: None,
+                              al_planta_perfil=lambda: None)
+    assert _buscar(win, ttk.Button,
+                   lambda w: w.cget("text") == "Estaciones") is not None
+    assert _buscar(win, ttk.Button,
+                   lambda w: w.cget("text") == "Planta y perfil") is not None
+
+
+def test_detalle_sin_boton_planta_perfil(raiz_tk):
+    # Sin callback no se arma el botón.
+    win = rs._ventana_detalle(_padre(raiz_tk), EVENTO, FASES)
+    assert _buscar(win, ttk.Button,
+                   lambda w: w.cget("text") == "Planta y perfil") is None
+
+
 def test_detalle_sin_fases(raiz_tk):
     win = rs._ventana_detalle(_padre(raiz_tk), EVENTO, [], sin_fases=True)
     assert _label(win, "no trae detalle de llegadas") is not None

@@ -90,6 +90,45 @@ def test_abrir_catalogo_solo_encabezado(raiz_tk, cwd_tmp):
     assert rs.abrir_catalogo(contenedor, "datos/vacio.csv", "seisan") is False
 
 
+def test_abrir_catalogo_tiene_miniatura(raiz_tk, cwd_tmp):
+    _escribir(cwd_tmp, "datos/salida_collect.csv", _CATALOGO)
+    contenedor = _contenedor(raiz_tk)
+
+    assert rs.abrir_catalogo(contenedor, "datos/salida_collect.csv",
+                             "seisan") is True
+    # La lista va junto a la miniatura en un divisor (lista | miniatura).
+    assert _buscar(contenedor, ttk.PanedWindow) is not None
+
+
+def test_catalogo_seleccionar_actualiza_miniatura(raiz_tk, cwd_tmp):
+    _escribir(cwd_tmp, "datos/salida_collect.csv", _CATALOGO)
+    contenedor = _contenedor(raiz_tk)
+    assert rs.abrir_catalogo(contenedor, "datos/salida_collect.csv",
+                             "seisan") is True
+    arbol = _buscar(contenedor, ttk.Treeview)
+    # Elegir una fila dispara la miniatura sin abrir ninguna ventana.
+    arbol.selection_set(arbol.get_children()[0])
+    arbol.event_generate("<<TreeviewSelect>>")
+    raiz_tk.update()
+
+
+def _casilla_hist(widget):
+    return _buscar(widget, ttk.Checkbutton,
+                   lambda w: w.cget("text") == "Sismicidad histórica")
+
+
+def test_abrir_catalogo_tiene_casilla_hist(raiz_tk, cwd_tmp):
+    _escribir(cwd_tmp, "datos/salida_collect.csv", _CATALOGO)
+    contenedor = _contenedor(raiz_tk)
+    assert rs.abrir_catalogo(contenedor, "datos/salida_collect.csv",
+                             "seisan") is True
+    chk = _casilla_hist(contenedor)
+    assert chk is not None
+    # Activar la casilla redibuja la miniatura sin error.
+    chk.invoke()
+    raiz_tk.update()
+
+
 # --------------------------------------------------------------------------
 # abrir_panel
 # --------------------------------------------------------------------------
@@ -107,6 +146,9 @@ def test_abrir_panel_real(raiz_tk, cwd_tmp):
 
     assert ok is True
     assert _buscar(contenedor, ttk.Treeview) is not None
+    # El panel de SeisComp también trae la miniatura al lado de la lista.
+    assert _buscar(contenedor, ttk.PanedWindow) is not None
+    assert _casilla_hist(contenedor) is not None
 
 
 def test_abrir_panel_sin_eventos(raiz_tk, cwd_tmp):

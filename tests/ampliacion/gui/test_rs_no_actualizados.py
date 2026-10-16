@@ -98,6 +98,18 @@ def test_abrir_no_actualizados_sin_csv(raiz_tk, cwd_tmp):
     assert rs.abrir_no_actualizados(contenedor, "seiscomp") is False
 
 
+def test_abrir_no_actualizados_tiene_aplicar(raiz_tk, cwd_tmp):
+    _escribir(cwd_tmp, "datos/atribucion_seiscomp.csv", _ATRIBUCION)
+    contenedor = _contenedor(raiz_tk)
+    assert rs.abrir_no_actualizados(contenedor, "seiscomp") is True
+    boton = _buscar(contenedor, ttk.Button,
+                    lambda w: w.cget("text") == "Aplicar")
+    assert boton is not None
+    # Aplicar re-filtra sin error.
+    boton.invoke()
+    raiz_tk.update()
+
+
 def test_abrir_no_actualizados_sin_discrepancias(raiz_tk, cwd_tmp):
     _escribir(cwd_tmp, "datos/atribucion_seiscomp.csv",
               _ATRIBUCION_SIN_DISCREPANCIA)

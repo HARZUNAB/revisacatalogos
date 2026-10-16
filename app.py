@@ -666,7 +666,7 @@ class App:
         self._tamanio = tuple(nuevo)
         self._log("Ventana ajustada a %dx%d px." % nuevo)
 
-    def _ajustar_catalogos(self, minimo=(900, 560)):
+    def _ajustar_catalogos(self, minimo=(1000, 600)):
         """Agranda la ventana de catálogos a su contenido, si está creada."""
         if self.marco_catalogos is None:
             return
@@ -2103,8 +2103,8 @@ class App:
         """
         if self.marco_catalogos is None:
             top = ttk.Toplevel(title="Catálogos", master=self.raiz)
-            top.geometry("1000x600")
-            top.minsize(700, 460)
+            top.geometry("1300x650")
+            top.minsize(900, 520)
             self.marco_catalogos = top
             cuaderno = ttk.Notebook(top)
             cuaderno.pack(fill=BOTH, expand=YES)
@@ -3457,6 +3457,10 @@ class App:
         ttk.Label(marco_controles, text="Filtrar:").pack(side=LEFT)
         caja_filtro = ttk.Entry(marco_controles, width=24)
         caja_filtro.pack(side=LEFT, padx=(4, 10))
+        # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada
+        # tecla: con listados grandes, re-filtrar al teclear era costoso.
+        ttk.Button(marco_controles, text="Aplicar", bootstyle="secondary",
+                   command=lambda: _llenar()).pack(side=LEFT, padx=(0, 10))
         etiqueta_estado = ttk.Label(marco_controles, text="",
                                     bootstyle="secondary")
         etiqueta_estado.pack(side=LEFT)
@@ -3592,7 +3596,8 @@ class App:
             boton_descargar.configure(
                 state="normal" if elegidas else "disabled")
 
-        caja_filtro.bind("<KeyRelease>", _llenar)
+        # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada tecla.
+        caja_filtro.bind("<Return>", _llenar)
         _llenar()
         self._log("No publicados de %s: %d eventos." % (fuente, len(filas)))
 

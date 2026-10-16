@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.10 — 16 de octubre de 2026.
+Versión 1.11 — 16 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -303,6 +303,27 @@ filas guardadas en el árbol (`arbol._filas_no_picadas`) para no perder scroll n
 selección; se dispara con retardo (300 ms) al editar el campo. El check
 **«Solo cercanas»** agrega el recorte por el umbral cerca.
 
+En las tres pestañas de **Catálogos** (`abrir_panel` para SeisComp y
+`abrir_catalogo` para Seisan/eventquery) la lista comparte la ventana con una
+**miniatura del perfil** del evento seleccionado. La miniatura la arma
+`_panel_miniatura(parent, ttk, fuente)`, que crea una `Figure` embebida con
+`FigureCanvasTkAgg` y devuelve `dibujar(evento, mostrar_hist=False)`; la lista y
+la miniatura van en un `ttk.PanedWindow` horizontal (lista con peso 3, miniatura
+con peso 1). El binding `<<TreeviewSelect>>` dispara `_actualizar_mini`, que
+arma el evento con el formato de `plotear` y llama `plotear.dibujar_mini_evento`.
+La casilla **«Sismicidad histórica»** (`var_hist`) se pasa como `mostrar_hist` y
+solo afecta a la miniatura; es independiente por pestaña. El detalle difiere
+según la fuente: en SeisComp, doble clic o Enter abre `_ventana_detalle` (con el
+nuevo botón «Planta y perfil», ver `al_planta_perfil`); en Seisan y eventquery,
+doble clic o Enter llama directo a `plotear.abrir_evento`.
+
+Los **filtros se aplican a demanda** —botón «Aplicar» o Enter en la casilla—,
+no en cada tecla. Las cuatro listas con filtro de texto
+(`abrir_panel`, `abrir_catalogo`, `abrir_no_actualizados` y
+`app._construir_tabla_no_publicados`) comparten el criterio: escribir no
+reconstruye la tabla (con catálogos grandes, re-filtrar al teclear era costoso);
+solo el botón o Enter llaman a `_filtrar_listado`/`_llenar_eventos`/`_llenar`.
+
 ### Ajuste de ventanas (`ajuste.py`) y arranque (`app.py`)
 
 | Constante | Archivo:línea | Valor | Efecto |
@@ -331,7 +352,12 @@ selección; se dispara con retardo (300 ms) al editar el campo. El check
 `plotear.abrir_eventos(eventos, fuente, perfiles=None)` dibuja **planta + perfil
 de uno o más eventos sueltos**; `abrir_evento(evento, …)` es el caso de uno
 (delega). Es lo que dispara el **doble clic** (o Enter) en los listados de No
-publicados (`app.py`) y No actualizados (`revisa_seiscomp.py`). Con un evento:
+publicados (`app.py`), No actualizados (`revisa_seiscomp.py`) y en las pestañas
+de Seisan y eventquery del catálogo. `dibujar_mini_evento(fig, evento, fuente,
+mostrar_hist=False)` es la variante embebida para la **miniatura** de las
+pestañas de catálogo: asigna perfil y sospechoso con `_preparar_un_evento` y
+dibuja con `_mini_perfil` (el mismo del panel de análisis, con
+`mostrar_hist`); sobre una `Figure` propia, no abre ventana. Con un evento:
 comportamiento de siempre. Con dos que traen `rol` `'local'` y `'publicado'`
 (comparación de un no actualizado): ubica **ambos** en el perfil del evento de
 la fuente (con `asigna_perfiles.distancia_al_perfil`/`profundidad_slab_en`), los

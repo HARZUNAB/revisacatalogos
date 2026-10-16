@@ -273,3 +273,16 @@ def test_no_publicados_sin_csv(app_factory, raiz_gui, cwd_tmp):
     arbol = _buscar(top, ttk.Treeview)
     assert len(arbol.get_children()) == 0
     assert _boton(top, "Descargar").instate(["disabled"])
+
+
+def test_no_publicados_tiene_aplicar(app_factory, raiz_gui, cwd_tmp):
+    _, inst = app_factory()
+    _escribir(cwd_tmp, "datos/no_pub_desde_2_5_seiscomp_estricto.csv",
+              _CSV_NO_PUB)
+    inst._ver_no_publicados()
+    top = _toplevel(raiz_gui, "No publicados")
+    boton = _boton(top, "Aplicar")
+    assert boton is not None
+    # Aplicar re-filtra sin error.
+    boton.invoke()
+    raiz_gui.update()

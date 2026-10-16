@@ -152,15 +152,28 @@ El CSV trae una fila por cruce y un mismo evento local puede tener más de un
 cruce, así que el listado agrupa por evento y muestra el mejor (menor Δt), que
 es lo mismo que hace el informe `informes/no_act_*_estricto.txt`.
 
-El panel de SeisComp es solo la lista de eventos, a todo el ancho. Al hacer
-**doble clic** en una fila (o Enter con la fila elegida) los parámetros del
-evento (y el botón «Estaciones») abren en una ventana aparte, que se reutiliza al
-cambiar de evento y **no bloquea** la lista: son ventanas de consulta, sin
-captura de entrada, así que se puede seguir navegando con ellas abiertas. Antes
-el detalle iba embebido al lado de la lista y abajo quedaba cortado, justo donde
-está ese botón; separarlo deja ver todo sin apretar ninguna mitad. Al abrir la
-pestaña, la ventana principal se agranda para que entren las columnas de la
-lista.
+En las tres pestañas de catálogo (SeisComp, Seisan y eventquery) la lista
+comparte la ventana con una **miniatura del perfil** del evento seleccionado,
+que se redibuja al mover la selección —con el mouse o con las flechas—. La
+miniatura usa el mismo perfil del panel de análisis, con los ejes comparables, y
+para un evento sin perfil asignado (fuera de cobertura o sin
+coordenadas/profundidad) muestra un aviso en lugar del dibujo. La casilla
+**«Sismicidad histórica»** de la barra superior agrega o quita el fondo de
+sismicidad histórica en la miniatura (solo en ella, igual que en el panel de
+análisis), y es independiente en cada pestaña.
+
+El detalle del evento abre aparte, pero difiere según la fuente. En **SeisComp**,
+al hacer **doble clic** en una fila (o Enter con la fila elegida) los parámetros
+del evento abren en una ventana aparte, con los botones «Estaciones» y **«Planta
+y perfil»**: este último plotea la vista en planta y el perfil del evento (una
+sola solución) en una ventana nueva. En **Seisan** y **eventquery**, que no
+tienen esa ventana de parámetros, el **doble clic** (o Enter) plotea directamente
+planta + perfil. La ventana de parámetros se reutiliza al cambiar de evento y
+**no bloquea** la lista: son ventanas de consulta, sin captura de entrada, así
+que se puede seguir navegando con ellas abiertas. Antes el detalle iba embebido
+al lado de la lista y abajo quedaba cortado, justo donde están esos botones;
+separarlo deja ver todo sin apretar ninguna mitad. Al abrir la pestaña, la
+ventana principal se agranda para que entren la lista y la miniatura.
 
 Las ventanas emergentes se abren ocultas y se muestran ya con su tamaño y
 posición finales (no se ve el salto desde la esquina), no pasan del tope de la

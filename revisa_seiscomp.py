@@ -1250,19 +1250,20 @@ def _exportar_listado(filas, valores, columnas, cwd, etiqueta,
 
 
 def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,
-                       sin_fases=False, al_estaciones=None):
+                       sin_fases=False, al_estaciones=None,
+                       al_planta_perfil=None):
     """
     Arma el panel de datos del evento y el resumen de sus llegadas.
 
     Esto se muestra en la ventana emergente que abre _ventana_detalle al hacer
     clic en una fila, no embebido en el panel: ahí compartía el ancho con la
-    lista de eventos y abajo se cortaba, justo donde va el botón «Estaciones».
-    El árbol de llegadas tampoco va aquí: vive en su propia ventana, a la que se
-    entra con ese botón.
+    lista de eventos y abajo se cortaba, justo donde van los botones
+    «Estaciones» y «Planta y perfil». El árbol de llegadas tampoco va aquí: vive
+    en su propia ventana, a la que se entra con ese botón.
 
-    'al_estaciones' es el callback del botón. Va como parámetro y no se arma
-    siempre porque el mismo panel se usa para fuentes sin llegadas, donde el
-    botón no tiene sentido.
+    'al_estaciones' y 'al_planta_perfil' son los callbacks de los botones. Van
+    como parámetros y no se arman siempre porque el mismo panel se usa para
+    fuentes sin llegadas, donde los botones no tienen sentido.
     """
     import ttkbootstrap as _t
     for hijo in marco.winfo_children():
@@ -1275,6 +1276,9 @@ def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,
     if al_estaciones is not None:
         _t.Button(titulo, text="Estaciones", bootstyle="primary-outline",
                   command=al_estaciones).pack(side="left", padx=(10, 0))
+    if al_planta_perfil is not None:
+        _t.Button(titulo, text="Planta y perfil", bootstyle="primary-outline",
+                  command=al_planta_perfil).pack(side="left", padx=(6, 0))
     if etiqueta_fuente:
         _t.Label(titulo, text=etiqueta_fuente, bootstyle="secondary"
                  ).pack(side="right")
@@ -1676,13 +1680,14 @@ def _acotar_al_techo(ventana, ancho, alto):
 
 
 def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
-                     sin_fases=False, al_estaciones=None, ventana_previa=None):
+                     sin_fases=False, al_estaciones=None, al_planta_perfil=None,
+                     ventana_previa=None):
     """
     Abre (o reusa) la ventana con los parámetros del evento.
 
     El detalle ya no vive embebido en el panel: compartía el ancho con la lista
-    y abajo se cortaba justo donde está el botón «Estaciones». Aquí entra
-    completo y el panel queda solo para la lista, a todo el ancho.
+    y abajo se cortaba justo donde van los botones «Estaciones» y «Planta y
+    perfil». Aquí entra completo y el panel queda con la lista y la miniatura.
 
     Es una ventana de consulta, no un diálogo: va sin grab, para que se pueda
     seguir navegando la lista de eventos con la ventana abierta.
@@ -1711,7 +1716,8 @@ def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
         hijo.destroy()
 
     _construir_detalle(_t, ventana, evento, filas_fases, etiqueta_fuente,
-                       sin_fases=sin_fases, al_estaciones=al_estaciones)
+                       sin_fases=sin_fases, al_estaciones=al_estaciones,
+                       al_planta_perfil=al_planta_perfil)
 
     # El tamaño lo pide el contenido, acotado al tope de la app para que en un
     # monitor chico (o en un escritorio con varios) no quede parte fuera.
@@ -2369,6 +2375,39 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
     return ventana
 
 
+def _panel_miniatura(parent, ttk, fuente):
+    """
+    Crea en 'parent' el lienzo de la miniatura del perfil y devuelve la
+    función que dibuja el evento seleccionado.
+
+    Se usa en las pestañas de catálogo (SeisComp, Seisan, eventquery). Al
+    cambiar la selección —con el mouse o con las flechas— el perfil del evento
+    se redibuja con el mismo _mini_perfil del panel de análisis, para que los
+    ejes sean comparables. Devuelve None si no hay backend de dibujo.
+    """
+    try:
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        import plotear
+    except Exception:
+        return None
+    fig = Figure(figsize=(4.2, 3.4), dpi=82)
+    try:
+        lienzo = FigureCanvasTkAgg(fig, master=parent)
+    except Exception:
+        return None
+    lienzo.get_tk_widget().pack(fill="both", expand=True, padx=(8, 0), pady=2)
+
+    def _dibujar(evento, mostrar_hist=False):
+        try:
+            plotear.dibujar_mini_evento(fig, evento, fuente,
+                                        mostrar_hist=mostrar_hist)
+        except Exception:
+            pass
+
+    return _dibujar
+
+
 def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
                 ruta_no_picadas=None, etiqueta_fuente=None,
                 permitir_sin_fases=False, log=None, cwd=None):
@@ -2502,14 +2541,19 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     etiqueta_estado = ttk.Label(barra, text="", bootstyle="secondary")
     etiqueta_estado.pack(side="right")
 
-    # --- Lista de eventos (a todo el ancho) ---
-    # El detalle del evento ya no va al lado: abre en su propia ventana al
-    # hacer clic en una fila (_ventana_detalle). Compartir el ancho lo dejaba
-    # cortado abajo, justo donde está el botón «Estaciones».
+    # --- Lista de eventos, con la miniatura del perfil al lado ---
+    # El detalle del evento no va aquí: abre en su propia ventana al hacer
+    # doble clic (o Enter) en una fila (_ventana_detalle). Al lado de la lista
+    # sí va la miniatura del perfil del evento seleccionado, que se actualiza
+    # al mover la selección con el mouse o con las flechas.
     cuerpo = ttk.Frame(contenedor)
     cuerpo.pack(fill="both", expand=True)
-    marco_lista = ttk.Frame(cuerpo)
-    marco_lista.pack(side="left", fill="both", expand=True)
+    paned = ttk.PanedWindow(cuerpo, orient="horizontal")
+    paned.pack(fill="both", expand=True)
+    marco_lista = ttk.Frame(paned)
+    paned.add(marco_lista, weight=3)
+    marco_mini = ttk.Frame(paned)
+    paned.add(marco_mini, weight=1)
 
     claves_ev = [c for c, _, _ in COLUMNAS_EVENTO]
     arbol_ev = ttk.Treeview(marco_lista, columns=claves_ev,
@@ -2531,6 +2575,56 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     arbol_ev.configure(xscrollcommand=barra_h.set)
     barra_h.pack(side="bottom", fill="x")
     arbol_ev.pack(side="left", fill="both", expand=True)
+
+    dibujar_mini = _panel_miniatura(marco_mini, ttk, "seiscomp")
+    var_hist = ttk.BooleanVar(value=False)
+
+    def _evento_para_plotear(fila):
+        """Dict del evento con las claves que espera plotear (una solución)."""
+        fecha, hora = _partir_fecha_hora(_campo_tiempo(fila))
+        return {
+            "id_evento": _texto(fila.get("id_evento")),
+            "fecha hora": ("%s %s" % (fecha, hora)).strip(),
+            "latitud": fila.get("latitud"),
+            "longitud": fila.get("longitud"),
+            "prof": fila.get("profundidad_km"),
+            "magnitud": fila.get("magnitud"),
+            "tipo": fila.get("tipo_magnitud"),
+            "analista": fila.get("operador"),
+        }
+
+    def _actualizar_mini(_evento=None):
+        """Redibuja la miniatura del perfil del evento seleccionado."""
+        if dibujar_mini is None:
+            return
+        seleccion = arbol_ev.selection()
+        if not seleccion:
+            return
+        fila = next((f for f in estado["filas"]
+                     if str(id(f)) == seleccion[0]), None)
+        if fila is None:
+            return
+        dibujar_mini(_evento_para_plotear(fila), mostrar_hist=var_hist.get())
+
+    def _alternar_hist():
+        """Activa/desactiva la sismicidad histórica en la miniatura."""
+        _actualizar_mini()
+
+    # La casilla solo controla la miniatura (el detalle grande siempre trae la
+    # sismicidad histórica, igual que el panel de análisis). Solo se arma si
+    # hay miniatura, para no dejar un control que no hace nada.
+    if dibujar_mini is not None:
+        ttk.Checkbutton(barra, text="Sismicidad histórica", variable=var_hist,
+                        command=_alternar_hist).pack(side="left", padx=(10, 0))
+
+    def _ver_mapa_evento(fila):
+        """Plotea planta + perfil de un evento concreto (una sola solución)."""
+        try:
+            import plotear
+            plotear.abrir_evento(_evento_para_plotear(fila), "seiscomp")
+        except Exception as exc:
+            if log:
+                log("[error] no se pudo plotear: %s" % exc)
 
     # Orden por columna: se guarda el sentido y se reordena al hacer clic.
     orden = {"columna": None, "descendente": False}
@@ -2770,6 +2864,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             ventana_detalle["ventana"] = _ventana_detalle(
                 contenedor, fila, fases, etiqueta_fuente=etiqueta_fuente,
                 sin_fases=sin_fases, al_estaciones=_abrir_estaciones,
+                al_planta_perfil=lambda: _ver_mapa_evento(fila),
                 ventana_previa=ventana_detalle.get("ventana"))
         finally:
             seleccionando["activo"] = False
@@ -2782,6 +2877,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
             contenedor, evento, fases, etiqueta_fuente=etiqueta_fuente,
             sin_fases=sin_fases,
             al_estaciones=lambda: _abrir_estaciones_para(evento),
+            al_planta_perfil=lambda: _ver_mapa_evento(evento),
             ventana_previa=ventana_detalle.get("ventana"))
 
     def _abrir_analisis():
@@ -2806,22 +2902,21 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     if hay_no_picadas:
         boton_analisis.configure(command=_abrir_analisis)
 
-    caja_filtro.bind("<KeyRelease>", _al_filtrar)
-    caja_mag.bind("<KeyRelease>", _al_filtrar)
+    # Los filtros se aplican con el botón «Aplicar» (o Enter en cualquier
+    # caja), no en cada tecla: con catálogos grandes, re-filtrar al teclear
+    # reconstruía la tabla entera en cada pulsación.
     caja_filtro.bind("<Return>", _al_filtrar)
     caja_mag.bind("<Return>", _al_filtrar)
     for caja in (caja_lat, caja_lon):
-        caja.bind("<KeyRelease>", _al_filtrar)
         caja.bind("<Return>", _al_filtrar)
-        caja.bind("<<Modified>>", _al_filtrar)
-    # <<Modified>> cubre el pegado con el mouse, que no pasa por KeyRelease.
-    caja_filtro.bind("<<Modified>>", _al_filtrar)
-    caja_mag.bind("<<Modified>>", _al_filtrar)
+
     # El detalle abre con DOBLE clic (o Enter sobre la fila elegida). Con un
     # solo clic se seleccionaba y ya se abría la ventana, así que un clic
-    # accidental la disparaba.
+    # accidental la disparaba. La miniatura, en cambio, sigue a la selección
+    # (mouse o flechas): solo muestra, no abre nada.
     arbol_ev.bind("<Double-1>", _al_seleccionar)
     arbol_ev.bind("<Return>", _al_seleccionar)
+    arbol_ev.bind("<<TreeviewSelect>>", _actualizar_mini)
 
     # El botón se crea aquí, con _al_filtrar ya definido. No es adorno: un camino
     # que dependa solo de un binding de teclado es fácil que se pierda, y el
@@ -2897,17 +2992,23 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
 
     cuerpo = ttk.Frame(contenedor)
     cuerpo.pack(fill="both", expand=True)
+    paned = ttk.PanedWindow(cuerpo, orient="horizontal")
+    paned.pack(fill="both", expand=True)
+    marco_lista = ttk.Frame(paned)
+    paned.add(marco_lista, weight=3)
+    marco_mini = ttk.Frame(paned)
+    paned.add(marco_mini, weight=1)
 
     columnas = (COLUMNAS_CATALOGO_EVENTQUERY if etiqueta_fuente == "eventquery"
                 else COLUMNAS_CATALOGO_SEISAN)
     claves_ev = [c for c, _, _, _ in columnas]
-    arbol_ev = ttk.Treeview(cuerpo, columns=claves_ev,
+    arbol_ev = ttk.Treeview(marco_lista, columns=claves_ev,
                             show="headings", selectmode="browse")
     for clave, titulo, ancho, es_num in columnas:
         arbol_ev.heading(clave, text=titulo)
         arbol_ev.column(clave, width=ancho, minwidth=45, stretch=False)
 
-    barra_ev = ttk.Scrollbar(cuerpo, orient="vertical",
+    barra_ev = ttk.Scrollbar(marco_lista, orient="vertical",
                              command=arbol_ev.yview)
     arbol_ev.configure(yscrollcommand=barra_ev.set)
     # Barras antes que el árbol (ver _construir_arbol_fases).
@@ -2915,11 +3016,71 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
     # El catálogo de eventquery suma 890 px contra los 980 de la ventana
     # principal: al achicarla ya se perdían columnas, y con Lat/Lon en el panel
     # de SeisComp la suma llega a 1275.
-    barra_h = ttk.Scrollbar(cuerpo, orient="horizontal",
+    barra_h = ttk.Scrollbar(marco_lista, orient="horizontal",
                             command=arbol_ev.xview)
     arbol_ev.configure(xscrollcommand=barra_h.set)
     barra_h.pack(side="bottom", fill="x")
     arbol_ev.pack(side="left", fill="both", expand=True)
+
+    dibujar_mini = _panel_miniatura(marco_mini, ttk,
+                                    etiqueta_fuente or "seisan")
+    var_hist = ttk.BooleanVar(value=False)
+
+    def _evento_para_plotear(fila):
+        """Dict del evento con las claves que espera plotear (una solución)."""
+        fecha = str(fila.get("fecha", "") or "").strip()
+        hora = str(fila.get("hora", "") or "").strip()
+        return {
+            "fecha hora": ("%s %s" % (fecha, hora)).strip(),
+            "latitud": fila.get("latitud"),
+            "longitud": fila.get("longitud"),
+            "prof": fila.get("prof"),
+            "magnitud": fila.get("mag"),
+            "tipo": fila.get("tipo"),
+            "analista": fila.get("analista"),
+        }
+
+    def _actualizar_mini(_evento=None):
+        """Redibuja la miniatura del perfil del evento seleccionado."""
+        if dibujar_mini is None:
+            return
+        seleccion = arbol_ev.selection()
+        if not seleccion:
+            return
+        fila = next((f for f in estado["filas"]
+                     if str(id(f)) == seleccion[0]), None)
+        if fila is None:
+            return
+        dibujar_mini(_evento_para_plotear(fila), mostrar_hist=var_hist.get())
+
+    def _alternar_hist():
+        """Activa/desactiva la sismicidad histórica en la miniatura."""
+        _actualizar_mini()
+
+    # La casilla solo controla la miniatura (el detalle siempre trae la
+    # sismicidad histórica). Solo se arma si hay miniatura.
+    if dibujar_mini is not None:
+        ttk.Checkbutton(barra, text="Sismicidad histórica", variable=var_hist,
+                        command=_alternar_hist).pack(side="left", padx=(10, 0))
+
+    def _ver_mapa_evento(_evento=None):
+        """Plotea planta + perfil del evento seleccionado (una solución)."""
+        seleccion = arbol_ev.selection()
+        if not seleccion:
+            return
+        fila = next((f for f in estado["filas"]
+                     if str(id(f)) == seleccion[0]), None)
+        if fila is None:
+            return
+        try:
+            import plotear
+            plotear.abrir_evento(_evento_para_plotear(fila),
+                                 etiqueta_fuente or "seisan")
+        except Exception as exc:
+            aviso = "No se pudo plotear el evento: %s" % exc
+            etiqueta_estado.config(text=aviso)
+            if log:
+                log("[error] %s" % aviso)
 
     orden = {"columna": None, "descendente": False}
 
@@ -3037,16 +3198,18 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
 
     boton_exportar.configure(command=_al_exportar)
 
-    caja_filtro.bind("<KeyRelease>", lambda _e: _llenar_eventos())
-    caja_mag.bind("<KeyRelease>", lambda _e: _llenar_eventos())
+    # La miniatura sigue a la selección (mouse o flechas); el doble clic y
+    # Enter plotean planta + perfil del evento en una ventana nueva.
+    arbol_ev.bind("<<TreeviewSelect>>", _actualizar_mini)
+    arbol_ev.bind("<Double-1>", _ver_mapa_evento)
+    arbol_ev.bind("<Return>", _ver_mapa_evento)
+
+    # Los filtros se aplican con el botón «Aplicar» (o Enter), no en cada
+    # tecla: con catálogos grandes, re-filtrar al teclear era costoso.
     caja_filtro.bind("<Return>", lambda _e: _llenar_eventos())
     caja_mag.bind("<Return>", lambda _e: _llenar_eventos())
-    caja_filtro.bind("<<Modified>>", lambda _e: _llenar_eventos())
-    caja_mag.bind("<<Modified>>", lambda _e: _llenar_eventos())
     for caja in (caja_lat, caja_lon):
-        caja.bind("<KeyRelease>", lambda _e: _llenar_eventos())
         caja.bind("<Return>", lambda _e: _llenar_eventos())
-        caja.bind("<<Modified>>", lambda _e: _llenar_eventos())
 
     ttk.Button(barra, text="Aplicar", bootstyle="secondary",
                command=_llenar_eventos).pack(side="left", padx=(8, 0))
@@ -3224,6 +3387,10 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     ttk.Label(marco_controles, text="Filtrar:").pack(side="left")
     caja_filtro = ttk.Entry(marco_controles, width=24)
     caja_filtro.pack(side="left", padx=(4, 10))
+    # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada tecla:
+    # con listados grandes, re-filtrar al teclear era costoso.
+    ttk.Button(marco_controles, text="Aplicar", bootstyle="secondary",
+               command=lambda: _llenar()).pack(side="left", padx=(0, 10))
     etiqueta_estado = ttk.Label(marco_controles, text="",
                                bootstyle="secondary")
     etiqueta_estado.pack(side="left")
@@ -3380,7 +3547,8 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
             arbol.insert("", "end", iid=str(indice),
                          values=_valores_no_actualizado(fila))
 
-    caja_filtro.bind("<KeyRelease>", _llenar)
+    # Los filtros se aplican con el botón «Aplicar» (o Enter), no en cada tecla.
+    caja_filtro.bind("<Return>", _llenar)
     _llenar()
 
     log("No actualizados de %s: %d eventos."

@@ -3061,6 +3061,91 @@ def abrir_evento(evento, fuente, perfiles=None):
     return abrir_eventos([evento], fuente, perfiles=perfiles)
 
 
+def _preparar_un_evento(evento, perfiles):
+    """
+    Completa un evento suelto con perfil, along_km, perp_km y sospechoso.
+
+    Usa el mismo criterio que abrir_eventos para una sola solución: asigna el
+    perfil con asigna_perfiles y calcula el flag con sismicidad.es_sospechoso.
+    Devuelve el objeto de perfil asignado, o None si el evento quedó fuera de
+    cobertura (o sin coordenadas).
+    """
+    evento["latitud"] = _a_numero_o_none(evento.get("latitud"))
+    evento["longitud"] = _a_numero_o_none(evento.get("longitud"))
+    evento["prof"] = _a_numero_o_none(evento.get("prof"))
+
+    perfil_obj = None
+    pid = evento.get("perfil")
+    if pid:
+        perfil_obj = next((p for p in perfiles if p.get("id") == pid), None)
+    if perfil_obj is None and evento["latitud"] is not None \
+            and evento["longitud"] is not None:
+        try:
+            datos = ap.asignar_perfil_evento(
+                evento["longitud"], evento["latitud"], evento["prof"], perfiles)
+            evento["perfil"] = datos.get("perfil")
+            for clave, valor in datos.items():
+                if clave != "perfil":
+                    evento[clave] = valor
+            perfil_obj = next(
+                (p for p in perfiles if p.get("id") == evento["perfil"]), None)
+        except Exception:
+            evento.setdefault("perfil", None)
+
+    if perfil_obj is not None and evento["latitud"] is not None \
+            and evento["longitud"] is not None:
+        try:
+            perp, along = ap.distancia_al_perfil(
+                evento["longitud"], evento["latitud"], perfil_obj)
+            evento["perfil"] = perfil_obj["id"]
+            evento["along_km"] = along
+            evento["perp_km"] = perp
+            slab = ap.profundidad_slab_en(perfil_obj, along)
+            evento["residuo_km"] = (
+                None if slab != slab or evento["prof"] is None
+                else abs(evento["prof"] - slab))
+        except Exception:
+            pass
+
+    try:
+        import sismicidad
+        evento["sospechoso"] = sismicidad.es_sospechoso(evento)
+    except Exception:
+        evento.setdefault("sospechoso", False)
+    return perfil_obj
+
+
+def dibujar_mini_evento(fig, evento, fuente, mostrar_hist=False):
+    """
+    Dibuja en 'fig' la miniatura del perfil de un evento suelto.
+
+    'fig' es una Figure ya embebida en un lienzo Tk (FigureCanvasTkAgg); la
+    miniatura usa el mismo _mini_perfil del panel de análisis, para que los
+    ejes sean comparables. Con 'mostrar_hist' agrega la sismicidad histórica
+    (igual que la casilla del panel de análisis). Devuelve True si dibujó el
+    perfil y False si el evento quedó sin perfil (fuera de cobertura), sin
+    profundidad o sin coordenadas; en ese caso deja un aviso en la figura.
+    """
+    if evento is None or fig is None:
+        return False
+    perfiles = _perfiles_cacheados()
+    perfil_obj = _preparar_un_evento(evento, perfiles)
+    fig.clear()
+    ax = fig.add_subplot(111)
+    dibujado = False
+    if perfil_obj is not None and evento.get("prof") is not None:
+        dibujado = bool(_mini_perfil(ax, perfil_obj, [evento], fuente,
+                                     mostrar_hist=mostrar_hist))
+    if not dibujado:
+        ax.text(0.5, 0.5, "Sin perfil asignado\n(fuera de cobertura o sin\n"
+                          "coordenadas/profundidad)",
+                ha="center", va="center", fontsize=8, color="#555555",
+                transform=ax.transAxes)
+        ax.set_axis_off()
+    fig.canvas.draw_idle()
+    return dibujado
+
+
 def abrir_comparacion(evento, fuente="eventquery", perfiles=None):
     """
     Abre planta + perfil de un evento con sus soluciones de agencia.

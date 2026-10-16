@@ -121,3 +121,44 @@ def test_abrir_eventos_comparacion_titulo(raiz_tk):
                           perfiles=[_perfil()])
 
     assert plt.gcf()._suptitle.get_text() == "Comparación Seisan vs publicado"
+
+
+def _figura_embebida(raiz):
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from tkinter import ttk as _ttk
+
+    marco = _ttk.Frame(raiz)
+    fig = Figure(figsize=(4.2, 3.4), dpi=82)
+    FigureCanvasTkAgg(fig, master=marco)
+    return fig
+
+
+def test_dibujar_mini_evento_con_perfil(raiz_tk, monkeypatch):
+    monkeypatch.setattr(plotear, "_perfiles_cacheados", lambda: [_perfil()])
+    fig = _figura_embebida(raiz_tk)
+    evento = {"latitud": 0.0, "longitud": 1.0, "prof": 60.0,
+              "perfil": "P001"}
+
+    assert plotear.dibujar_mini_evento(fig, evento, "seisan") is True
+    assert evento["along_km"] is not None
+    assert "sospechoso" in evento
+
+
+def test_dibujar_mini_evento_sin_perfil(raiz_tk, monkeypatch):
+    monkeypatch.setattr(plotear, "_perfiles_cacheados", lambda: [])
+    fig = _figura_embebida(raiz_tk)
+    evento = {"latitud": None, "longitud": None, "prof": None}
+
+    assert plotear.dibujar_mini_evento(fig, evento, "seisan") is False
+
+
+def test_dibujar_mini_evento_con_hist(raiz_tk, monkeypatch):
+    monkeypatch.setattr(plotear, "_perfiles_cacheados", lambda: [_perfil()])
+    fig = _figura_embebida(raiz_tk)
+    evento = {"latitud": 0.0, "longitud": 1.0, "prof": 60.0,
+              "perfil": "P001"}
+
+    # Con sismicidad histórica: usa el mismo camino del panel de análisis.
+    assert plotear.dibujar_mini_evento(fig, evento, "seisan",
+                                       mostrar_hist=True) is True
