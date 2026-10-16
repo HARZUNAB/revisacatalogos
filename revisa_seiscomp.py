@@ -2965,14 +2965,259 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     return True
 
 
+def abrir_tabla(contenedor, filas, columnas, valores, *,
+                cwd=None, log=None,
+                filtros=("texto",), clave_mag="mag", extra=(),
+                claves_orden=None,
+                max_filas=None, iid_por_id=True,
+                con_miniatura=False,
+                etiqueta=None, descarga_texto="Exportar lista",
+                descarga_bootstyle="secondary-outline", descarga_ancho=None,
+                descarga_todo=False,
+                columnas_exportar=None, valores_exportar=None,
+                verbo_descarga="Descargados",
+                texto_detalle=None, extras_izquierda=None, extras_derecha=None,
+                al_llenar=None, formato_estado=None):
+    """
+    Arma una tabla de listado: filtros, orden por encabezado, selección,
+    descarga y miniatura opcional. Es el camino común de las listas de catálogo,
+    No publicados y No actualizados, para no repetir el armado del árbol, los
+    filtros y la descarga en cada una.
+
+    Parámetros:
+    - filas: los registros completos (dicts).
+    - columnas: (clave, título, ancho) o (clave, título, ancho, es_num).
+    - valores(fila): los textos de la fila, en el orden de las columnas.
+    - filtros: combinación de "texto", "mag" y "latlon".
+    - claves_orden: mapa de orden (ver _ordenar_eventos); por defecto, las
+      columnas marcadas con es_num.
+    - max_filas: tope de filas que se muestran; la descarga usa todas.
+    - iid_por_id: el iid del árbol es id(fila) (True) o el índice (False).
+    - con_miniatura: reserva un panel a la derecha y devuelve "marco_mini".
+    - extras_izquierda(barra, marco_mini): widgets propios a la izquierda, antes
+      de «Aplicar» (p. ej. la casilla de sismicidad histórica).
+    - extras_derecha(barra): botones propios a la derecha (p. ej. Análisis
+      rápido).
+    - formato_estado(elegidas, total, mostradas): texto de la etiqueta de
+      estado; si no se pasa, se arma el texto estándar.
+    - al_llenar(elegidas, mostradas): gancho tras cada llenado.
+
+    Devuelve un diccionario con: arbol, estado, valores, elegidos, llenar,
+    fila_actual, marco_mini, barra, entradas, etiqueta_estado y boton_descarga.
+    """
+    import ttkbootstrap as ttk
+    if cwd is None:
+        cwd = os.getcwd()
+    for hijo in contenedor.winfo_children():
+        hijo.destroy()
+
+    # El cuerpo se crea primero (para tener marco_mini antes de extras_izquierda)
+    # pero se empaqueta después de la barra, para que quede debajo.
+    cuerpo = ttk.Frame(contenedor)
+    if con_miniatura:
+        paned = ttk.PanedWindow(cuerpo, orient="horizontal")
+        paned.pack(fill="both", expand=True)
+        marco_lista = ttk.Frame(paned)
+        paned.add(marco_lista, weight=3)
+        marco_mini = ttk.Frame(paned)
+        paned.add(marco_mini, weight=1)
+    else:
+        marco_lista = ttk.Frame(cuerpo)
+        marco_lista.pack(fill="both", expand=True)
+        marco_mini = None
+
+    barra = ttk.Frame(contenedor)
+    barra.pack(fill="x", pady=(0, 6))
+    entradas = {}
+    if "texto" in filtros:
+        ttk.Label(barra, text="Mostrando",
+                  bootstyle="secondary").pack(side="left")
+        entradas["texto"] = ttk.Entry(barra, width=24)
+        entradas["texto"].pack(side="left", padx=(4, 10))
+    if "mag" in filtros:
+        ttk.Label(barra, text="magnitud mínima",
+                  bootstyle="secondary").pack(side="left")
+        entradas["mag"] = ttk.Entry(barra, width=6)
+        entradas["mag"].pack(side="left", padx=4)
+    if "latlon" in filtros:
+        ttk.Label(barra, text="Lat", bootstyle="secondary").pack(
+            side="left", padx=(10, 0))
+        entradas["lat"] = ttk.Entry(barra, width=7)
+        entradas["lat"].pack(side="left", padx=(4, 0))
+        ttk.Label(barra, text="Lon", bootstyle="secondary").pack(
+            side="left", padx=(8, 0))
+        entradas["lon"] = ttk.Entry(barra, width=7)
+        entradas["lon"].pack(side="left", padx=(4, 4))
+
+    if extras_izquierda is not None:
+        extras_izquierda(barra, marco_mini)
+
+    if claves_orden is None:
+        claves_orden = _claves_numericas(
+            [t[0] for t in columnas if len(t) > 3 and t[3]])
+
+    claves = [t[0] for t in columnas]
+    arbol = ttk.Treeview(marco_lista, columns=claves, show="headings",
+                         selectmode="browse")
+    for t in columnas:
+        arbol.column(t[0], width=t[2], minwidth=45, stretch=False)
+    barra_v = ttk.Scrollbar(marco_lista, orient="vertical",
+                            command=arbol.yview)
+    arbol.configure(yscrollcommand=barra_v.set)
+    # Barras antes que el árbol (ver _construir_arbol_fases).
+    barra_v.pack(side="right", fill="y")
+    barra_h = ttk.Scrollbar(marco_lista, orient="horizontal",
+                            command=arbol.xview)
+    arbol.configure(xscrollcommand=barra_h.set)
+    barra_h.pack(side="bottom", fill="x")
+    arbol.pack(side="left", fill="both", expand=True)
+
+    estado = {"filas": filas, "orden": None, "desc": False,
+              "elegidas": list(filas), "mostradas": list(filas)}
+    por_iid = {}
+
+    def _filtrar():
+        texto = entradas["texto"].get() if "texto" in entradas else ""
+        mag_min = None
+        if "mag" in entradas:
+            crudo = entradas["mag"].get().strip()
+            try:
+                mag_min = float(crudo) if crudo else None
+            except ValueError:
+                mag_min = None
+        lat = entradas["lat"].get() if "lat" in entradas else ""
+        lon = entradas["lon"].get() if "lon" in entradas else ""
+        return _filtrar_listado(filas, valores, texto, mag_min,
+                                clave_mag=clave_mag, lat=lat, lon=lon,
+                                extra=extra)
+
+    def _elegidos():
+        return _ordenar_eventos(_filtrar(), estado["orden"], estado["desc"],
+                                claves_orden)
+
+    def _aplicar_orden(columna):
+        if estado["orden"] == columna:
+            estado["desc"] = not estado["desc"]
+        else:
+            estado["orden"] = columna
+            estado["desc"] = False
+        _llenar()
+
+    def _llenar(_evento=None):
+        for item in arbol.get_children():
+            arbol.delete(item)
+        elegidas = _elegidos()
+        mostradas = elegidas if max_filas is None else elegidas[:max_filas]
+        estado["elegidas"] = elegidas
+        estado["mostradas"] = mostradas
+        por_iid.clear()
+        if boton_descarga is not None:
+            boton_descarga.configure(
+                state="normal" if elegidas else "disabled")
+        if formato_estado is not None:
+            etiqueta_estado.config(
+                text=formato_estado(elegidas, len(filas), mostradas))
+        elif len(elegidas) != len(filas):
+            etiqueta_estado.config(text="%d de %d eventos"
+                                   % (len(elegidas), len(filas)))
+        else:
+            etiqueta_estado.config(
+                text="%d evento%s" % (len(filas),
+                                      "" if len(filas) == 1 else "s"))
+        for indice, fila in enumerate(mostradas):
+            iid = str(id(fila)) if iid_por_id else str(indice)
+            por_iid[iid] = fila
+            arbol.insert("", "end", iid=iid, values=valores(fila))
+        if al_llenar is not None:
+            al_llenar(elegidas, mostradas)
+        return elegidas
+
+    def _exportar(todas=False):
+        elegidas = list(filas) if todas else estado["elegidas"]
+        if not elegidas:
+            return
+        cols = columnas_exportar or columnas
+        vals = valores_exportar or valores
+        try:
+            ruta = _exportar_listado(elegidas, vals, cols, cwd, etiqueta,
+                                     padre=contenedor)
+        except OSError as exc:
+            aviso = "No se pudo escribir el listado: %s" % exc
+            etiqueta_estado.config(text=aviso)
+            if log:
+                log("[error] %s" % aviso)
+            return
+        if ruta is None:
+            if not elegidas:
+                aviso = ("No hay eventos que cumplan el filtro; no se "
+                         "escribió nada.")
+                etiqueta_estado.config(text=aviso)
+                if log:
+                    log(aviso)
+            return
+        aviso = "%s %d eventos a %s" % (verbo_descarga, len(elegidas),
+                                        os.path.basename(ruta))
+        etiqueta_estado.config(text=aviso)
+        if log:
+            log(aviso)
+
+    def _fila_actual():
+        seleccion = arbol.selection()
+        if not seleccion:
+            return None
+        return por_iid.get(seleccion[0])
+
+    boton_descarga = None
+    if descarga_texto:
+        boton_descarga = ttk.Button(barra, text=descarga_texto,
+                                    state="disabled",
+                                    bootstyle=descarga_bootstyle,
+                                    command=_exportar)
+        if descarga_ancho is not None:
+            boton_descarga.configure(width=descarga_ancho)
+        boton_descarga.pack(side="right", padx=(8, 8))
+    if descarga_todo:
+        ttk.Button(barra, text="Descargar todo",
+                   bootstyle=descarga_bootstyle,
+                   command=lambda: _exportar(todas=True)).pack(
+                       side="right", padx=(6, 0))
+    if extras_derecha is not None:
+        extras_derecha(barra)
+    if texto_detalle:
+        ttk.Label(barra, text=texto_detalle,
+                  bootstyle="secondary").pack(side="right", padx=(10, 0))
+    etiqueta_estado = ttk.Label(barra, text="", bootstyle="secondary")
+    etiqueta_estado.pack(side="right")
+
+    # Los filtros se aplican con el botón «Aplicar» (o Enter en cualquier
+    # casilla), no en cada tecla: con listados grandes, re-filtrar al teclear
+    # reconstruía la tabla entera en cada pulsación.
+    for caja in entradas.values():
+        caja.bind("<Return>", _llenar)
+    ttk.Button(barra, text="Aplicar", bootstyle="secondary",
+               command=_llenar).pack(side="left", padx=(8, 0))
+
+    for t in columnas:
+        arbol.heading(t[0], text=t[1],
+                      command=lambda _e=None, c=t[0]: _aplicar_orden(c))
+
+    cuerpo.pack(fill="both", expand=True)
+    _llenar()
+    return {"arbol": arbol, "estado": estado, "valores": valores,
+            "elegidos": _elegidos, "llenar": _llenar,
+            "fila_actual": _fila_actual, "marco_mini": marco_mini,
+            "barra": barra, "entradas": entradas,
+            "etiqueta_estado": etiqueta_estado,
+            "boton_descarga": boton_descarga}
+
+
 def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
                     cwd=None, atribuciones=None):
     """
     Abre un catálogo crudo en la pestaña: listado simple, sin llegadas.
 
-    Reutiliza la misma barra de filtro, el árbol y la lógica de orden, pero
-    no carga fases ni muestra el detalle con llegadas. Las columnas son las del
-    catálogo (no SeisComp).
+    Reutiliza abrir_tabla (filtros, orden, miniatura y descarga) con las
+    columnas del catálogo, no las de SeisComp.
     """
     if not ruta_csv or not os.path.isfile(ruta_csv):
         return False
@@ -2997,143 +3242,9 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
             if texto:
                 ev["analista"] = texto
 
-    # La carpeta del listado exportado es la de trabajo, no la del script.
-    if cwd is None:
-        cwd = os.getcwd()
-
-    for hijo in contenedor.winfo_children():
-        hijo.destroy()
-
-    barra = ttk.Frame(contenedor)
-    barra.pack(fill="x", pady=(0, 6))
-    ttk.Label(barra, text="Mostrando", bootstyle="secondary").pack(side="left")
-    caja_filtro = ttk.Entry(barra, width=24)
-    caja_filtro.pack(side="left", padx=(4, 10))
-    ttk.Label(barra, text="magnitud mínima", bootstyle="secondary").pack(side="left")
-    caja_mag = ttk.Entry(barra, width=6)
-    caja_mag.pack(side="left", padx=4)
-    ttk.Label(barra, text="Lat", bootstyle="secondary").pack(side="left",
-                                                                padx=(10, 0))
-    caja_lat = ttk.Entry(barra, width=7)
-    caja_lat.pack(side="left", padx=(4, 0))
-    ttk.Label(barra, text="Lon", bootstyle="secondary").pack(side="left",
-                                                               padx=(8, 0))
-    caja_lon = ttk.Entry(barra, width=7)
-    caja_lon.pack(side="left", padx=(4, 4))
-    boton_exportar = ttk.Button(barra, text="Exportar lista",
-                                bootstyle="secondary-outline", width=17,
-                                state="disabled")
-    boton_exportar.pack(side="right", padx=(8, 8))
-    etiqueta_estado = ttk.Label(barra, text="", bootstyle="secondary")
-    etiqueta_estado.pack(side="right")
-
-    cuerpo = ttk.Frame(contenedor)
-    cuerpo.pack(fill="both", expand=True)
-    paned = ttk.PanedWindow(cuerpo, orient="horizontal")
-    paned.pack(fill="both", expand=True)
-    marco_lista = ttk.Frame(paned)
-    paned.add(marco_lista, weight=3)
-    marco_mini = ttk.Frame(paned)
-    paned.add(marco_mini, weight=1)
-
     columnas = (COLUMNAS_CATALOGO_EVENTQUERY if etiqueta_fuente == "eventquery"
                 else COLUMNAS_CATALOGO_SEISAN)
-    claves_ev = [c for c, _, _, _ in columnas]
-    arbol_ev = ttk.Treeview(marco_lista, columns=claves_ev,
-                            show="headings", selectmode="browse")
-    for clave, titulo, ancho, es_num in columnas:
-        arbol_ev.heading(clave, text=titulo)
-        arbol_ev.column(clave, width=ancho, minwidth=45, stretch=False)
-
-    barra_ev = ttk.Scrollbar(marco_lista, orient="vertical",
-                             command=arbol_ev.yview)
-    arbol_ev.configure(yscrollcommand=barra_ev.set)
-    # Barras antes que el árbol (ver _construir_arbol_fases).
-    barra_ev.pack(side="right", fill="y")
-    # El catálogo de eventquery suma 890 px contra los 980 de la ventana
-    # principal: al achicarla ya se perdían columnas, y con Lat/Lon en el panel
-    # de SeisComp la suma llega a 1275.
-    barra_h = ttk.Scrollbar(marco_lista, orient="horizontal",
-                            command=arbol_ev.xview)
-    arbol_ev.configure(xscrollcommand=barra_h.set)
-    barra_h.pack(side="bottom", fill="x")
-    arbol_ev.pack(side="left", fill="both", expand=True)
-
-    dibujar_mini = _panel_miniatura(marco_mini, ttk,
-                                    etiqueta_fuente or "seisan")
-    var_hist = ttk.BooleanVar(value=False)
-
-    def _evento_para_plotear(fila):
-        """Dict del evento con las claves que espera plotear (una solución)."""
-        fecha = str(fila.get("fecha", "") or "").strip()
-        hora = str(fila.get("hora", "") or "").strip()
-        return {
-            "fecha hora": ("%s %s" % (fecha, hora)).strip(),
-            "latitud": fila.get("latitud"),
-            "longitud": fila.get("longitud"),
-            "prof": fila.get("prof"),
-            "magnitud": fila.get("mag"),
-            "tipo": fila.get("tipo"),
-            "analista": fila.get("analista"),
-        }
-
-    def _actualizar_mini(_evento=None):
-        """Redibuja la miniatura del perfil del evento seleccionado."""
-        if dibujar_mini is None:
-            return
-        seleccion = arbol_ev.selection()
-        if not seleccion:
-            return
-        fila = next((f for f in estado["filas"]
-                     if str(id(f)) == seleccion[0]), None)
-        if fila is None:
-            return
-        dibujar_mini(_evento_para_plotear(fila), mostrar_hist=var_hist.get())
-
-    def _alternar_hist():
-        """Activa/desactiva la sismicidad histórica en la miniatura."""
-        _actualizar_mini()
-
-    # La casilla solo controla la miniatura (el detalle siempre trae la
-    # sismicidad histórica). Solo se arma si hay miniatura.
-    if dibujar_mini is not None:
-        ttk.Checkbutton(barra, text="Sismicidad histórica", variable=var_hist,
-                        command=_alternar_hist).pack(side="left", padx=(10, 0))
-
-    def _ver_mapa_evento(_evento=None):
-        """Plotea planta + perfil del evento seleccionado (una solución)."""
-        seleccion = arbol_ev.selection()
-        if not seleccion:
-            return
-        fila = next((f for f in estado["filas"]
-                     if str(id(f)) == seleccion[0]), None)
-        if fila is None:
-            return
-        try:
-            import plotear
-            plotear.abrir_evento(_evento_para_plotear(fila),
-                                 etiqueta_fuente or "seisan")
-        except Exception as exc:
-            aviso = "No se pudo plotear el evento: %s" % exc
-            etiqueta_estado.config(text=aviso)
-            if log:
-                log("[error] %s" % aviso)
-
-    orden = {"columna": None, "descendente": False}
-
-    def _aplicar_orden(columna):
-        if orden["columna"] == columna:
-            orden["descendente"] = not orden["descendente"]
-        else:
-            orden["columna"] = columna
-            orden["descendente"] = False
-        _llenar_eventos()
-
-    for clave, _, _, _ in columnas:
-        arbol_ev.heading(clave,
-                         command=lambda _e=None, c=clave: _aplicar_orden(c))
-
-    estado = {"filas": eventos}
+    fuente = etiqueta_fuente or "seisan"
 
     def _es_num(columna):
         for c, _, _, n in columnas:
@@ -3156,86 +3267,69 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
                 out.append(_texto(v))
         return out
 
-    # Cómo ordenar cada columna: las numéricas por su propio nombre, el resto
-    # por texto (ver _ordenar_eventos). La columna visible ya es la clave cruda.
     claves_orden = _claves_numericas([c for c, _, _, n in columnas if n])
 
-    def _elegidos():
-        """
-        Filas que pasan el filtro, ordenadas.
+    def _evento_para_plotear(fila):
+        """Dict del evento con las claves que espera plotear (una solución)."""
+        fecha = str(fila.get("fecha", "") or "").strip()
+        hora = str(fila.get("hora", "") or "").strip()
+        return {
+            "fecha hora": ("%s %s" % (fecha, hora)).strip(),
+            "latitud": fila.get("latitud"),
+            "longitud": fila.get("longitud"),
+            "prof": fila.get("prof"),
+            "magnitud": fila.get("mag"),
+            "tipo": fila.get("tipo"),
+            "analista": fila.get("analista"),
+        }
 
-        No hay tope aquí, pero el export usa esta misma función para no tener dos
-        caminos distintos que puedan discrepar sobre qué se está mostrando.
-        """
-        mag_min = caja_mag.get().strip()
+    mini = {"dibujar": None, "var_hist": None}
+
+    def _actualizar_mini(_evento=None):
+        """Redibuja la miniatura del perfil del evento seleccionado."""
+        if mini["dibujar"] is None:
+            return
+        fila = tabla["fila_actual"]()
+        if fila is None:
+            return
+        mini["dibujar"](_evento_para_plotear(fila),
+                        mostrar_hist=mini["var_hist"].get())
+
+    def _extras_izquierda(barra, marco_mini):
+        # La casilla solo controla la miniatura; solo se arma si hay backend.
+        mini["dibujar"] = _panel_miniatura(marco_mini, ttk, fuente)
+        if mini["dibujar"] is None:
+            return
+        mini["var_hist"] = ttk.BooleanVar(value=False)
+        ttk.Checkbutton(barra, text="Sismicidad histórica",
+                        variable=mini["var_hist"],
+                        command=_actualizar_mini).pack(side="left", padx=(10, 0))
+
+    tabla = abrir_tabla(contenedor, eventos, columnas, _valores,
+                        cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
+                        clave_mag="mag", claves_orden=claves_orden,
+                        con_miniatura=True, etiqueta=fuente,
+                        descarga_texto="Exportar lista", descarga_ancho=17,
+                        extras_izquierda=_extras_izquierda)
+    arbol_ev = tabla["arbol"]
+
+    def _ver_mapa_evento(_evento=None):
+        """Plotea planta + perfil del evento seleccionado (una solución)."""
+        fila = tabla["fila_actual"]()
+        if fila is None:
+            return
         try:
-            mag_min = float(mag_min) if mag_min else None
-        except ValueError:
-            mag_min = None
-        elegidos = _filtrar_listado(eventos, _valores, caja_filtro.get(),
-                                    mag_min, clave_mag="mag",
-                                    lat=caja_lat.get(), lon=caja_lon.get())
-        return _ordenar_eventos(elegidos, orden["columna"],
-                                orden["descendente"], claves_orden)
-
-    def _llenar_eventos():
-        for item in arbol_ev.get_children():
-            arbol_ev.delete(item)
-        elegidos = _elegidos()
-        etiqueta_estado.config(text="%d eventos" % len(elegidos))
-        # Sin filas no hay nada que volcar, y un botón prendido que no hace
-        # nada es peor que uno apagado.
-        boton_exportar.configure(state="normal" if elegidos else "disabled")
-        estado["filas"] = elegidos
-        for fila in elegidos:
-            arbol_ev.insert("", "end", iid=str(id(fila)), values=_valores(fila))
-
-    def _al_exportar():
-        """Exporta lo que se ve, con o sin filtro, a descargas/."""
-        elegidos = _elegidos()
-        try:
-            ruta = _exportar_listado(elegidos, _valores, columnas, cwd,
-                                     etiqueta_fuente, padre=contenedor)
-        except OSError as exc:
-            aviso = "No se pudo escribir el listado: %s" % exc
-            etiqueta_estado.config(text=aviso)
+            import plotear
+            plotear.abrir_evento(_evento_para_plotear(fila), fuente)
+        except Exception as exc:
+            aviso = "No se pudo plotear el evento: %s" % exc
+            tabla["etiqueta_estado"].config(text=aviso)
             if log:
-                log(aviso)
-            return
-        if ruta is None:
-            # None es "no había filas" o "se canceló la pregunta de formato".
-            # Cancelar no es un error: no se avisa nada.
-            if not elegidos:
-                aviso = ("No hay eventos que cumplan el filtro; no se "
-                         "escribió nada.")
-                etiqueta_estado.config(text=aviso)
-                if log:
-                    log(aviso)
-            return
-        if log:
-            log("Exportados %d eventos a %s" % (len(elegidos), ruta))
-        etiqueta_estado.config(text="Exportados %d eventos a %s"
-                               % (len(elegidos), os.path.basename(ruta)))
+                log("[error] %s" % aviso)
 
-    boton_exportar.configure(command=_al_exportar)
-
-    # La miniatura sigue a la selección (mouse o flechas); el doble clic y
-    # Enter plotean planta + perfil del evento en una ventana nueva.
     arbol_ev.bind("<<TreeviewSelect>>", _actualizar_mini)
     arbol_ev.bind("<Double-1>", _ver_mapa_evento)
     arbol_ev.bind("<Return>", _ver_mapa_evento)
-
-    # Los filtros se aplican con el botón «Aplicar» (o Enter), no en cada
-    # tecla: con catálogos grandes, re-filtrar al teclear era costoso.
-    caja_filtro.bind("<Return>", lambda _e: _llenar_eventos())
-    caja_mag.bind("<Return>", lambda _e: _llenar_eventos())
-    for caja in (caja_lat, caja_lon):
-        caja.bind("<Return>", lambda _e: _llenar_eventos())
-
-    ttk.Button(barra, text="Aplicar", bootstyle="secondary",
-               command=_llenar_eventos).pack(side="left", padx=(8, 0))
-
-    _llenar_eventos()
     return True
 
 
