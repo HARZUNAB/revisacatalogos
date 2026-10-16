@@ -3420,16 +3420,13 @@ class App:
         Complementa al panel/mapa: aquí se ve el conjunto completo en una tabla,
         sin tener que ir evento por evento en el ploteo.
 
-        Se ordena con clic en el encabezado y se filtra por texto. La descarga
-        arma el archivo con el filtro y el orden puestos; «Descargar todo» lo
-        escribe entero, que es lo que se reparte cuando el listado va completo.
+        Se apoya en revisa_seiscomp.abrir_tabla: ordena por encabezado, filtra
+        por texto con «Aplicar» y descarga con el filtro («Descargar») o entero
+        («Descargar todo»).
         """
         ruta = os.path.join(
             "datos", "no_pub_desde_2_5_%sestricto.csv"
             % ("" if fuente == "seisan" else "seiscomp_"))
-        marco = ttk.Frame(contenedor, padding=10)
-        marco.pack(fill=BOTH, expand=YES)
-
         filas = []
         if os.path.isfile(ruta):
             try:
@@ -3438,44 +3435,28 @@ class App:
             except OSError as e:
                 self._log("[error] no publicados %s: %s" % (fuente, e))
 
-        columnas = [("Fecha_Hora", "Fecha y hora", 150),
-                    ("Latitud", "Latitud", 90),
-                    ("Longitud", "Longitud", 90),
-                    ("Prof.", "Prof. km", 80),
-                    ("Mag.", "Mag.", 70),
-                    ("Tipo_mag.", "Tipo mag.", 80),
-                    ("Analista", "Analista", 120)]
-        claves = [c for c, _, _ in columnas]
-        # Profundidad, magnitud y coordenadas se ordenan como número: por texto
-        # un 9.0 quedaría después de un 10.0, que es justo lo que uno no quiere
-        # al revisar un listado por magnitud.
-        ordenables = {"Latitud", "Longitud", "Prof.", "Mag."}
-        estado = {"orden": None, "desc": False, "elegidas": list(filas)}
+        rs = self._importar_revisor()
+        if rs is None:
+            return
 
-        marco_controles = ttk.Frame(marco)
-        marco_controles.pack(fill=X, pady=(0, 6))
-        ttk.Label(marco_controles, text="Filtrar:").pack(side=LEFT)
-        caja_filtro = ttk.Entry(marco_controles, width=24)
-        caja_filtro.pack(side=LEFT, padx=(4, 10))
-        # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada
-        # tecla: con listados grandes, re-filtrar al teclear era costoso.
-        ttk.Button(marco_controles, text="Aplicar", bootstyle="secondary",
-                   command=lambda: _llenar()).pack(side=LEFT, padx=(0, 10))
-        etiqueta_estado = ttk.Label(marco_controles, text="",
-                                    bootstyle="secondary")
-        etiqueta_estado.pack(side=LEFT)
+        # Profundidad, magnitud y coordenadas ordenan como número (es_num): por
+        # texto un 9.0 quedaría después de un 10.0.
+        columnas = [("Fecha_Hora", "Fecha y hora", 150, False),
+                    ("Latitud", "Latitud", 90, True),
+                    ("Longitud", "Longitud", 90, True),
+                    ("Prof.", "Prof. km", 80, True),
+                    ("Mag.", "Mag.", 70, True),
+                    ("Tipo_mag.", "Tipo mag.", 80, False),
+                    ("Analista", "Analista", 120, False)]
+        claves = [c for c, _, _, _ in columnas]
 
         def _valores(fila):
             return [str(fila.get(c, "") or "") for c in claves]
 
         def _ver_mapa(_evento=None):
             """Abre planta+perfil del evento elegido (ploteo de un evento suelto)."""
-            seleccion = arbol.selection()
-            if not seleccion:
-                return
-            try:
-                fila = estado["elegidas"][int(seleccion[0])]
-            except (ValueError, IndexError):
+            fila = tabla["fila_actual"]()
+            if fila is None:
                 return
 
             def _num(clave):
@@ -3485,7 +3466,8 @@ class App:
                     return None
 
             if _num("Latitud") is None or _num("Longitud") is None:
-                etiqueta_estado.config(text="El evento no tiene coordenadas.")
+                tabla["etiqueta_estado"].config(
+                    text="El evento no tiene coordenadas.")
                 return
             evento = {
                 "fecha hora": fila.get("Fecha_Hora", ""),
@@ -3499,118 +3481,22 @@ class App:
                 plotear.abrir_evento(evento, fuente)
             except Exception as e:
                 self._log("[error] no se pudo plotear: %s" % e)
-                etiqueta_estado.config(text="No se pudo plotear el evento.")
+                tabla["etiqueta_estado"].config(
+                    text="No se pudo plotear el evento.")
 
-        def _al_descargar(todas=False):
-            elegidas = filas if todas else estado["elegidas"]
-            if not elegidas:
-                return
-            # Se usa el mismo exportador de los listados del revisor, para no
-            # tener dos caminos que pregunten el formato y escriban por su
-            # cuenta (ver revisa_seiscomp._exportar_listado).
-            rs = self._importar_revisor()
-            if rs is None:
-                return
-            try:
-                ruta = rs._exportar_listado(elegidas, _valores, columnas,
-                                            self.cwd,
-                                            "no publicados %s" % fuente,
-                                            padre=contenedor)
-            except OSError as exc:
-                aviso = "No se pudo escribir el listado: %s" % exc
-                etiqueta_estado.config(text=aviso)
-                self._log(aviso)
-                return
-            if ruta is None:
-                return
-            aviso = "%d evento%s descargados a %s" % (
-                len(elegidas), "" if len(elegidas) == 1 else "s",
-                os.path.basename(ruta))
-            etiqueta_estado.config(text=aviso)
-            self._log(aviso)
+        marco = ttk.Frame(contenedor, padding=10)
+        marco.pack(fill=BOTH, expand=YES)
+        tabla = rs.abrir_tabla(
+            marco, filas, columnas, _valores, cwd=self.cwd, log=self._log,
+            filtros=("texto",), iid_por_id=False,
+            etiqueta="no publicados %s" % fuente,
+            descarga_texto="Descargar",
+            descarga_bootstyle="primary-outline", descarga_todo=True,
+            texto_filtro="Filtrar:", texto_detalle="Doble clic plotea")
 
-        boton_descargar = ttk.Button(marco_controles, text="Descargar",
-                                     command=_al_descargar, state="disabled",
-                                     bootstyle="primary-outline")
-        boton_descargar.pack(side=RIGHT)
-        ttk.Button(marco_controles, text="Descargar todo",
-                   command=lambda: _al_descargar(todas=True),
-                   bootstyle="primary-outline").pack(side=RIGHT, padx=(6, 0))
-        # Aviso corto: el detalle se abre con doble clic, no hay botón.
-        ttk.Label(marco_controles, text="Doble clic plotea",
-                  bootstyle="secondary").pack(side=RIGHT, padx=(10, 0))
-
-        marco_tabla = ttk.Frame(marco)
-        marco_tabla.pack(fill=BOTH, expand=YES)
-        arbol = ttk.Treeview(marco_tabla, columns=claves, show="headings",
-                             selectmode="browse")
-        for clave, tit, ancho in columnas:
-            arbol.heading(clave, text=tit,
-                          command=lambda c=clave: _al_ordenar(c))
-            arbol.column(clave, width=ancho, minwidth=50, stretch=False)
-        barra_v = ttk.Scrollbar(marco_tabla, orient="vertical",
-                                command=arbol.yview)
-        arbol.configure(yscrollcommand=barra_v.set)
-        barra_h = ttk.Scrollbar(marco_tabla, orient="horizontal",
-                                command=arbol.xview)
-        arbol.configure(xscrollcommand=barra_h.set)
-        arbol.pack(side="left", fill="both", expand=True)
-        barra_v.pack(side="right", fill="y")
-        barra_h.pack(side="bottom", fill="x")
-
-        # Doble clic (o Enter con la fila elegida) abre planta+perfil del evento.
+        arbol = tabla["arbol"]
         arbol.bind("<Double-1>", _ver_mapa)
         arbol.bind("<Return>", _ver_mapa)
-
-        def _clave_orden(fila, columna):
-            if columna in ordenables:
-                try:
-                    return (0, float(str(fila.get(columna, "")).strip()), "")
-                except (TypeError, ValueError):
-                    pass
-            return (1, 0.0, str(fila.get(columna, "")).strip().lower())
-
-        def _ordenar(evs, columna, desc=False):
-            if columna is None:
-                return list(evs)
-            con = [f for f in evs if str(f.get(columna, "")).strip() != ""]
-            sin = [f for f in evs if str(f.get(columna, "")).strip() == ""]
-            con.sort(key=lambda f: _clave_orden(f, columna), reverse=desc)
-            return con + sin
-
-        def _al_ordenar(columna):
-            if estado["orden"] == columna:
-                estado["desc"] = not estado["desc"]
-            else:
-                estado["orden"] = columna
-                estado["desc"] = False
-            _llenar()
-
-        def _llenar(_evento=None):
-            texto = caja_filtro.get().strip().lower()
-            if texto:
-                elegidas = [f for f in filas
-                            if texto in " ".join(
-                                str(v).lower() for v in f.values())]
-            else:
-                elegidas = list(filas)
-            elegidas = _ordenar(elegidas, estado["orden"], estado["desc"])
-            estado["elegidas"] = elegidas
-            for item in arbol.get_children():
-                arbol.delete(item)
-            for i, fila in enumerate(elegidas):
-                arbol.insert("", "end", iid=str(i), values=_valores(fila))
-            etiqueta_estado.config(
-                text="%d de %d eventos" % (len(elegidas), len(filas))
-                if len(elegidas) != len(filas)
-                else "%d evento%s" % (len(filas),
-                                      "" if len(filas) == 1 else "s"))
-            boton_descargar.configure(
-                state="normal" if elegidas else "disabled")
-
-        # El filtro se aplica con el botón «Aplicar» (o Enter), no en cada tecla.
-        caja_filtro.bind("<Return>", _llenar)
-        _llenar()
         self._log("No publicados de %s: %d eventos." % (fuente, len(filas)))
 
     # ----------------------------------------------------------- SeisComp
