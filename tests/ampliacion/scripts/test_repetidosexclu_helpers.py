@@ -59,7 +59,7 @@ def test_un_cruce_escribe_una_linea():
     total = repetidosexclu.detecta_excluidos(excluidos, select, MAX_SEG, archivo)
 
     assert total == 1
-    assert archivo.getvalue() == "2020-01-01 00:00:00 ana\n"
+    assert archivo.getvalue() == "2020-01-01 00:00:00\tana\n"
 
 
 def test_cruce_multiple_cuenta_por_par():
@@ -75,7 +75,7 @@ def test_cruce_multiple_cuenta_por_par():
     total = repetidosexclu.detecta_excluidos(excluidos, select, MAX_SEG, archivo)
 
     assert total == 3
-    assert archivo.getvalue().splitlines() == ["2020-01-01 00:00:00 ana"] * 3
+    assert archivo.getvalue().splitlines() == ["2020-01-01 00:00:00\tana"] * 3
 
 
 def test_ventana_de_tiempo():

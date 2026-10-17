@@ -9,6 +9,14 @@ import descargas
 root = tk.Tk()
 resultados = {}
 
+
+def recorrer(w):
+    for hijo in w.winfo_children():
+        yield hijo
+        for h in recorrer(hijo):
+            yield h
+
+
 def correr(nombre, al_aceptar):
     """Abre el dialogo real, pulsa un radio y 'Descargar', y devuelve la eleccion."""
     def al_responder():
@@ -18,17 +26,15 @@ def correr(nombre, al_aceptar):
             return
         dlg = top[0]
         # pulsar el radio que corresponda y luego el boton principal
-        for w in dlg.winfo_children():
-            for sub in w.winfo_children():
-                if isinstance(sub, ttk.Radiobutton) and sub.cget("value") == al_aceptar:
-                    sub.invoke()
+        for w in recorrer(dlg):
+            if isinstance(w, ttk.Radiobutton) and w.cget("value") == al_aceptar:
+                w.invoke()
+                break
         root.update()
-        for w in dlg.winfo_children():
-            for sub in w.winfo_children():
-                for btn in (sub.winfo_children() if sub.winfo_children() else [sub]):
-                    if isinstance(btn, ttk.Button) and "Descargar" in btn.cget("text"):
-                        btn.invoke()
-                        return
+        for w in recorrer(dlg):
+            if isinstance(w, ttk.Button) and "Descargar" in w.cget("text"):
+                w.invoke()
+                return
         resultados[nombre] = "no se encontro el boton Descargar"
     root.after(300, al_responder)
     return descargas.preguntar_formato(root, "prueba de formato")

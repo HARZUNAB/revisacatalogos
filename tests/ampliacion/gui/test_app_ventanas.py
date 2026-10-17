@@ -186,47 +186,119 @@ def test_catalogos_seiscomp_real(app_factory, raiz_gui, cwd_tmp):
     assert _buscar(inst.seiscomp_frame, ttk.Treeview) is not None
 
 
+def _buscar_todos(widget, tipo, encontrados=None):
+    if encontrados is None:
+        encontrados = []
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, tipo):
+            encontrados.append(hijo)
+        _buscar_todos(hijo, tipo, encontrados)
+    return encontrados
+
+
 # --------------------------------------------------------------------------
 # Repetidos
 # --------------------------------------------------------------------------
+_INFORME_PUBLICA = (
+    "fecha_hora\tlatitud\tlongitud\tprof\tmag\ttipomag\treferencia\tpercibido\n"
+    "2026-01-01 00:00:00\t-30.000\t-71.000\t50.0\t4.5\tML\tR1\tS\n"
+    "2026-01-01 00:00:02\t-30.001\t-71.001\t50.0\t4.5\tML\tR2\tS\n")
+
+
 def test_repetidos_con_informe(app_factory, raiz_gui, cwd_tmp, monkeypatch):
     _, inst = app_factory()
-    _escribir(cwd_tmp, "informes/rep_publica_amplio.txt", "uno\ndos\n")
+    _escribir(cwd_tmp, "informes/rep_publica_amplio.txt", _INFORME_PUBLICA)
 
     descargado = {}
 
-    def descargar_texto(padre, lineas, etiqueta, cwd=None):
-        descargado["lineas"] = lineas
+    def exportar_listado(filas, valores, columnas, cwd, etiqueta, padre=None,
+                         formato=None):
+        descargado["filas"] = [valores(f) for f in filas]
+        descargado["columnas"] = [c[0] for c in columnas]
         descargado["etiqueta"] = etiqueta
-        return "informes/descarga.txt"
+        return "datos/descarga.csv"
 
-    monkeypatch.setattr(appmod.descargas, "descargar_texto", descargar_texto)
+    import revisa_seiscomp
+    monkeypatch.setattr(revisa_seiscomp, "_exportar_listado", exportar_listado)
 
     inst._ver_repetidos()
 
     top = _toplevel(raiz_gui, "Eventos repetidos")
-    arbol = _buscar(top, ttk.Treeview)
-    assert len(arbol.get_children()) == len(appmod.REP_FILES)
-    # La primera fila (rep_publica_amplio) tiene datos y queda seleccionada.
-    # El conteo resta 1 (asume que la primera línea es encabezado).
-    primera = arbol.get_children()[0]
-    assert arbol.item(primera, "values")[1] == "1"
-    assert not _boton(top, "Descargar informe").instate(["disabled"])
+    tablas = _buscar_todos(top, ttk.Treeview)
+    lista, tabla = tablas[0], tablas[1]
+    assert len(lista.get_children()) == len(appmod.REP_FILES)
+    # La primera fila (rep_publica_amplio) tiene 2 eventos (no cuenta cabecera).
+    primera = lista.get_children()[0]
+    assert lista.item(primera, "values")[1] == "2"
+    # La tabla del informe trae sus columnas más los dos analistas probables.
+    assert "fecha_hora" in tabla["columns"]
+    assert "analista_seisan" in tabla["columns"]
+    assert "analista_seiscomp" in tabla["columns"]
+    assert len(tabla.get_children()) == 2
 
-    _boton(top, "Descargar informe").invoke()
-    assert descargado["lineas"] == ["uno\n", "dos\n"]
+    # «Descargar» baja lo filtrado por el exportador común (CSV/TXT + nombre).
+    _boton(top, "Descargar").invoke()
     assert descargado["etiqueta"] == "rep_publica_amplio"
+    assert "analista_seisan" in descargado["columnas"]
+    assert descargado["filas"][0][:2] == ["2026-01-01 00:00:00", "-30.000"]
 
 
 def test_repetidos_sin_archivos(app_factory, raiz_gui, cwd_tmp):
     _, inst = app_factory()
     inst._ver_repetidos()
     top = _toplevel(raiz_gui, "Eventos repetidos")
-    arbol = _buscar(top, ttk.Treeview)
-    valores = [arbol.item(i, "values") for i in arbol.get_children()]
+    tablas = _buscar_todos(top, ttk.Treeview)
+    # Solo la lista de archivos: sin informe seleccionado no hay tabla.
+    assert len(tablas) == 1
+    valores = [tablas[0].item(i, "values") for i in tablas[0].get_children()]
     assert len(valores) == len(appmod.REP_FILES)
     assert all(v[1] == "0" for v in valores)
-    assert _boton(top, "Descargar informe").instate(["disabled"])
+
+
+def test_repetidos_formato_viejo_cae_a_texto(app_factory, raiz_gui, cwd_tmp):
+    _, inst = app_factory()
+    # Informe viejo: separado por espacios, no se puede partir en columnas.
+    _escribir(cwd_tmp, "informes/rep_publica_amplio.txt", "uno\ndos\n")
+    inst._ver_repetidos()
+    top = _toplevel(raiz_gui, "Eventos repetidos")
+    # Solo la lista: el informe crudo se muestra como texto, sin tabla.
+    assert len(_buscar_todos(top, ttk.Treeview)) == 1
+
+
+def test_repetidos_analistas_probables_cruzan():
+    indice = {"2026-01-01 00:00:00": [
+        {"fecha_eventquery": "2026-01-01 00:00:00",
+         "lat_eventquery": "-30.000", "lon_eventquery": "-71.000",
+         "fuente": "seisan", "analista": "jere", "dt_seg": "1.5"}]}
+    filas = [{"fecha_hora": "2026-01-01 00:00:00", "latitud": "-30.000",
+              "longitud": "-71.000"}]
+    appmod._analistas_probables_repetidos(filas, [("seisan", indice)])
+    assert filas[0]["analista_seisan"] == "jere"
+
+
+def test_leer_informe_repetidos_tabulado(cwd_tmp):
+    ruta = _escribir(cwd_tmp, "rep.txt", _INFORME_PUBLICA)
+    filas, crudo = appmod._leer_informe_repetidos(str(ruta))
+    assert crudo is None
+    assert len(filas) == 2
+    assert filas[0]["referencia"] == "R1"
+
+
+def test_leer_informe_repetidos_espacios_cae_a_crudo(cwd_tmp):
+    ruta = _escribir(cwd_tmp, "rep.txt", "fecha hora lat\nuno dos tres\n")
+    filas, crudo = appmod._leer_informe_repetidos(str(ruta))
+    assert filas is None
+    assert crudo[0] == "fecha hora lat"
+
+
+def test_repetidos_columnas_por_informe():
+    assert [c[0] for c in appmod._repetidos_columnas("x/rep_publica_amplio.txt")][
+        -2:] == ["analista_seisan", "analista_seiscomp"]
+    assert [c[0] for c in appmod._repetidos_columnas("x/rep_seisan_amplio.txt")] \
+        == ["fecha_hora", "latitud", "longitud", "prof", "mag", "tipomag",
+            "analista"]
+    assert [c[0] for c in appmod._repetidos_columnas(
+        "x/rep_seisan_exclu.txt")] == ["fecha_hora", "analista"]
 
 
 # --------------------------------------------------------------------------

@@ -1,14 +1,14 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.12 — 16 de octubre de 2026.
+Versión 1.13 — 16 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.11, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.12, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -211,9 +211,14 @@ figura cuántos eventos quedaron con perfil y cuántos sin perfil, con el motivo
 
 ### Repetidos
 
-Abre una tabla con los informes de repeticiones por fuente y filtro (amplio y
-estricto). El panel de abajo muestra el informe seleccionado y **«Descargar
-informe»** baja el completo:
+Arriba, la tabla con los informes de repeticiones por fuente y filtro (amplio y
+estricto). Al elegir uno, abajo se muestra **como tabla ordenable**: clic en el
+encabezado ordena, «Filtrar» acota por texto y **«Descargar»** baja lo filtrado
+mientras **«Descargar todo»** baja el informe completo (en CSV o TXT, con el
+nombre que se elija). En los repetidos publicados (eventquery), que no traen
+responsable, se agregan dos columnas **«Analista probable (Seisan)»** y
+**«Analista probable (SeisComp)»**, deducidas cruzando cada evento con esas
+fuentes como en el catálogo:
 
 ![Ventana de eventos repetidos](img/11_repetidos.png)
 
@@ -567,17 +572,27 @@ actividad* (**¿caída?**). Controles:
 ## 10. Descargas
 
 Todo lo que se baja va a la carpeta **`descargas/`** dentro de la carpeta del
-análisis, y se abre con **«Abrir carpeta»**. Al descargar, la app pregunta el
-formato:
+análisis, y se abre con **«Abrir carpeta»**. La carpeta es siempre la misma: no
+se puede elegir otra. Al descargar, la app pregunta el nombre y el formato:
 
-![Formato de descarga](img/13_formato_descarga.png)
+![Descarga: nombre y formato](img/13_formato_descarga.png)
 
+- **Nombre**: viene propuesto uno con la fecha y la hora; se puede escribir el
+  que uno quiera. La extensión no se escribe a mano: la pone el formato.
 - **CSV** (separado por comas), para planillas.
 - **TXT** (separado por tabulaciones), para pegar en planillas.
+
+Si ya hay un archivo con ese nombre, la app pregunta si se quiere sobrescribir.
+Si se contesta que no, el diálogo sigue abierto para cambiar el nombre. Nunca se
+pisa un archivo sin preguntar.
 
 El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla,
 **«Descargar»** arma el archivo con el **filtro y el orden en pantalla**, y
 **«Descargar todo»** lo escribe entero.
+
+En **Comparar agencias → Comparación** se bajan varios archivos de una vez: el
+nombre que se elige es la base, y cada archivo agrega su sufijo (`_larga` para la
+comparación larga, `_cobertura` para la cobertura).
 
 ---
 

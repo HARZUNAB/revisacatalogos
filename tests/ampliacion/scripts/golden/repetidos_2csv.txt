@@ -35,10 +35,10 @@ rep_seisan_amplio.txt
 rep_seisan_estricto.txt
 
 --- archivos ---
-053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_amplio.txt
-053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_estricto.txt
-11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_amplio.txt
-11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_estricto.txt
+919e64c489109a7e3ead00de7da650b8e8b7bdce684ed073d7bdd376a86c8a1c  informes/rep_publica_amplio.txt
+919e64c489109a7e3ead00de7da650b8e8b7bdce684ed073d7bdd376a86c8a1c  informes/rep_publica_estricto.txt
+cbb384c46c1d53d996f9f44b31c038f9bd005dfb33878ad6c044208db834a8cc  informes/rep_seisan_amplio.txt
+cbb384c46c1d53d996f9f44b31c038f9bd005dfb33878ad6c044208db834a8cc  informes/rep_seisan_estricto.txt
 
 ===== modo: entregables =====
 --- exit: 0 ---
@@ -77,7 +77,7 @@ rep_seisan_amplio.txt
 rep_seisan_estricto.txt
 
 --- archivos ---
-053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_amplio.txt
-053ce1b19bc8009eae69614b03cb4d235ab37604799d94b1f7f6e015ec5c7cd3  informes/rep_publica_estricto.txt
-11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_amplio.txt
-11543b5658a01b2a780b18dd4b606eb618919aeaf834b678c67bc1df54952234  informes/rep_seisan_estricto.txt
+919e64c489109a7e3ead00de7da650b8e8b7bdce684ed073d7bdd376a86c8a1c  informes/rep_publica_amplio.txt
+919e64c489109a7e3ead00de7da650b8e8b7bdce684ed073d7bdd376a86c8a1c  informes/rep_publica_estricto.txt
+cbb384c46c1d53d996f9f44b31c038f9bd005dfb33878ad6c044208db834a8cc  informes/rep_seisan_amplio.txt
+cbb384c46c1d53d996f9f44b31c038f9bd005dfb33878ad6c044208db834a8cc  informes/rep_seisan_estricto.txt

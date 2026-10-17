@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.12 — 16 de octubre de 2026.
+Versión 1.13 — 16 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -230,10 +230,10 @@ ubicar y cambiar. Ubicación `archivo:línea` (puede variar con ediciones).
 
 | Constante | Archivo:línea | Valor | Efecto |
 |---|---|---|---|
-| `MAX_SEG_AMPLIO` | `compara.py:33`, `repetidos.py:21` | `6` | Tolerancia de tiempo (s) del filtro **amplio**. |
-| `MAX_LAT_LON_AMPLIO` | `compara.py:34`, `repetidos.py:22` | `2.0` | Tolerancia de coordenadas (°) del amplio. |
-| `MAX_SEG_ESTRICTO` | `compara.py:35`, `repetidos.py:23` | `3` | Tolerancia de tiempo (s) del **estricto**. |
-| `MAX_LAT_LON_ESTRICTO` | `compara.py:36`, `repetidos.py:24` | `1.0` | Tolerancia de coordenadas (°) del estricto. |
+| `MAX_SEG_AMPLIO` | `compara.py:33`, `repetidos.py:53` | `6` | Tolerancia de tiempo (s) del filtro **amplio**. |
+| `MAX_LAT_LON_AMPLIO` | `compara.py:34`, `repetidos.py:54` | `2.0` | Tolerancia de coordenadas (°) del amplio. |
+| `MAX_SEG_ESTRICTO` | `compara.py:35`, `repetidos.py:55` | `3` | Tolerancia de tiempo (s) del **estricto**. |
+| `MAX_LAT_LON_ESTRICTO` | `compara.py:36`, `repetidos.py:56` | `1.0` | Tolerancia de coordenadas (°) del estricto. |
 | Magnitud mínima de CSV | `compara.py` (~217) | `2.5` | Umbral para escribir los CSV de no publicados. |
 
 ### Precisión de comparación (`comparacion.py`)
@@ -328,15 +328,52 @@ miniatura opcional, y devuelve los ganchos (`arbol`, `fila_actual`, `marco_mini`
 funcional de la aplicación (qué hace y dónde está cada cosa) está en
 `docs/proyecto/img/09_mapa_funcional.png` y en el manual de usuario.
 
+### Descargas (`descargas.py`)
+
+Todas las descargas a `descargas/` pasan por `descargas.py`.
+`preguntar_descarga(padre, etiqueta, cwd=None, con_formato=True,
+sufijos=("",), titulo="Descarga")` es el diálogo único: pregunta el **nombre
+base** (precargado con `etiqueta_marca`) y, si `con_formato`, CSV/TXT; la
+extensión la fija el formato, no se escribe a mano. Devuelve
+`(formato, nombre, sobrescribir)` o `None`. Si el destino ya existe pregunta
+antes de pisarlo (`_confirmar_sobrescribir`) y no cierra hasta que el nombre no
+choque o se cancele. `preguntar_formato` sobrevive como envoltorio que devuelve
+solo el formato, por compatibilidad con los caminos que no necesitan el nombre.
+
+`exportar_tabla`/`exportar_lineas` aceptan `nombre` y `sobrescribir`. Sin
+`nombre` arman `etiqueta_marca`; si el destino existe y no se pidió
+sobrescribir, `nombre_descarga` agrega un correlativo para no pisar. La carpeta
+es siempre `descargas/` (ver §3): no se elige. Para una descarga de varios
+archivos se pasa `sufijos` y cada uno usa `nombre + sufijo` (Comparar agencias →
+Comparación usa `""`, `_larga` y `_cobertura`).
+
+### Repetidos (`repetidos.py`, `repetidosexclu.py`)
+
+Los informes `informes/rep_*.txt` y `informes/rep_seisan_exclu.txt` se escriben
+**separados por tabuladores** con una cabecera de una palabra por columna (antes
+iban por espacios, que no se podían partir en columnas: «fecha hora» partía en
+dos y una referencia o un analista con espacios corría la fila). `repetidos.py`
+expone las columnas de cada informe (`COLUMNAS_PUBLICA`, `COLUMNAS_SEISAN`,
+`COLUMNAS_EXCLU`), que `app._ver_repetidos` usa para mostrar y descargar el
+informe elegido como tabla ordenable (vía `revisa_seiscomp.abrir_tabla`, con
+«Descargar» = lo filtrado y «Descargar todo» = el completo).
+
+Para los repetidos **publicados** (eventquery), que no traen responsable, la app
+agrega dos columnas «Analista probable (Seisan)» y «Analista probable
+(SeisComp)»: `app._analistas_probables_repetidos` cruza cada fila con
+`datos/atribucion_seisan.csv` y `datos/atribucion_seiscomp.csv` reusando
+`generajson._analistas_para_evento`, la misma lógica del catálogo. Si falta la
+atribución, las columnas quedan vacías.
+
 ### Ajuste de ventanas (`ajuste.py`) y arranque (`app.py`)
 
 | Constante | Archivo:línea | Valor | Efecto |
 |---|---|---|---|
 | `TOPE_MAXIMO` | `ajuste.py:39` | `(1920, 1080)` | Tope de crecimiento de ventanas. |
 | `MARGEN` | `ajuste.py:43` | `40` | Margen contra el borde de pantalla. |
-| `TAMANIO_INICIAL` | `app.py:86` | `(980, 820)` | Tamaño inicial de la ventana principal. |
-| `GRUPOS_PESTANAS` | `app.py:165` | — | Agrupación de pestañas. |
-| `REP_FILES` | `app.py:71` | — | Archivos de repetidos que muestra «Ver repetidos». |
+| `TAMANIO_INICIAL` | `app.py:98` | `(980, 820)` | Tamaño inicial de la ventana principal. |
+| `GRUPOS_PESTANAS` | `app.py:275` | — | Agrupación de pestañas. |
+| `REP_FILES` | `app.py:83` | — | Archivos de repetidos que muestra «Ver repetidos». |
 
 ### Dibujo (`plotear.py`)
 
@@ -419,6 +456,10 @@ fecha/hora (nunca el id de una agencia).
 Definiciones exactas de las columnas y campos que aparecen en las tablas de la
 interfaz y en los archivos de descarga. Los campos del JSON de eventos están en
 la [sección 8](#8-entradas-y-formatos).
+
+Las distancias al perfil (`along_km`, `perp_km`, `residuo_km` y `dist_asoc`) se
+guardan con 3 decimales y se **muestran con un decimal** en la viñeta del evento,
+en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 
 | Columna | Definición | Origen |
 |---|---|---|

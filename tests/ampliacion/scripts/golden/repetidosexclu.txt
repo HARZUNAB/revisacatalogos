@@ -16,7 +16,7 @@ Archivos generados...
 informes/rep_seisan_exclu.txt
 
 --- archivos ---
-898d4c979a71d2e49601fa4699b7f89e220a0a58b958cfb805ad08a252636575  informes/rep_seisan_exclu.txt
+72429f43622bfb0b63b805c8735b33f6dde07aa67c68b39771460fa9a0664cad  informes/rep_seisan_exclu.txt
 
 ===== modo: entregables =====
 --- exit: 0 ---
@@ -36,4 +36,4 @@ Archivos generados...
 informes/rep_seisan_exclu.txt
 
 --- archivos ---
-898d4c979a71d2e49601fa4699b7f89e220a0a58b958cfb805ad08a252636575  informes/rep_seisan_exclu.txt
+72429f43622bfb0b63b805c8735b33f6dde07aa67c68b39771460fa9a0664cad  informes/rep_seisan_exclu.txt

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Tests de descargas.py — diálogo de formato (con pantalla)
-========================================================
-Cubre el diálogo real de `preguntar_formato` con un Tk: elegir CSV/TXT,
-cancelar, aceptar con Enter y cancelar con Escape. Necesita `DISPLAY`.
+Tests de descargas.py — diálogo de descarga (con pantalla)
+==========================================================
+Cubre el diálogo real de `preguntar_descarga` (y su envoltorio
+`preguntar_formato`) con un Tk: elegir CSV/TXT, editar el nombre, aceptar con
+Enter, cancelar con Escape y la pregunta de sobrescritura. Necesita `DISPLAY`.
 
 Los demás caminos de `descargas.py` (sin Tk) están en
 `tests/ampliacion/modulos/test_descargas_interfaz.py`.
 """
 
+import os
 import tkinter as tk
 from tkinter import ttk
 
@@ -92,3 +94,54 @@ def test_atajos_enter_y_escape_enlazados(raiz_tk):
 
     raiz_tk.after(50, revisar)
     assert descargas.preguntar_formato(raiz_tk) == "txt"
+
+
+# --------------------------------------------------------------------------
+# preguntar_descarga: nombre y sobrescritura
+# --------------------------------------------------------------------------
+def test_preguntar_descarga_nombre_por_defecto(raiz_tk, cwd_tmp):
+    raiz_tk.after(50, lambda: _invocar(raiz_tk, "csv"))
+    formato, nombre, sobrescribir = descargas.preguntar_descarga(raiz_tk, "etiq")
+    assert formato == "csv"
+    assert nombre.startswith("etiq_")
+    assert sobrescribir is False
+
+
+def test_preguntar_descarga_usa_el_nombre_editado(raiz_tk, cwd_tmp):
+    def editar():
+        top = _top(raiz_tk)
+        entrada = _buscar(top, tk.Entry)
+        entrada.delete(0, "end")
+        entrada.insert(0, "Mi Listado!")
+        _invocar(raiz_tk, "txt")
+
+    raiz_tk.after(50, editar)
+    assert descargas.preguntar_descarga(raiz_tk, "etiq") == \
+        ("txt", "Mi Listado!", False)
+
+
+def test_preguntar_descarga_cancelar_devuelve_none(raiz_tk, cwd_tmp):
+    raiz_tk.after(50, lambda: _invocar(raiz_tk, "csv", boton="Cancelar"))
+    assert descargas.preguntar_descarga(raiz_tk, "etiq") is None
+
+
+def test_preguntar_descarga_pide_sobrescribir_si_existe(raiz_tk, cwd_tmp,
+                                                        monkeypatch):
+    carpeta = os.path.join(str(cwd_tmp), "descargas")
+    os.makedirs(carpeta)
+    open(os.path.join(carpeta, "mio.csv"), "w").close()
+    llamadas = []
+    monkeypatch.setattr(
+        descargas, "_confirmar_sobrescribir",
+        lambda padre, existentes: llamadas.append(existentes) or True)
+
+    def editar():
+        top = _top(raiz_tk)
+        entrada = _buscar(top, tk.Entry)
+        entrada.delete(0, "end")
+        entrada.insert(0, "mio")
+        _invocar(raiz_tk, "csv")
+
+    raiz_tk.after(50, editar)
+    assert descargas.preguntar_descarga(raiz_tk, "etiq") == ("csv", "mio", True)
+    assert llamadas and llamadas[0][0].endswith("mio.csv")

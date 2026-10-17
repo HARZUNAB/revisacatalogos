@@ -13,7 +13,7 @@ import pytest
 
 import repetidos
 
-CABECERA = "fecha hora latitud longitud prof mag tipomag analista\n"
+CABECERA = repetidos.cabecera_seisan
 
 
 # --------------------------------------------------------------------------
@@ -92,6 +92,8 @@ def test_detecta_par_repetido(cwd_tmp):
     lineas = _lineas(cwd_tmp, "rep_test.txt")
     assert lineas[0] == CABECERA.rstrip("\n")
     assert len(lineas) == 3  # encabezado + 2 repetidos
+    # Las filas van tabuladas: 7 columnas separadas por tabulador.
+    assert all(len(linea.split("\t")) == 7 for linea in lineas[1:])
 
 
 def test_evento_solo_no_es_repetido(cwd_tmp):

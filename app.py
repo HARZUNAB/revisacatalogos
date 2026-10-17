@@ -107,6 +107,97 @@ ARCHIVO_CATALOGO = {
 }
 
 
+def _repetidos_columnas(ruta):
+    """
+    Columnas de la tabla de «Ver repetidos» para un informe, según su nombre.
+
+    Los publicados suman dos columnas de analista probable: eventquery no
+    informa responsable, así que el nombre sale de cruzar cada evento con Seisan
+    y con SeisComp (ver _analistas_probables_repetidos).
+    """
+    import repetidos
+    base = os.path.basename(ruta)
+    if base.startswith("rep_publica"):
+        return list(repetidos.COLUMNAS_PUBLICA) + [
+            ("analista_seisan", "Analista probable (Seisan)", 185, False),
+            ("analista_seiscomp", "Analista probable (SeisComp)", 205, False),
+        ]
+    if base.startswith("rep_seisan_exclu"):
+        return list(repetidos.COLUMNAS_EXCLU)
+    return list(repetidos.COLUMNAS_SEISAN)
+
+
+def _leer_informe_repetidos(ruta):
+    """
+    (filas, crudo) de un informe de repetidos.
+
+    'filas' es una lista de dicts (una por evento) si el informe está tabulado;
+    si no, 'filas' es None y 'crudo' trae las líneas para mostrarlas tal cual.
+    Los informes viejos venían separados por espacios y no se pueden partir en
+    columnas sin ambigüedad, así que se degradan a texto.
+    """
+    if not os.path.isfile(ruta):
+        return [], None
+    with open(ruta, encoding="utf-8", errors="replace") as f:
+        lineas = [linea.rstrip("\n") for linea in f]
+    lineas = [linea for linea in lineas if linea.strip()]
+    if not lineas:
+        return [], None
+    cabecera = lineas[0].split("\t")
+    if len(cabecera) < 2:
+        return None, lineas
+    filas = []
+    for linea in lineas[1:]:
+        partes = linea.split("\t")
+        if len(partes) != len(cabecera):
+            return None, lineas
+        filas.append(dict(zip(cabecera, partes)))
+    return filas, None
+
+
+def _indices_atribucion():
+    """[(fuente, indice)] de datos/atribucion_*.csv, para el cruce de analistas."""
+    try:
+        import generajson as gj
+    except Exception:
+        return []
+    indices = []
+    for fuente in ("seiscomp", "seisan"):
+        indice = gj._cargar_atribucion(fuente)
+        if indice:
+            indices.append((fuente, indice))
+    return indices
+
+
+def _analistas_probables_repetidos(filas, indices):
+    """
+    Agrega 'analista_<fuente>' a cada fila cruzando el evento con los catálogos.
+
+    'indices' es [(fuente, indice), ...], donde 'indice' es lo que devuelve
+    generajson._cargar_atribucion. Se reusa la misma lógica que el catálogo de
+    eventquery para que la pantalla y la viñeta no puedan decir cosas distintas.
+    """
+    if not indices:
+        return
+    try:
+        import generajson as gj
+    except Exception:
+        return
+    for fila in filas:
+        fecha = fila.get("fecha_hora", "")
+        try:
+            lat = float(fila.get("latitud"))
+            lon = float(fila.get("longitud"))
+        except (TypeError, ValueError):
+            lat = lon = None
+        for fuente, indice in indices:
+            encontradas = gj._analistas_para_evento(indice, fecha, lat, lon)
+            nombres = []
+            for entrada in encontradas or ():
+                nombres.extend(entrada.get("analistas") or [])
+            fila["analista_" + fuente] = ", ".join(nombres)
+
+
 def _derivado_al_dia(destino, entradas, carpeta):
     """
     True si 'destino' es más nuevo que todos los archivos de 'entradas'.
@@ -2761,14 +2852,14 @@ class App:
     def _descargar_comparacion(self, padre):
         """Baja los dos layouts de la comparación en un solo paso."""
         import descargas
-        archivos = [("comparacion_agencias.csv", "comparacion agencias"),
+        archivos = [("comparacion_agencias.csv", "comparacion agencias", ""),
                     ("comparacion_agencias_larga.csv",
-                     "comparacion agencias larga")]
+                     "comparacion agencias larga", "_larga")]
         datos = []
-        for nombre, etiqueta in archivos:
+        for nombre, etiqueta, sufijo in archivos:
             par = self._leer_csv_datos(nombre)
             if par is not None:
-                datos.append((etiqueta, par[0], par[1]))
+                datos.append((etiqueta, par[0], par[1], sufijo))
         # Se suma la cobertura (ventana solicitada y real por agencia) para que
         # quien procese el archivo fuera tenga de dónde salieron los datos.
         try:
@@ -2781,19 +2872,25 @@ class App:
             filas_cob.append(["Solicitada", "", sol["desde"], sol["hasta"], ""])
             datos.append(("cobertura agencias",
                           ["Agencia", "Eventos", "Desde (UTC)", "Hasta (UTC)",
-                           "Rezago"], filas_cob))
+                           "Rezago"], filas_cob, "_cobertura"))
         except Exception:
             pass
         if not datos:
             self._log("No hay comparación para descargar.")
             return
-        formato = descargas.preguntar_formato(padre, "Formato de descarga")
-        if formato is None:
+        # Un solo diálogo para los tres archivos: el nombre base lo elige el
+        # usuario y cada archivo agrega su sufijo según lo que contiene.
+        sufijos = tuple(sufijo for *_resto, sufijo in datos)
+        pedido = descargas.preguntar_descarga(padre, "comparacion agencias",
+                                              sufijos=sufijos)
+        if pedido is None:
             return
+        formato, nombre_base, sobrescribir = pedido
         escritos = []
-        for etiqueta, encab, filas in datos:
-            ruta = descargas.exportar_tabla(encab, filas, etiqueta,
-                                            formato=formato)
+        for etiqueta, encab, filas, sufijo in datos:
+            ruta = descargas.exportar_tabla(
+                encab, filas, etiqueta, formato=formato,
+                nombre=nombre_base + sufijo, sobrescribir=sobrescribir)
             if ruta:
                 escritos.append(ruta)
         if escritos:
@@ -3273,26 +3370,30 @@ class App:
                       "de descargas es %s" % carpeta)
 
     def _ver_repetidos(self):
+        rs = self._importar_revisor()
+        if rs is None:
+            return
         top = ttk.Toplevel(title="Eventos repetidos", master=self.raiz)
-        top.geometry("760x480")
+        top.geometry("920x580")
 
         marco = ttk.Frame(top, padding=10)
         marco.pack(fill=BOTH, expand=YES)
 
+        # Arriba, los informes disponibles con su conteo de eventos.
         cols = ("archivo", "eventos")
         arbol = ttk.Treeview(marco, columns=cols, show="headings", height=6)
         arbol.heading("archivo", text="Archivo")
         arbol.heading("eventos", text="Eventos")
-        arbol.column("archivo", width=320, anchor=W)
+        arbol.column("archivo", width=400, anchor=W)
         arbol.column("eventos", width=80, anchor=CENTER)
         arbol.pack(fill=X)
 
-        contenido = ScrolledText(marco, padding=4, autohide=True, height=14)
-        contenido.pack(fill=BOTH, expand=YES, pady=(8, 0))
-        contenido.text.configure(state=DISABLED, font=("Consolas", 9))
+        # Abajo, el informe elegido como tabla ordenable (abrir_tabla le arma el
+        # filtro, el orden por encabezado y las descargas).
+        marco_tabla = ttk.Frame(marco)
+        marco_tabla.pack(fill=BOTH, expand=YES, pady=(8, 0))
 
         rutas = {}
-        totales = {}
         for titulo, ruta in REP_FILES:
             if os.path.isfile(ruta):
                 with open(ruta) as f:
@@ -3304,68 +3405,70 @@ class App:
                 etiqueta = "%s  (no generado)" % titulo
             iid = arbol.insert("", END, values=(etiqueta, n))
             rutas[iid] = ruta
-            totales[iid] = n
 
-        MAX_VISIBLES = 2000
+        # La atribución se carga una sola vez por ventana, y solo si se abre un
+        # informe publicado (los otros ya traen su analista en el archivo).
+        cache_indices = {"valor": None}
+
+        def _indices():
+            if cache_indices["valor"] is None:
+                cache_indices["valor"] = _indices_atribucion()
+            return cache_indices["valor"]
+
+        def _valores(columnas):
+            def valores(fila):
+                salida = []
+                for clave, _titulo, _ancho, es_num in columnas:
+                    valor = fila.get(clave, "")
+                    if es_num and clave in ("latitud", "longitud"):
+                        salida.append(rs._numero(valor, 3))
+                    elif es_num and clave in ("prof", "mag"):
+                        salida.append(rs._numero(valor, 1))
+                    else:
+                        salida.append(rs._texto(valor))
+                return salida
+            return valores
+
+        def _mostrar_crudo(lineas):
+            caja = ScrolledText(marco_tabla, padding=4, autohide=True,
+                                height=14)
+            caja.pack(fill=BOTH, expand=YES)
+            caja.text.configure(state=NORMAL, font=("Consolas", 9))
+            caja.text.insert(END, "\n".join(lineas))
+            caja.text.configure(state=DISABLED)
 
         def al_seleccionar(evento=None):
             sel = arbol.selection()
             if not sel:
                 return
-            iid = sel[0]
-            ruta = rutas[iid]
-            contenido.text.configure(state=NORMAL)
-            contenido.text.delete("1.0", END)
-            if os.path.isfile(ruta):
-                lineas = []
-                with open(ruta) as f:
-                    for _ in range(MAX_VISIBLES):
-                        linea = f.readline()
-                        if not linea:
-                            break
-                        lineas.append(linea)
-                contenido.text.insert(END, "".join(lineas))
-                n_total = totales[iid]
-                if n_total > MAX_VISIBLES:
-                    leftovers = n_total - (len(lineas) - 1)
-                    contenido.text.insert(
-                        END, "\n... (%d líneas más, de %d en total)"
-                        % (leftovers, n_total))
-            else:
-                contenido.text.insert(END, "(no generado)")
-            contenido.text.configure(state=DISABLED)
-            # El botón se enciende con el informe elegido y se apaga cuando no
-            # hay archivo o no tiene nada adentro.
-            boton_descargar.configure(
-                state="normal" if totales.get(iid) else "disabled")
-
-        def al_descargar():
-            sel = arbol.selection()
-            if not sel:
+            for hijo in marco_tabla.winfo_children():
+                hijo.destroy()
+            ruta = rutas[sel[0]]
+            filas, crudo = _leer_informe_repetidos(ruta)
+            if filas is None:
+                ttk.Label(
+                    marco_tabla, bootstyle="secondary",
+                    text="El informe está en el formato viejo (separado por "
+                         "espacios); vuelva a procesar los catálogos para "
+                         "verlo como tabla.").pack(anchor="w", pady=(0, 4))
+                _mostrar_crudo(crudo)
                 return
-            iid = sel[0]
-            ruta = rutas[iid]
-            # Se baja el informe entero, no lo que entra en pantalla: la
-            # ventana muestra las primeras MAX_VISIBLES solo para que siga
-            # siendo usable, y un informe recortado no sirve para nada.
-            lineas = descargas.leer_lineas(ruta)
-            if not lineas:
+            if not filas:
+                ttk.Label(marco_tabla, bootstyle="secondary",
+                          text="El informe no tiene eventos.").pack(anchor="w")
                 return
-            nombre = os.path.splitext(os.path.basename(ruta))[0]
-            escrito = descargas.descargar_texto(top, lineas, nombre)
-            if escrito:
-                self._log("Descargado el informe de repetidos %s a %s"
-                          % (nombre, escrito))
-
-        marco_botones = ttk.Frame(marco)
-        marco_botones.pack(fill=X, pady=(8, 0))
-        boton_descargar = ttk.Button(marco_botones, text="Descargar informe",
-                                     command=al_descargar, state="disabled",
-                                     bootstyle="primary-outline")
-        boton_descargar.pack(side=RIGHT)
-        ttk.Label(marco_botones,
-                  text="Se descarga el informe completo del archivo "
-                       "seleccionado.").pack(side=LEFT)
+            columnas = _repetidos_columnas(ruta)
+            if os.path.basename(ruta).startswith("rep_publica"):
+                _analistas_probables_repetidos(filas, _indices())
+            rs.abrir_tabla(
+                marco_tabla, filas, columnas, _valores(columnas),
+                cwd=self.cwd, log=self._log,
+                etiqueta=os.path.splitext(os.path.basename(ruta))[0],
+                descarga_texto="Descargar", descarga_todo=True,
+                descarga_bootstyle="primary-outline",
+                texto_filtro="Filtrar",
+                texto_detalle="«Descargar»: lo filtrado. "
+                              "«Descargar todo»: completo.")
 
         arbol.bind("<<TreeviewSelect>>", al_seleccionar)
         hijos = arbol.get_children()

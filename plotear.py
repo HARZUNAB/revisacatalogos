@@ -1609,7 +1609,8 @@ def _fila_descarga(ev):
             fila.append(_analistas_de_descarga(ev))
         elif clave in ("latitud", "longitud"):
             fila.append(_numero_evento(ev.get(clave), 3))
-        elif clave in ("prof", "magnitud"):
+        elif clave in ("prof", "magnitud", "along_km", "perp_km",
+                       "residuo_km", "dist_asoc"):
             fila.append(_numero_evento(ev.get(clave), 1))
         else:
             fila.append(_valor_descarga(ev.get(clave)))
@@ -1721,7 +1722,8 @@ def _texto_parametros_evento(ev):
     lineas.extend(_lineas_posible_analista(ev))
     if ev.get('perfil') is not None:
         lineas.append("perfil: %s   along: %s km"
-                      % (ev.get('perfil'), ev.get('along_km', '')))
+                      % (ev.get('perfil'),
+                         _numero_evento(ev.get('along_km'), 1)))
     return "\n".join(lineas)
 
 def _distancia_a_rectangulo(lon, lat, limites):
@@ -3340,7 +3342,7 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             if estado['filtro_sospechosos'] and not sosp:
                 continue
             if a_min is not None:
-                along = "%.0f-%.0f" % (a_min, a_max)
+                along = "%.1f-%.1f" % (a_min, a_max)
             else:
                 along = "-"
             iid = arbol.insert(

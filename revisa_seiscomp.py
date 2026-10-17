@@ -1268,22 +1268,27 @@ def _exportar_listado(filas, valores, columnas, cwd, etiqueta,
     lo que se pidió y lo que uno espera al abrir el archivo: el mismo contenido
     de la pantalla.
 
-    El formato (CSV o TXT tabulado) lo pregunta descargas.py. Se puede forzar
-    pasando 'formato', que es lo que usan los caminos sin interfaz.
+    El nombre (base del archivo) y el formato (CSV o TXT tabulado) los pregunta
+    descargas.py en un solo diálogo. Se pueden forzar pasando 'formato', que es
+    lo que usan los caminos sin interfaz: ahí se usa el nombre automático.
 
-    Devuelve la ruta escrita, o None si no había filas o si se canceló la
-    pregunta de formato. No escribe un archivo vacío: un CSV con solo
-    encabezados parece un catálogo que no tiene eventos.
+    Devuelve la ruta escrita, o None si no había filas o si se canceló el
+    diálogo. No escribe un archivo vacío: un CSV con solo encabezados parece un
+    catálogo que no tiene eventos.
     """
     if not filas:
         return None
+    nombre = None
+    sobrescribir = False
     if formato is None:
-        formato = descargas.preguntar_formato(padre)
-        if formato is None:
+        pedido = descargas.preguntar_descarga(padre, etiqueta, cwd=cwd)
+        if pedido is None:
             return None
+        formato, nombre, sobrescribir = pedido
     titulos = [titulo for _, titulo, *_ in columnas]
     return descargas.exportar_tabla(titulos, [valores(fila) for fila in filas],
-                                    etiqueta, cwd=cwd, formato=formato)
+                                    etiqueta, cwd=cwd, formato=formato,
+                                    nombre=nombre, sobrescribir=sobrescribir)
 
 
 def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,

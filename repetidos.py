@@ -9,9 +9,41 @@ from datetime import timedelta
 import rutas
 import prog
 
-# cabeceras para cada archivo .txt de salida (Para plotear con google earth)
-cabecera_publica="fecha hora latitud longitud prof mag tipomag referencia percibido\n"
-cabecera_seisan="fecha hora latitud longitud prof mag tipomag analista\n"
+# Separador de los informes: tabulador. Antes eran espacios y no se podían leer
+# como columnas: "fecha hora" partía en dos y una referencia o un analista con
+# espacios corrían el resto de la fila. Con tabulador cada campo va entero.
+SEP = "\t"
+
+# Definiciones de columnas de cada informe: (clave, título, ancho, es_num). Las
+# usa la app para mostrar y descargar la tabla de «Ver repetidos», así que la
+# cabecera del archivo y las columnas de la pantalla salen de la misma lista.
+COLUMNAS_PUBLICA = [
+    ("fecha_hora", "Fecha y hora", 150, False),
+    ("latitud", "Lat", 80, True),
+    ("longitud", "Lon", 80, True),
+    ("prof", "Prof (km)", 80, True),
+    ("mag", "Mag", 60, True),
+    ("tipomag", "Tipo", 60, False),
+    ("referencia", "Referencia", 280, False),
+    ("percibido", "Percib.", 70, False),
+]
+COLUMNAS_SEISAN = [
+    ("fecha_hora", "Fecha y hora", 150, False),
+    ("latitud", "Lat", 80, True),
+    ("longitud", "Lon", 80, True),
+    ("prof", "Prof (km)", 80, True),
+    ("mag", "Mag", 60, True),
+    ("tipomag", "Tipo", 60, False),
+    ("analista", "Analista", 150, False),
+]
+COLUMNAS_EXCLU = [
+    ("fecha_hora", "Fecha y hora", 150, False),
+    ("analista", "Analista", 150, False),
+]
+
+# cabeceras para cada archivo .txt de salida (misma clave que COLUMNAS_*)
+cabecera_publica = SEP.join(c[0] for c in COLUMNAS_PUBLICA) + "\n"
+cabecera_seisan = SEP.join(c[0] for c in COLUMNAS_SEISAN) + "\n"
 
 # campos de cada fuente utilizados en los archivos de salida
 campos_publica=['fecha_hora', 'lat', 'lon', 'prof', 'mag', 'tipo_mag', 'ref', 'perc']
@@ -90,7 +122,7 @@ def detecta_repetidos(lista_sismos, max_seg, max_lat, max_lon, nombre_archivo, c
         # esto es por que la busqueda se hace tomando un elemento de la lista y lo busca en la misma lista hasta llegar al final de esta
         if repeticiones > 1:
             total_repetidos=total_repetidos+1
-            linea=' '.join(sismo[campo] for campo in campos)
+            linea=SEP.join(sismo[campo] for campo in campos)
             archivo.write(linea+"\n")
 
     archivo.close()

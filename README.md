@@ -363,26 +363,30 @@ cortarse a mitad.
 ### Descargas
 
 Todo lo que se baja va a `descargas/` dentro de la carpeta del análisis, y se abre
-con «Abrir carpeta» en la barra lateral. El CSV usa `utf-8-sig` (el BOM que necesita
-Excel para no romper los acentos) y el TXT va sin BOM, porque el BOM se le cuelga a
-la primera columna y rompe `cut -f1` y `pandas.read_csv`:
+con «Abrir carpeta» en la barra lateral. La carpeta es fija: no se elige otra. El
+diálogo de descarga pide el **nombre** (viene propuesto uno con fecha y hora, y
+se puede editar) y el **formato**; la extensión la pone el formato. Si ya existe
+un archivo con ese nombre, pregunta antes de sobrescribirlo. El CSV usa
+`utf-8-sig` (el BOM que necesita Excel para no romper los acentos) y el TXT va
+sin BOM, porque el BOM se le cuelga a la primera columna y rompe `cut -f1` y
+`pandas.read_csv`:
 
 - **CSV** separado por comas.
 - **TXT** separado por tabulaciones, que pega directo en las planillas que se usan
   para revisar y distribuir.
 
-El diálogo recuerda el formato de la descarga anterior. En «Ver repetidos» no hay
-diálogo: el informe viene alineado por espacios, no es una tabla, y guardarlo como
-CSV lo volvía ilegible, así que siempre se baja como `.txt` con el contenido tal
-cual.
+El diálogo recuerda el formato de la descarga anterior. En «Ver repetidos» el
+informe se muestra como tabla ordenable y se baja con el mismo diálogo (CSV o
+TXT); los repetidos publicados suman «Analista probable (Seisan)» y «Analista
+probable (SeisComp)», deducidos por cruce con esas fuentes. En «Comparar agencias
+→ Comparación» se bajan varios archivos de una vez: el nombre elegido es la base
+y cada archivo agrega su sufijo (`_larga`, `_cobertura`).
 
 En las vistas con tabla, «Descargar» arma el archivo con el filtro y el orden que
 se ven en pantalla, y «Descargar todo» lo escribe entero. En el panel de análisis,
 «Descargar» pregunta el ámbito: el perfil de la fila seleccionada, todos los
 perfiles visibles o los eventos sin perfil, con la cantidad de cada uno. Si el
-filtro «Solo sospechosos» está prendido, solo entran los eventos sospechosos. En
-«Ver repetidos» la ventana muestra solo las primeras 2000 líneas para seguir siendo
-usable, pero la descarga baja el informe completo.
+filtro «Solo sospechosos» está prendido, solo entran los eventos sospechosos.
 
 Al escribir en las tablas se respeta lo que se está mostrando, incluido el guion
 de «sin dato»: un vacío en el archivo significa que el dato no está, y no que valga

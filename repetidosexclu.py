@@ -42,7 +42,7 @@ def detecta_excluidos(lista_excluidos, lista_select, max_seg, archivo):
 
             # Ventana de 6 segundos para filtrar posibles eventos repetidos
             if (deltadias1 == 0 or deltadias2 == 0) and ((deltasegundos1 >= 0 and deltasegundos1 <= max_seg) or (deltasegundos2 >= 0 and deltasegundos2 <= max_seg)):
-                archivo.write(sismo2['fecha_hora'] + ' ' + sismo2['analista'] + "\n")
+                archivo.write(sismo2['fecha_hora'] + '\t' + sismo2['analista'] + "\n")
                 total = total + 1
     return total
 
@@ -52,8 +52,9 @@ def main(argv=None):
     # archivos de salida
     archivo2=open(rutas.p_informes("rep_seisan_exclu.txt"), "w")
 
-    # cabeceras para cada archivo .txt de salida (Para plotear con google earth)
-    archivo2.write("fecha hora analista\n")
+    # cabeceras para cada archivo .txt de salida. Tabuladas, para que la app
+    # las muestre como tabla (la referencia o el analista pueden tener espacios).
+    archivo2.write("fecha_hora\tanalista\n")
 
     csv_file_2 = open(argv[1])
     csvreader_2 = csv.reader(csv_file_2)

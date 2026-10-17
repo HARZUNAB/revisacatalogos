@@ -77,6 +77,32 @@ def test_nombre_descarga_agrega_correlativo_si_existe(fecha_fija, cwd_tmp):
     assert os.path.basename(ruta2) == "tabla_20260102030405_2.csv"
 
 
+def test_nombre_descarga_usa_el_nombre_elegido(fecha_fija, cwd_tmp):
+    ruta = descargas.nombre_descarga("x", "csv", nombre="Mi Informe!")
+    assert os.path.basename(ruta) == "miinforme.csv"
+
+
+def test_nombre_descarga_correlativo_del_nombre_elegido(fecha_fija, cwd_tmp):
+    ruta1 = descargas.nombre_descarga("x", "csv", nombre="informe")
+    open(ruta1, "w").close()
+    ruta2 = descargas.nombre_descarga("x", "csv", nombre="informe")
+    assert os.path.basename(ruta2) == "informe_2.csv"
+
+
+def test_nombre_descarga_sobrescribir_pisa_lo_mismo(fecha_fija, cwd_tmp):
+    ruta1 = descargas.nombre_descarga("x", "csv", nombre="informe")
+    open(ruta1, "w").close()
+    ruta2 = descargas.nombre_descarga("x", "csv", nombre="informe",
+                                      sobrescribir=True)
+    assert ruta2 == ruta1
+
+
+def test_ruta_descarga_arma_la_ruta_sin_correlativo(fecha_fija, cwd_tmp):
+    ruta = descargas.ruta_descarga("etiq", "csv", nombre="informe")
+    assert os.path.dirname(ruta) == os.path.join(str(cwd_tmp), "descargas")
+    assert os.path.basename(ruta) == "informe.csv"
+
+
 # --------------------------------------------------------------------------
 # escritura de tablas
 # --------------------------------------------------------------------------
@@ -109,6 +135,19 @@ def test_exportar_tabla_escribe_y_devuelve_ruta(fecha_fija, cwd_tmp):
     ruta = descargas.exportar_tabla(["a", "b"], [[1, 2]], "etiq")
     assert os.path.isfile(ruta)
     assert os.path.basename(ruta) == "etiq_20260102030405.csv"
+
+
+def test_exportar_tabla_usa_el_nombre_elegido(fecha_fija, cwd_tmp):
+    ruta = descargas.exportar_tabla(["a", "b"], [[1, 2]], "etiq",
+                                    nombre="elegido")
+    assert os.path.basename(ruta) == "elegido.csv"
+
+
+def test_exportar_tabla_sobrescribir_reusa_el_archivo(fecha_fija, cwd_tmp):
+    ruta1 = descargas.exportar_tabla(["a"], [[1]], "etiq", nombre="elegido")
+    ruta2 = descargas.exportar_tabla(["a"], [[2]], "etiq", nombre="elegido",
+                                     sobrescribir=True)
+    assert ruta2 == ruta1
 
 
 def test_exportar_lineas(fecha_fija, cwd_tmp):

@@ -11,12 +11,12 @@ open('informes/rep_seisan.txt', 'w').write("\n".join(lineas) + "\n")
 
 import descargas
 
-info = {'dialogo': 'NO se abrio el dialogo de formato'}
-orig = descargas.preguntar_formato
+info = {'dialogo': 'NO se abrio el dialogo de descarga'}
+orig = descargas.preguntar_descarga
 def guardia(*a, **k):
-    info['dialogo'] = 'SE ABRIO el dialogo de formato'
+    info['dialogo'] = 'SE ABRIO el dialogo de descarga'
     return orig(*a, **k)
-descargas.preguntar_formato = guardia
+descargas.preguntar_descarga = guardia
 
 # El aviso de exito es un messagebox bloqueante: se stubea para no colgar el test.
 descargas._avisar_exito = lambda padre, ruta: info.update(aviso=True)

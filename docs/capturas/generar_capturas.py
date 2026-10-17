@@ -160,34 +160,54 @@ def _preparar_demo():
     npc = [_fila_no_picada(*f) for f in NO_PICADAS]
     _escribir_csv(base[:-4] + "_no_picadas.csv", npc, ex.CABECERA_NO_PICADAS)
 
-    # No actualizados (atribución): una fila por cruce.
+    # No actualizados (atribución): una fila por cruce. 'fecha_eventquery' es la
+    # clave con la que se cruzan los repetidos publicados para deducir el
+    # analista probable (ver app._analistas_probables_repetidos).
     _escribir_csv(
         os.path.join(DEMO, "datos", "atribucion_seiscomp.csv"),
-        [{"fecha_local": "2026-09-06 00:42:45", "lat_local": "-33.420",
+        [{"fecha_eventquery": "2026-09-06 00:42:45",
+          "fecha_local": "2026-09-06 00:42:45", "lat_local": "-33.420",
           "lon_local": "-70.592", "prof_local": "92.0", "mag_local": "2.2",
           "tipo_mag_local": "Mlv", "lat_eventquery": "-33.451",
           "lon_eventquery": "-70.610", "prof_eventquery": "88.0",
           "mag_eventquery": "2.4", "tipo_mag_eventquery": "ML",
           "analista": "tark", "dt_seg": "2.10", "dlat": "0.031",
           "dlon": "0.018"},
-         {"fecha_local": "2026-09-18 22:40:06", "lat_local": "-30.550",
+         {"fecha_eventquery": "2026-09-18 22:40:06",
+          "fecha_local": "2026-09-18 22:40:06", "lat_local": "-30.550",
           "lon_local": "-71.250", "prof_local": "47.0", "mag_local": "4.4",
           "tipo_mag_local": "Mww", "lat_eventquery": "-30.562",
           "lon_eventquery": "-71.244", "prof_eventquery": "47.0",
           "mag_eventquery": "4.5", "tipo_mag_eventquery": "Mww",
           "analista": "mdur", "dt_seg": "0.80", "dlat": "0.012",
           "dlon": "0.006"},
-         {"fecha_local": "2026-09-24 08:18:30", "lat_local": "-33.640",
+         {"fecha_eventquery": "2026-09-24 08:18:30",
+          "fecha_local": "2026-09-24 08:18:30", "lat_local": "-33.640",
           "lon_local": "-72.010", "prof_local": "21.0", "mag_local": "3.7",
           "tipo_mag_local": "Mlv", "lat_eventquery": "-33.600",
           "lon_eventquery": "-72.070", "prof_eventquery": "18.0",
           "mag_eventquery": "3.9", "tipo_mag_eventquery": "Mlv",
           "analista": "cris", "dt_seg": "4.30", "dlat": "0.040",
           "dlon": "0.060"}],
-        ["fecha_local", "lat_local", "lon_local", "prof_local", "mag_local",
-         "tipo_mag_local", "lat_eventquery", "lon_eventquery",
-         "prof_eventquery", "mag_eventquery", "tipo_mag_eventquery",
-         "analista", "dt_seg", "dlat", "dlon"])
+        ["fecha_eventquery", "fecha_local", "lat_local", "lon_local",
+         "prof_local", "mag_local", "tipo_mag_local", "lat_eventquery",
+         "lon_eventquery", "prof_eventquery", "mag_eventquery",
+         "tipo_mag_eventquery", "analista", "dt_seg", "dlat", "dlon"])
+
+    # Atribución de Seisan (para el «Analista probable» de los repetidos).
+    _escribir_csv(
+        os.path.join(DEMO, "datos", "atribucion_seisan.csv"),
+        [{"fecha_eventquery": "2026-09-06 00:42:31",
+          "lat_eventquery": "-33.410", "lon_eventquery": "-70.580",
+          "fuente": "seisan", "analista": "jere", "dt_seg": "1.20"},
+         {"fecha_eventquery": "2026-09-06 00:42:45",
+          "lat_eventquery": "-33.420", "lon_eventquery": "-70.592",
+          "fuente": "seisan", "analista": "ana", "dt_seg": "0.90"},
+         {"fecha_eventquery": "2026-09-24 08:18:30",
+          "lat_eventquery": "-33.640", "lon_eventquery": "-72.010",
+          "fuente": "seisan", "analista": "cris", "dt_seg": "2.00"}],
+        ["fecha_eventquery", "lat_eventquery", "lon_eventquery", "fuente",
+         "analista", "dt_seg"])
 
     # No publicados (estricto).
     cab_np = ["Fecha_Hora", "Latitud", "Longitud", "Prof.", "Mag.", "Tipo_mag.",
@@ -223,15 +243,29 @@ def _preparar_demo():
           "Tipo_mag.": "Mlv", "Analista": "cris"}],
         cab_np)
 
-    # Informes de repetidos (para «Ver repetidos»).
-    rep = ("# Publicados repetidos (estricto)\n"
-           "2026-09-06 00:42:31  -33.410 -70.580  2.3  csn_sc62026rlgry\n"
-           "2026-09-06 00:42:45  -33.420 -70.592  2.2  csn_sc62026rtrgc\n"
-           "2026-09-17 07:13:10  -34.100 -70.300  1.1  csn_sc62026sfwfj\n")
-    for nombre in ("rep_publica_amplio", "rep_publica_estricto",
-                   "rep_seisan_amplio", "rep_seisan_estricto"):
+    # Informes de repetidos (para «Ver repetidos»). Tabulados, con la misma
+    # cabecera que genera repetidos.py; la fecha del primero coincide con la
+    # atribución de Seisan para que se vea el «Analista probable».
+    cab_pub = ("fecha_hora\tlatitud\tlongitud\tprof\tmag\ttipomag\t"
+               "referencia\tpercibido\n")
+    cab_sei = ("fecha_hora\tlatitud\tlongitud\tprof\tmag\ttipomag\t"
+               "analista\n")
+    publica = cab_pub + (
+        "2026-09-06 00:42:31\t-33.410\t-70.580\t2.3\t2.3\tML\t"
+        "csn_sc62026rlgry\tS\n"
+        "2026-09-06 00:42:45\t-33.420\t-70.592\t2.2\t2.2\tML\t"
+        "csn_sc62026rtrgc\tS\n"
+        "2026-09-24 08:18:30\t-33.640\t-72.010\t3.7\t3.7\tMlv\t"
+        "csn_sc62026abcd\tN\n")
+    seisan = cab_sei + (
+        "2026-09-06 00:42:45\t-33.420\t-70.592\t92.0\t2.2\tMlv\ttark\n"
+        "2026-09-06 00:42:45\t-33.420\t-70.592\t92.0\t2.2\tMlv\teatl\n")
+    for nombre, contenido in (("rep_publica_amplio", publica),
+                              ("rep_publica_estricto", publica),
+                              ("rep_seisan_amplio", seisan),
+                              ("rep_seisan_estricto", seisan)):
         with open(os.path.join(DEMO, "informes", nombre + ".txt"), "w") as f:
-            f.write(rep)
+            f.write(contenido)
 
     # JSON del panel de análisis (formato de generajson.py).
     eventos_json = []
@@ -479,6 +513,9 @@ def shot_repetidos():
     raiz.update()
     for w in raiz.winfo_children():
         if isinstance(w, tb.Toplevel) and w.title() == "Eventos repetidos":
+            # La ventana real abre más angosta; se ensancha para que la captura
+            # muestre también las columnas de «Analista probable».
+            w.geometry("1320x600")
             _capturar(w, "11_repetidos")
     try:
         raiz.after_cancel(inst._after_drenar)
@@ -539,12 +576,12 @@ def shot_formato():
     def _capturar_y_cerrar():
         for w in raiz.winfo_children():
             if (type(w).__name__ == "Toplevel"
-                    and w.title() == "Formato de descarga"):
+                    and w.title() == "Descarga"):
                 _capturar(w, "13_formato_descarga")
                 w.destroy()
 
     raiz.after(800, _capturar_y_cerrar)
-    descargas.preguntar_formato(raiz)
+    descargas.preguntar_descarga(raiz, "descarga")
     raiz.destroy()
 
 

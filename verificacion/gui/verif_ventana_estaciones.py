@@ -676,14 +676,14 @@ if raiz is not None:
     check("el doble clic del análisis abre los parámetros",
           len(parametros_an) == 1 and "ev1" in parametros_an[0].title(),
           [w.title() for w in _toplevels(raiz)])
-    # Descarga larga (se evita el diálogo de formato).
-    formato_original = rs.descargas.preguntar_formato
-    rs.descargas.preguntar_formato = lambda padre: "csv"
+    # Descarga larga (se evita el diálogo de nombre/formato).
+    descarga_original = rs.descargas.preguntar_descarga
+    rs.descargas.preguntar_descarga = lambda *a, **k: ("csv", None, False)
     try:
         botones_an["Descargar"].invoke()
         raiz.update()
     finally:
-        rs.descargas.preguntar_formato = formato_original
+        rs.descargas.preguntar_descarga = descarga_original
     carpeta_desc = os.path.join(RAIZ, "descargas")
     archivos_an = ([n for n in os.listdir(carpeta_desc)
                     if n.startswith("analisis_")]

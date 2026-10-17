@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.2 — 16 de octubre de 2026.
+Versión 1.3 — 16 de octubre de 2026.
 
 ---
 
@@ -213,9 +213,17 @@ rehace lo que cambió.
 **Módulo 6 — Reportería, entregables y trazabilidad.**
 
 - RF6.1 Generar mapas (planta y perfil de subducción) y paneles de análisis.
-- RF6.2 Ofrecer la descarga de listados en CSV (UTF-8 con BOM) o TXT.
+- RF6.2 Ofrecer la descarga de listados en CSV (UTF-8 con BOM) o TXT, con un
+  **nombre de archivo editable** (el formato elegido fija la extensión); si el
+  destino ya existe, **preguntar antes de sobrescribir**. La carpeta es siempre
+  `descargas/`.
 - RF6.3 Escribir los entregables automáticos solo con `RV_ENTREGABLES=1`.
 - RF6.4 Registrar la traza de la app (`informes/app.log`, con rotación).
+- RF6.5 Mostrar los informes de **repetidos** como **tabla ordenable** (orden
+  por encabezado y filtro por texto) con descarga en CSV o TXT.
+- RF6.6 En los repetidos **publicados** (eventquery), agregar el **analista
+  probable** por fuente (Seisan y SeisComp), deducido por cruce como en el
+  catálogo.
 
 ### 4.2 Requerimientos no funcionales
 
@@ -228,7 +236,7 @@ rehace lo que cambió.
 | Mantenibilidad | Un módulo por etapa, constantes de ajuste en mayúsculas, sin `argparse`, y rutas centralizadas en `rutas.py`. |
 | Trazabilidad | Cada corrida deja registro y caché; los entregables se distinguen de la caché. |
 | Seguridad de sesión | La contraseña remota se entrega con `SSH_ASKPASS`; no va por la línea de comandos ni se guarda. |
-| Precisión numérica | Coordenadas a 3 decimales; profundidad y magnitud a 1; comparación numérica con tolerancia. |
+| Precisión numérica | Coordenadas a 3 decimales; profundidad y magnitud a 1; las distancias al perfil (along, perp, residuo y dist. asoc.) a 1 decimal; comparación numérica con tolerancia. |
 
 ---
 
@@ -288,7 +296,7 @@ principales y sus relaciones de `include`/`extend` se muestran a continuación.
 |---|---|---|
 | Solicitar y descargar catálogos | Supervisor | Baja Seisan, eventquery y la exportación de SeisComp. |
 | Procesar catálogos | Supervisor | Corre el análisis por etapas. |
-| Ver repetidos | Supervisor | Lista duplicados por fuente. |
+| Ver repetidos | Supervisor | Lista duplicados por fuente como tabla ordenable, con analista probable (Seisan/SeisComp) en publicados; descarga en CSV o TXT. |
 | Ver No publicados | Supervisor | Eventos del público ausentes de la fuente. |
 | Ver No actualizados | Supervisor | Parámetros publicados que difieren de la fuente. |
 | Revisar catálogo de SeisComp | Supervisor | Parámetros, fases y estaciones; miniatura del perfil y «Planta y perfil». |
@@ -441,7 +449,7 @@ resumen así:
 | `PERFIL` (`grillas/slabP###`, `topoP###`) | código | Perfiles de subducción. |
 | `CONSULTA_AGENCIA` (`datos/agencias/consultaapi_<AG>.csv`) | agencia + id | Catálogo por agencia. |
 | `ESTADO` (`estado.json`) | clave | Período y catálogos faltantes. |
-| `REPETIDO` (`informes/rep_*.txt`) | fuente + grupo | Duplicados amplios/estrictos. |
+| `REPETIDO` (`informes/rep_*.txt`) | fuente + grupo | Duplicados amplios/estrictos (tabulado). |
 
 ### Anexo B. Manuales del sistema
 

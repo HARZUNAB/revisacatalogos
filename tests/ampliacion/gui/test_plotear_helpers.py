@@ -123,3 +123,28 @@ def test_valor_descarga(valor, esperado):
 ])
 def test_numero_evento(valor, decimales, esperado):
     assert plotear._numero_evento(valor, decimales) == esperado
+
+
+def _celdas_descarga(ev):
+    """Fila de descarga indexada por clave de columna."""
+    return {clave: valor for (clave, _titulo, _ancho), valor
+            in zip(plotear.COLUMNAS_DESCARGA_EVENTO,
+                   plotear._fila_descarga(ev))}
+
+
+def test_fila_descarga_formatea_las_distancias_a_un_decimal():
+    ev = {"id": "x", "perfil": "P001", "along_km": 101.429, "perp_km": 5.0,
+          "residuo_km": None, "dist_asoc": 8.94}
+    celdas = _celdas_descarga(ev)
+    assert celdas["along_km"] == "101.4"
+    assert celdas["perp_km"] == "5.0"
+    assert celdas["residuo_km"] == ""
+    assert celdas["dist_asoc"] == "8.9"
+
+
+def test_texto_parametros_evento_along_con_un_decimal():
+    ev = {"id": "x", "fecha hora": "2026-01-01 00:00:00", "latitud": -33.0,
+          "longitud": -70.0, "prof": 90.0, "magnitud": 3.0, "tipo": "ML",
+          "perfil": "P001", "along_km": 101.429}
+    texto = plotear._texto_parametros_evento(ev)
+    assert "along: 101.4 km" in texto
