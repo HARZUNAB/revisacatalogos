@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.13 — 16 de octubre de 2026.
+Versión 1.14 — 19 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -93,6 +93,7 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 | `plotear.py` | Mapas y panel de análisis (matplotlib). | `eventos_<vista>.json` | figuras / descargas | No |
 | `revisa_seiscomp.py` | Revisión de SeisComp: catálogo, parámetros, estaciones, análisis rápido, no actualizados. | CSV de SeisComp | tablas / descargas | — |
 | `exporta_ventana_seiscomp.py` | Exporta eventos, fases y sin arribos desde la base de SeisComp. | base PostgreSQL | `datos/seiscomp_<ini>_<fin>*.csv` | — |
+| `disponibilidad.py` | Consulta formas de onda en SDS y, como respaldo, en el recordstream de tiempo real. | streams, ventana | cobertura por stream | — |
 | `seiscomp_a_parametros.py` | Convierte la exportación cruda al CSV de 8 columnas. | export CSV | `datos/seiscomp_parametros.csv` | — |
 | `verifica_entorno.py` | Diagnóstico de entorno (venv, paquetes, base). | `requirements.txt` | stdout | — |
 | `ajuste.py` | Ajuste de tamaño de ventanas (solo crecen). | — | — | — |
@@ -276,22 +277,22 @@ sospechoso**.
 
 | Constante | Línea | Valor | Efecto |
 |---|---|---|---|
-| `RADIO_ESTACIONES_KM` | `182` | `400.0` | Radio por defecto de estaciones sin arribos. |
-| `ACTIVIDAD_HORAS` | `190` | `24.0` | Semiancho de la ventana de actividad (±24 h). |
-| `TAMANO_LOTE` | `165` | `5000` | Filas por lote de lectura. |
-| `AVISO_DE_LOTES` | `169` | `200000` | Aviso de exportaciones grandes. |
-| `NO_PICADAS_BYTES_FILA` | `1114` | `154` | Bytes/fila para estimar tamaño. |
-| `AVISO_NO_PICADAS_MB` | `1118` | `200.0` | Aviso (MB) antes de exportar sin arribos. |
+| `RADIO_ESTACIONES_KM` | `192` | `400.0` | Radio por defecto de estaciones sin arribos. |
+| `ACTIVIDAD_HORAS` | `202` | `2.0` | Semiancho de la ventana de actividad (±2 h). |
+| `TAMANO_LOTE` | `175` | `5000` | Filas por lote de lectura. |
+| `AVISO_DE_LOTES` | `179` | `200000` | Aviso de exportaciones grandes. |
+| `NO_PICADAS_BYTES_FILA` | `1138` | `154` | Bytes/fila para estimar tamaño. |
+| `AVISO_NO_PICADAS_MB` | `1142` | `200.0` | Aviso (MB) antes de exportar sin arribos. |
 
 ### Interfaz de revisión (`revisa_seiscomp.py`)
 
 | Constante | Línea | Valor | Efecto |
 |---|---|---|---|
-| `MAX_FILAS` | `60` | `20000` | Máximo de filas mostradas en el panel. |
-| `DECIMALES_COORD` | `89` | `3` | Decimales de coordenadas en pantalla. |
-| `UMBRAL_CERCANO_KM` | `181` | `50.0` | Umbral de resaltado «cerca» (configurable en la ventana). |
-| `ANCHO_ESTACIONES` | `188` | `1400` | Ancho por defecto de la ventana Estaciones. |
-| `UMBRAL_AVISO_AMPLIADO` | `231` | `2000` | Filas que disparan el aviso al ampliar. |
+| `MAX_FILAS` | `64` | `20000` | Máximo de filas mostradas en el panel. |
+| `DECIMALES_COORD` | `93` | `3` | Decimales de coordenadas en pantalla. |
+| `UMBRAL_CERCANO_KM` | `187` | `50.0` | Umbral de resaltado «cerca» (configurable en la ventana). |
+| `ANCHO_ESTACIONES` | `194` | `1400` | Ancho por defecto de la ventana Estaciones. |
+| `UMBRAL_AVISO_AMPLIADO` | `238` | `2000` | Filas que disparan el aviso al ampliar. |
 | `COLUMNAS_*`, `DETALLE_GRUPOS` | — | — | Columnas y grupos del detalle. |
 | `AYUDA_*` | — | — | Textos de ayuda de la interfaz. |
 
@@ -301,7 +302,11 @@ En la ventana **Estaciones del evento** hay dos controles de distancia distintos
 reconstruye: lo hace `_retintar_no_picadas(arbol, umbral_cercano)`, que reusa las
 filas guardadas en el árbol (`arbol._filas_no_picadas`) para no perder scroll ni
 selección; se dispara con retardo (300 ms) al editar el campo. El check
-**«Solo cercanas»** agrega el recorte por el umbral cerca.
+**«Solo cercanas»** agrega el recorte por el umbral cerca. La tabla de sin
+arribos tiene **tooltip por fila** (`_ayuda_filas_arbol` + `_texto_ayuda_fila`):
+al pasar el mouse muestra la evidencia de esa estación (verificado con ondas,
+indicio por actividad, sin evidencia o sin consultar) y, si está verificada, la
+cobertura.
 
 En las tres pestañas de **Catálogos** (`abrir_panel` para SeisComp y
 `abrir_catalogo` para Seisan/eventquery) la lista comparte la ventana con una
@@ -364,6 +369,44 @@ agrega dos columnas «Analista probable (Seisan)» y «Analista probable
 `datos/atribucion_seisan.csv` y `datos/atribucion_seiscomp.csv` reusando
 `generajson._analistas_para_evento`, la misma lógica del catálogo. Si falta la
 atribución, las columnas quedan vacías.
+
+### Disponibilidad de formas de onda (`disponibilidad.py`)
+
+`disponibilidad.consultar(streams, desde, hasta, al_progreso=None)` responde si
+hay datos para cada `NET.STA.LOC.CHA` en una ventana, usando `scart` en modo
+consulta (no escribe nada):
+
+1. **SDS local**: `scart -d --print-streams -n … -t … <raíz>` (`NEWPT_SDS_ROOT`,
+   por defecto `/mnt/sds/archive`).
+2. **Tiempo real**: para los streams que no están en el SDS,
+   `scart -I <recordstream> --test --print-streams …`. La URL sale de
+   `NEWPT_RECORDSTREAM` o de la línea `recordstream` del `global.cfg`.
+
+`al_progreso` es un callback opcional que recibe mensajes de fase
+(`Consultando el archivo SDS…`, `Buscando en el tiempo real…`, `Listo.`). La
+ventana de estaciones lo usa para una barra indeterminada, el texto de fase con
+segundos transcurridos y el bloqueo temporal de los controles que reconstruyen
+la tabla; el botón y la descarga se deshabilitan mientras dura la consulta. El
+callback corre en el hilo de trabajo, así que la interfaz solo encola los
+mensajes.
+
+`_no_picadas.csv` trae `streams_vigentes_ids` con todos los streams vigentes (la
+referencia primero), así que la consulta prueba la referencia y, si no hay datos,
+los demás. Las columnas `waveform_status` (`CON_DATOS`/`SIN_DATOS`/
+`NO_CONSULTADO`), `availability_source` (`SDS`/`RECORDSTREAM`) y
+`cobertura_desde/hasta` se llenan con `exporta_ventana_seiscomp.py
+--formas-onda`, o on-demand desde «Consultar formas de onda» en la ventana de
+estaciones. Si no hay acceso a ninguna fuente, no se afirma nada y queda la
+actividad ±2 h como indicador indirecto.
+
+La columna derivada `evidencia` resume la conclusión con una jerarquía explícita
+(`disponibilidad.estado_evidencia`): **VERIFICADO** (hay ondas) > **INDICIO**
+(actividad ±2 h) > **SIN_EVIDENCIA** (se miraron las ondas y no hay, ni
+actividad) > **NO_CONSULTADO** (no se miraron y no hay actividad). La interfaz
+usa esa jerarquía para colorear: verde = verificado, ámbar = indicio, negrita =
+sin evidencia. El Análisis rápido muestra tres contadores (verificadas,
+indicios, sin evidencia) y la descarga larga clasifica cada estación como
+`verificado`, `indicio`, `sin evidencia` o `sin consultar`.
 
 ### Ajuste de ventanas (`ajuste.py`) y arranque (`app.py`)
 
@@ -436,8 +479,10 @@ fecha/hora (nunca el id de una agencia).
   base_datos`). Ver `docs/esquema_seiscomp.md`.
 - **Fases** (`..._fases.csv`): 33 columnas, con `modo_pick`, `pick_autor`,
   `pick_agencia`, `pick_metodo`, `usada`, etc.
-- **Sin arribos** (`..._no_picadas.csv`): 19 columnas, con `distancia_km`,
-  `streams_vigentes` y `actividad_ventana`.
+- **Sin arribos** (`..._no_picadas.csv`): 21 columnas, con `distancia_km`,
+  `streams_vigentes`, `streams_vigentes_ids` (todos los vigentes, la referencia
+  primero), `actividad_ventana`, `evidencia` y las de disponibilidad
+  (`waveform_status`, `availability_source`, `cobertura_desde/hasta`).
 - **`datos/atribucion_<fuente>.csv`**: una fila por cruce, con `fecha_local`,
   `lat_local`, `lon_local`, `prof_local`, `mag_local`, `*_eventquery`, `analista`,
   `dt_seg`.
@@ -482,8 +527,10 @@ en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 | **SNR** / **QC** | Relación señal-ruido / marca de control de calidad del *pick*. | `revisa_seiscomp` |
 | **Elev (m)** | Elevación de la estación, en metros. | `revisa_seiscomp` |
 | **Streams vig.** / **Loc ref.** / **Canal ref.** | Streams vigentes / localización y canal del stream de referencia. | `revisa_seiscomp` |
-| **Actividad ±24 h** | Otros eventos picados por esa estación entre 24 h antes y 24 h después del origen. | `exporta_ventana_seiscomp` |
-| **Destacadas** / **Cercanas** | Estaciones cercanas con actividad no usadas / cercanas sin actividad. | `revisa_seiscomp` |
+| **Formas de onda** | Consulta a SDS y, si no hay datos, al recordstream de tiempo real (prueba el stream de referencia y luego los demás vigentes). | `disponibilidad` |
+| **Evidencia** | Jerarquía Verificado (ondas) > Indicio (actividad) > Sin evidencia > Sin consultar. | `disponibilidad` |
+| **Indicio ±2 h** | Otros eventos picados por esa estación entre 2 h antes y 2 h después del origen. | `exporta_ventana_seiscomp` |
+| **Verificadas** / **Indicios** / **Sin evid.** | Estaciones cercanas con ondas / solo con actividad ±2 h / sin evidencia. | `revisa_seiscomp` |
 | **Dist. mín. (km)** / **Clasificación** | Distancia a la estación sin arribos más cercana / categoría del evento en el análisis. | `revisa_seiscomp` |
 | **Estatus** / **Base** / **Fases** | Estado de revisión / base de datos de origen / cantidad de fases. | `exporta_ventana_seiscomp` |
 | **Percib.** / **Referencia** / **Analista probable** | Percibido por la población / referencia del catálogo público / analista probable del evento. | `revisa_seiscomp` |

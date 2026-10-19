@@ -127,14 +127,31 @@ NO_PICADAS = [
 
 
 def _fila_no_picada(evento, red, est, dist, act, elev, lugar):
+    # Para la captura: un caso verificado (SDS), uno de indicio por actividad,
+    # uno sin evidencia y uno sin consultar. El botón «Consultar formas de onda»
+    # haría esto mismo contra el archivo real.
+    act_s = str(act)
+    if act_s == "3":
+        estado, fuente, evidencia = "CON_DATOS", "SDS", "VERIFICADO"
+    elif act_s in ("1", "2"):
+        estado, fuente, evidencia = "NO_CONSULTADO", "", "INDICIO"
+    elif est in ("PEL", "VA03"):
+        estado, fuente, evidencia = "NO_CONSULTADO", "", "NO_CONSULTADO"
+    else:
+        estado, fuente, evidencia = "SIN_DATOS", "", "SIN_EVIDENCIA"
+    con_datos = estado == "CON_DATOS"
     return {"id_evento": evento["id_evento"], "id_origen": evento["id_origen"],
             "red": red, "estacion": est, "loc_ref": "", "cha_ref": "BHZ",
-            "streams_vigentes": "1", "distancia_km": dist,
+            "streams_vigentes": "1",
+            "streams_vigentes_ids": "%s.%s..BHZ" % (red, est),
+            "distancia_km": dist,
             "est_lat": "", "est_lon": "", "est_elev": elev,
             "est_lugar": lugar, "est_pais": "Chile", "radio_km": "400.0",
-            "actividad_ventana": act, "waveform_status": "NO_CONSULTADO",
-            "availability_source": "", "cobertura_desde": "",
-            "cobertura_hasta": ""}
+            "actividad_ventana": act, "evidencia": evidencia,
+            "waveform_status": estado,
+            "availability_source": fuente,
+            "cobertura_desde": "2026-09-06T00:32:00Z" if con_datos else "",
+            "cobertura_hasta": "2026-09-06T00:52:00Z" if con_datos else ""}
 
 
 def _escribir_csv(ruta, filas, cabecera):

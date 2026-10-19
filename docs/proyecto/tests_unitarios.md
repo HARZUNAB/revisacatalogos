@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.0 — 15 de octubre de 2026.
+Versión 1.1 — 19 de octubre de 2026.
 
 ---
 
@@ -67,6 +67,7 @@ CI (los grupos sin marcador) y otra no (`gui`/`db`).
 | `compara.py` | scripts | `scripts/test_compara_helpers.py` | sí |
 | `consultaapi.py` | red | `red/test_consultaapi_fechas.py`, `red/test_consultaapi_cuadrantes.py` | sí |
 | `descargas.py` | modulos, gui | `modulos/test_descargas_archivos.py`, `modulos/test_descargas_interfaz.py`, `gui/test_descargas_dialogo.py`, `gui/test_descargas_widgets.py` | parcial |
+| `disponibilidad.py` | modulos | `modulos/test_disponibilidad.py` | sí |
 | `exporta_ventana_seiscomp.py` | base, bordes, db | `base/test_exporta_ventana_seiscomp.py`, `bordes/test_exporta_ventana_seiscomp_bordes.py`, `db/test_exporta_ventana_db.py` | parcial |
 | `generajson.py` | modulos | `modulos/test_generajson_args.py`, `modulos/test_generajson_distancia.py`, `modulos/test_generajson_analistas.py`, `modulos/test_generajson_procesar.py` | sí |
 | `plotear.py` | gui | `gui/test_plotear_helpers.py`, `gui/test_plotear_figuras.py`, `gui/test_plotear_panel.py`, `gui/test_plotear_abrir.py` | no |
@@ -87,6 +88,12 @@ CI (los grupos sin marcador) y otra no (`gui`/`db`).
 | `verifica_entorno.py` | db | `db/test_verifica_entorno.py` | no |
 
 Todos los módulos del proyecto tienen al menos un test.
+
+La cobertura de la última ampliación incluye `test_disponibilidad.py` (parser de
+`scart`, fallback SDS→tiempo real, evidencia y mensajes de progreso),
+`test_rs_estaciones.py` (tooltip por fila y consulta on-demand con barra de
+progreso) y `test_rs_analisis.py` (tres contadores de evidencia: verificadas,
+indicios y sin evidencia).
 
 ## 4. Arnés de regresión
 

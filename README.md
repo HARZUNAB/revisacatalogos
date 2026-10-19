@@ -208,9 +208,11 @@ arribos no tiene fila de llegada, así que el `INNER JOIN` de las fases descarta
 justo lo que se busca. **No son estaciones que no grabaron.** La base de
 metadatos de SeisComp no sabe qué estaciones tienen formas de onda de cada evento
 —eso vive en el archivo de ondas—, así que la ayuda de la solapa y la columna
-`actividad_ventana` («Con actividad ±24 h»: cuántos otros eventos tienen picks
-de esa estación dentro de ±24 h, o sea 24 h antes y 24 h después) son un
-indicador indirecto de operación, no una prueba.
+`actividad_ventana` («Con actividad ±2 h»: cuántos otros eventos tienen picks
+de esa estación dentro de ±2 h, o sea 2 h antes y 2 h después) son un
+indicador indirecto de operación, no una prueba. La prueba directa es el botón
+**«Consultar formas de onda»**, que revisa el archivo SDS y, si no encuentra
+datos, el flujo de tiempo real (y los demás streams vigentes de la estación).
 
 La cadena de inventario se valida entera por evento: red, estación, sensor
 location y stream tienen que estar vigentes en la hora del evento. Una estación
@@ -227,16 +229,16 @@ SeisComp no las trabaja (en esta base son 334 de 477). El binding es la config
 si no se encuentran bindings, no se filtra y se avisa.
 
 El radio por defecto es de 400 km (`--radio-km`, se pregunta al exportar y se
-puede bajar para catálogos grandes) y la ventana de actividad, de 24 horas
-(`--actividad-h`); la distancia se calcula con haversine, porque no hay PostGIS.
+puede bajar para catálogos grandes) y la ventana de actividad, de 2 horas
+(`--actividad-h`, o sea 4 h en total); la distancia se calcula con haversine,
+porque no hay PostGIS.
 **El radio es exclusivo de SeisComp**: corta la lista de estaciones sin arribos
 de sus eventos y no tiene nada que ver con los catálogos de Seisan ni de
-eventquery. Las columnas van ordenadas por distancia. El resaltado cruza dos
-umbrales independientes del radio: el de **cerca** (≤ 50 km por defecto,
-ajustable en la ventana) y la actividad ±24 h. Las cuatro categorías, con su
-lectura: *cerca y con actividad* (fondo destacado) —estaba operando y cerca,
-**no se usó**—; *con actividad, más lejos* (verde); *cerca, sin actividad*
-(negrita) —**¿caída?**—; y *lejos, sin actividad* (normal). El umbral de cerca
+eventquery. Las columnas van ordenadas por distancia. El resaltado cruza el
+umbral de **cerca** (≤ 50 km por defecto, ajustable en la ventana) con la
+**evidencia**: **verde** = verificado con ondas (grabó y no se usó, certeza);
+**ámbar** = indicio por actividad (pudo operar, deducción); **negrita** = sin
+evidencia (posible caída); **normal** = lejos o sin consultar. El umbral de cerca
 solo cambia el color, **no recorta la lista**. El reuso de una exportación exige
 que el radio coincida con el anotado en la marca: cambiarlo obliga a re-exportar.
 
@@ -260,16 +262,32 @@ Si la ampliación trae más de `UMBRAL_AVISO_AMPLIADO` (2000) filas, pide
 confirmación antes de mostrarla. La ampliación necesita conexión a la base; si no
 está, avisa y deja el corte exportado como estaba.
 
-La columna de actividad se llama **«Actividad ±24 h»** y, arriba de la tabla, hay
-una línea fija que aclara qué mide: «con actividad ±24 h» es que la estación picó
-otros eventos entre 24 h antes y 24 h después del origen (48 h en total). Es un
-indicador indirecto: 0 no prueba que la estación haya estado caída.
+La columna de actividad se llama **«Indicio ±2 h»** y, arriba de la tabla, hay
+una línea fija que aclara qué mide: el indicio es que la estación picó otros
+eventos entre 2 h antes y 2 h después del origen (4 h en total). Es una
+deducción: 0 no prueba que la estación haya estado caída.
 
-El archivo ya trae los campos `waveform_status`, `availability_source`,
-`cobertura_desde` y `cobertura_hasta` para cuando se integren SDS,
-scardac/DataAvailability o FDSN Availability. Hoy `waveform_status` vale
-`NO_CONSULTADO` y los otros van vacíos: no se afirma nada sobre las formas de
-onda.
+La columna **«Evidencia»** separa explícitamente la certeza de la deducción:
+**Verificado (SDS/tiempo real)** cuando hay ondas, **Indicio (actividad)** cuando
+solo hay picks cercanos, **Sin evidencia** cuando se miraron las ondas y no hay,
+y **Sin consultar** cuando todavía no se consultaron. Al pasar el mouse por una
+estación se ve el detalle de su evidencia y, si está verificada, la cobertura.
+
+La columna **«Formas de onda»** se llena con el botón **«Consultar formas de
+onda»**: revisa el archivo SDS (`NEWPT_SDS_ROOT`, por defecto
+`/mnt/sds/archive`) y, para los streams que no estén ahí, el flujo de tiempo real
+configurado en el `global.cfg` de SeisComp (`NEWPT_RECORDSTREAM`). Prueba primero
+el stream de referencia (`loc_ref`/`cha_ref`) y, si no hay datos, los demás
+streams vigentes de la estación. Si ningún origen responde, queda «Sin datos» y
+la actividad ±2 h sigue siendo el respaldo indirecto. Mientras consulta se
+muestra una barra de progreso con la fase en curso, los segundos transcurridos y
+el botón/descarga deshabilitados.
+
+El archivo trae los campos `waveform_status`, `availability_source`,
+`cobertura_desde` y `cobertura_hasta`, que quedan llenos con la exportación
+`--formas-onda` (o con la consulta on-demand de la ventana). Sin esa consulta,
+`waveform_status` vale `NO_CONSULTADO` y los otros van vacíos: no se afirma nada
+sobre las formas de onda.
 
 Esta ventana necesita el tercer archivo. Las exportaciones anteriores a este
 cambio no lo tienen: la solapa avisa que hay que re-exportar en vez de mostrar una
@@ -286,12 +304,13 @@ umbral configurable, 50 km por defecto), para acotar la revisión a esos casos.
 Abre una ventana con dos pestañas: **Contexto** (qué mide y cómo se lee) y
 **Resultados** (la tabla, con el umbral editable y «Recalcular», «Descargar» y
 doble clic al detalle del evento). La lista trae los datos clave del evento y el
-operador, más cuántas son *cercanas con actividad* (estaba operando y no se usó →
-calidad de la solución) y *cercanas sin actividad* (posible caída). Se ordena por
-severidad por defecto, y se puede **reordenar por cualquier columna** haciendo
-clic en su encabezado (ascendente → descendente → vuelta al orden por severidad;
-la columna activa se marca con ▲/▼). La descarga sale en **formato largo**,
-siguiendo el orden en pantalla: una fila por evento y estación cercana, con la
+operador, más tres contadores de estaciones cercanas: **Verificadas** (hay ondas),
+**Indicios** (solo actividad ±2 h) y **Sin evid.** (ni ondas ni actividad). Se
+ordena por severidad por defecto, y se puede **reordenar por cualquier columna**
+haciendo clic en su encabezado (ascendente → descendente → vuelta al orden por
+severidad; la columna activa se marca con ▲/▼). La descarga sale en **formato
+largo**, siguiendo el orden en pantalla: una fila por evento y estación cercana,
+con la
 clasificación, la distancia, la actividad y la estación.
 
 ### Esquema de la base de SeisComp

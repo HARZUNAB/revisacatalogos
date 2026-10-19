@@ -100,7 +100,7 @@ no_picadas = [
      "distancia_km": "64.8",
      "est_lat": "-33.05", "est_lon": "-71.30", "est_elev": "430",
      "est_lugar": "Rancagua", "est_pais": "Chile", "radio_km": "300.0",
-     "actividad_ventana": "0", "waveform_status": "NO_CONSULTADO",
+     "actividad_ventana": "0", "waveform_status": "SIN_DATOS",
      "availability_source": "", "cobertura_desde": "", "cobertura_hasta": ""},
     {"id_evento": "ev1", "id_origen": "or1", "red": "CL", "estacion": "LEMA",
      "loc_ref": "10", "cha_ref": "BHN", "streams_vigentes": "2",
@@ -153,34 +153,43 @@ check("la red y la estación se leen", valores[1:3] == ["CL", "COCA"], valores)
 check("el loc_ref y el canal_ref se leen",
       valores[3:5] == ["—", "BHZ"], valores)
 check("los streams vigentes se muestran enteros", valores[5] == "1", valores[5])
-check("la actividad inferida se muestra entera", valores[6] == "3", valores[6])
+check("la evidencia distingue el indicio de la certeza",
+      valores[6] == "Indicio (actividad)", valores[6])
+check("las formas de onda sin consultar quedan vacías",
+      valores[7] == "—", valores[7])
+check("la actividad inferida se muestra entera", valores[8] == "3", valores[8])
 
-check("activa y cerca va como destacada",
+check("actividad y cerca va como indicio",
       rs._etiqueta_no_picada({"distancia_km": "18.0",
-                              "actividad_ventana": "1"}) == "destacada")
-check("activa pero lejos va como activa",
+                              "actividad_ventana": "1"}) == "indicio")
+check("actividad y lejos va como indicio lejano",
       rs._etiqueta_no_picada({"distancia_km": "64.8",
-                              "actividad_ventana": "2"}) == "activa")
-check("cerca pero inactiva va como cercana",
+                              "actividad_ventana": "2"}) == "indicio_lejos")
+check("cerca, sin consultar y sin actividad no se destaca",
       rs._etiqueta_no_picada({"distancia_km": "20.0",
-                              "actividad_ventana": "0"}) == "cercana")
+                              "actividad_ventana": "0"}) == "normal")
+check("cerca, sin ondas y sin actividad va como sin evidencia",
+      rs._etiqueta_no_picada({"distancia_km": "20.0",
+                              "actividad_ventana": "0",
+                              "waveform_status": "SIN_DATOS"}) ==
+      "sin_evidencia")
 check("lejos e inactiva va como normal",
       rs._etiqueta_no_picada({"distancia_km": "250.0",
                               "actividad_ventana": "0"}) == "normal")
 check("sin dato de actividad no revienta",
-      rs._etiqueta_no_picada({"distancia_km": "10.0"}) == "cercana")
+      rs._etiqueta_no_picada({"distancia_km": "10.0"}) == "normal")
 check("sin dato de distancia no revienta",
       rs._etiqueta_no_picada({"actividad_ventana": "0"}) == "normal")
 # El umbral de "cerca" es configurable: la misma fila cambia de categoría.
 check("un umbral de cerca mayor reclasifica una lejana",
-      rs._etiqueta_no_picada({"distancia_km": "64.8", "actividad_ventana": "0"},
-                             umbral_cercano=70.0) == "cercana")
-check("un umbral de cerca menor saca de cerca a una intermedia",
-      rs._etiqueta_no_picada({"distancia_km": "64.8", "actividad_ventana": "0"},
-                             umbral_cercano=30.0) == "normal")
-check("el umbral también mueve el caso activo",
       rs._etiqueta_no_picada({"distancia_km": "64.8", "actividad_ventana": "2"},
-                             umbral_cercano=70.0) == "destacada")
+                             umbral_cercano=70.0) == "indicio")
+check("un umbral de cerca menor saca de cerca a una intermedia",
+      rs._etiqueta_no_picada({"distancia_km": "64.8", "actividad_ventana": "2"},
+                             umbral_cercano=30.0) == "indicio_lejos")
+check("el umbral también mueve el caso activo",
+      rs._etiqueta_no_picada({"distancia_km": "18.0", "actividad_ventana": "2"},
+                             umbral_cercano=10.0) == "indicio_lejos")
 
 # Análisis rápido: resumen de sin arribos cercanas por evento.
 analisis50 = rs.analizar_sin_arribos(BASE[:-4] + "_no_picadas.csv", eventos,
@@ -188,8 +197,10 @@ analisis50 = rs.analizar_sin_arribos(BASE[:-4] + "_no_picadas.csv", eventos,
 check("el análisis a 50 km deja solo ev1 (ev2 no tiene cercanas)",
       [r["evento"]["id_evento"] for r in analisis50] == ["ev1"],
       [r["evento"]["id_evento"] for r in analisis50])
-check("ev1 a 50 km: 2 destacadas (COCA y LEMA) y 0 cercanas",
-      analisis50[0]["destacadas"] == 2 and analisis50[0]["cercanas"] == 0,
+check("ev1 a 50 km: 2 indicios (COCA y LEMA) y 0 sin evidencia",
+      analisis50[0]["verificadas"] == 0
+      and analisis50[0]["indicios"] == 2
+      and analisis50[0]["sin_evidencia"] == 0,
       analisis50[0])
 check("la distancia mínima es 18.0 km (LEMA)",
       abs(analisis50[0]["dist_min"] - 18.0) < 0.01, analisis50[0]["dist_min"])
@@ -200,19 +211,21 @@ analisis100 = rs.analizar_sin_arribos(BASE[:-4] + "_no_picadas.csv", eventos,
 check("con umbral 100 entran ev1 y ev2",
       {r["evento"]["id_evento"] for r in analisis100} == {"ev1", "ev2"},
       [r["evento"]["id_evento"] for r in analisis100])
-check("ev1 con umbral 100 suma RANC como cercana",
+check("ev1 con umbral 100 suma RANC como sin evidencia",
       analisis100[0]["evento"]["id_evento"] == "ev1"
-      and analisis100[0]["cercanas"] == 1, analisis100[0])
+      and analisis100[0]["sin_evidencia"] == 1, analisis100[0])
 valores_analisis = rs._valores_analisis(analisis50[0])
 check("la fila del análisis trae el operador", valores_analisis[7] == "test",
       valores_analisis)
 largas = rs.filas_analisis_largo(analisis100)
 check("la descarga larga trae una fila por evento+estación",
       len(largas) == 4, len(largas))
+clasificaciones = {f["clasificacion"] for f in largas}
 check("la descarga larga marca la clasificación",
-      {f["clasificacion"] for f in largas} == {"cerca con actividad",
-                                               "cerca sin actividad"},
-      {f["clasificacion"] for f in largas})
+      clasificaciones <= {"verificado", "indicio", "sin evidencia",
+                          "sin consultar"}
+      and "indicio" in clasificaciones,
+      clasificaciones)
 
 # Orden del análisis por columna.
 def _ids(resumenes):
@@ -420,10 +433,19 @@ if raiz is not None:
                         cwd=RAIZ)
     check("el panel abre con los tres archivos", ok is True)
 
-    arbol_ev = [w for w in marco.winfo_children()[1].winfo_children()[0]
-                .winfo_children() if isinstance(w, tb.Treeview)][0]
-    check("la lista de eventos trae los dos", len(arbol_ev.get_children()) == 2,
-          len(arbol_ev.get_children()))
+    def _primer_arbol(widget):
+        for hijo in widget.winfo_children():
+            if isinstance(hijo, tb.Treeview):
+                return hijo
+            encontrado = _primer_arbol(hijo)
+            if encontrado is not None:
+                return encontrado
+        return None
+
+    arbol_ev = _primer_arbol(marco)
+    check("la lista de eventos trae los dos",
+          arbol_ev is not None and len(arbol_ev.get_children()) == 2,
+          arbol_ev.get_children() if arbol_ev is not None else None)
 
     # El árbol de llegadas NO debe estar embebido en el detalle.
     def _todos(w):
@@ -482,6 +504,13 @@ if raiz is not None:
             for x in _botones(hijo):
                 yield x
 
+    def _progressbars(w):
+        for hijo in w.winfo_children():
+            if type(hijo).__name__ == "Progressbar":
+                yield hijo
+            for x in _progressbars(hijo):
+                yield x
+
     def _abrir_detalle(arbol):
         # El detalle ahora abre con doble clic o con Enter sobre la fila. Desde
         # un script no se puede generar un doble clic, así que se usa Enter;
@@ -503,7 +532,9 @@ if raiz is not None:
 
     # Un clic simple (<<TreeviewSelect>>) ya NO abre el detalle: abre el doble.
     check("el clic simple no abre el detalle",
-          arbol_ev.bind("<<TreeviewSelect>>") == "", arbol_ev.bind("<<TreeviewSelect>>"))
+          not any("Parámetros del evento" in w.title()
+                  for w in _toplevels(raiz)),
+          [w.title() for w in _toplevels(raiz)])
     check("el detalle queda atado al doble clic",
           arbol_ev.bind("<Double-1>") != "", arbol_ev.bind("<Double-1>"))
     check("y a la tecla Enter",
@@ -572,7 +603,7 @@ if raiz is not None:
           primero[0] == "18.0", primero)
     colores = {tabla_no_picadas.item(i, "tags")[0]
                for i in tabla_no_picadas.get_children()}
-    check("se usan las etiquetas de color", "destacada" in colores, colores)
+    check("se usan las etiquetas de color", "indicio" in colores, colores)
 
     # Las tablas se desplazan con sus barras: antes el árbol, empaquetado con
     # expand=True antes que ellas, las dejaba en 1x1 px (invisibles).
@@ -696,9 +727,27 @@ if raiz is not None:
     check("está la ayuda de que sin arribos no es no grabó",
           any("demuestra ausencia de formas de onda" in x
               for x in textos_ayuda), textos_ayuda)
-    check("la columna se llama Actividad ±24 h",
-          any(t == "Actividad ±24 h" for _, t, _ in rs.COLUMNAS_NO_PICADA),
+    check("la columna se llama Indicio ±2 h",
+          any(t == "Indicio ±2 h" for _, t, _ in rs.COLUMNAS_NO_PICADA),
           rs.COLUMNAS_NO_PICADA)
+    check("la ayuda menciona el tooltip por estación",
+          any("Pase el mouse por una estación" in x for x in textos_ayuda),
+          textos_ayuda)
+    check("la tabla de sin arribos tiene tooltip por fila",
+          bool(tabla_no_picadas.bind("<Motion>")),
+          tabla_no_picadas.bind("<Motion>"))
+    barras = list(_progressbars(ventana))
+    check("la tabla de sin arribos tiene barra de progreso",
+          len(barras) >= 1, len(barras))
+    check("la barra de progreso está oculta en reposo",
+          all(not b.winfo_manager() for b in barras),
+          [b.winfo_manager() for b in barras])
+    boton_formas = [b for b in _botones(ventana)
+                    if "Consultar formas de onda" in str(b.cget("text"))]
+    check("el botón de formas de onda está habilitado en reposo",
+          bool(boton_formas)
+          and str(boton_formas[0].cget("state")) != "disabled",
+          [str(b.cget("state")) for b in boton_formas])
 
     # Modo del pick en la tabla de arribos.
     columnas = tabla_picadas["columns"]
@@ -788,8 +837,9 @@ if raiz is not None:
     boton_aplicar.invoke()
     raiz.update()
     tabla_np = _arboles(marco_np)[0]
-    check("subir cerca a 70 km reclasifica RANC como cercana",
-          _tag_de(tabla_np, "RANC") == "cercana", _tag_de(tabla_np, "RANC"))
+    check("subir cerca a 70 km reclasifica RANC como sin evidencia",
+          _tag_de(tabla_np, "RANC") == "sin_evidencia",
+          _tag_de(tabla_np, "RANC"))
     check("la lista no cambió al recolorear",
           len(tabla_np.get_children()) == 3,
           len(tabla_np.get_children()))
@@ -797,7 +847,7 @@ if raiz is not None:
     rs._retintar_no_picadas(tabla_np, 10.0)
     raiz.update()
     check("el retinte en vivo repinta sin rehacer la tabla",
-          _tag_de(tabla_np, "COCA") == "activa"
+          _tag_de(tabla_np, "COCA") == "indicio_lejos"
           and len(tabla_np.get_children()) == 3,
           (_tag_de(tabla_np, "COCA"), len(tabla_np.get_children())))
     # «Solo cercanas» recorta la lista al umbral cerca.
@@ -898,22 +948,25 @@ if raiz is not None:
           any("Consulta a la base (≤ 1000 km)" in x for x in textos_estado_win),
           textos_estado_win)
 
-    # La tabla aclara la ventana de la columna de actividad (±24 h).
+    # La tabla aclara la ventana de la columna de actividad (±2 h).
     textos_np = [str(w.cget("text")) for w in _etiquetas(ventana)]
-    check("la tabla aclara que la actividad es ±24 h (24 antes y 24 después)",
-          any("24 h antes y 24 h después" in x for x in textos_np), textos_np)
-    check("la columna se llama Actividad ±24 h",
-          any(t == "Actividad ±24 h" for _, t, _ in rs.COLUMNAS_NO_PICADA),
+    check("la tabla aclara que la actividad es ±2 h (2 antes y 2 después)",
+          any("2 h antes y 2 h después" in x for x in textos_np), textos_np)
+    check("la columna se llama Indicio ±2 h",
+          any(t == "Indicio ±2 h" for _, t, _ in rs.COLUMNAS_NO_PICADA),
           rs.COLUMNAS_NO_PICADA)
     # Leyenda de colores de 2 líneas.
     check("la leyenda de colores está presente",
           any(x.startswith("Colores (Cerca = ≤") for x in textos_np), textos_np)
-    check("la leyenda describe el caso cercano con actividad",
-          any("Cerca, con actividad" in x for x in textos_np), textos_np)
-    check("la leyenda describe el caso activo pero lejano",
-          any("Con actividad, más lejos" in x for x in textos_np), textos_np)
-    check("la leyenda describe el caso cercano sin actividad",
-          any("Cerca, sin actividad" in x for x in textos_np), textos_np)
+    check("la leyenda describe el caso verificado con ondas",
+          any("Verificado con ondas" in x for x in textos_np), textos_np)
+    check("la leyenda describe el caso de indicio por actividad",
+          any("Indicio por actividad" in x for x in textos_np), textos_np)
+    check("la leyenda describe el caso sin evidencia",
+          any("Sin evidencia" in x for x in textos_np), textos_np)
+    check("la leyenda aclara los casos lejanos",
+          any("Más lejos: verde = verificado" in x for x in textos_np),
+          textos_np)
     check("la leyenda usa el umbral configurado (50 km)",
           any("≤ 50 km" in x for x in textos_np), textos_np)
 
@@ -1051,8 +1104,17 @@ if raiz is not None:
                         os.path.join(RAIZ, "no_existe_no_picadas.csv"),
                         etiqueta_fuente="seiscomp", cwd=RAIZ)
     check("el panel abre igual sin el archivo de no picadas", ok is True)
-    arbol_ev = [w for w in marco.winfo_children()[1].winfo_children()[0]
-                .winfo_children() if isinstance(w, tb.Treeview)][0]
+
+    def _primer_arbol_sin(widget):
+        for hijo in widget.winfo_children():
+            if isinstance(hijo, tb.Treeview):
+                return hijo
+            encontrado = _primer_arbol_sin(hijo)
+            if encontrado is not None:
+                return encontrado
+        return None
+
+    arbol_ev = _primer_arbol_sin(marco)
     arbol_ev.selection_set(arbol_ev.get_children()[0])
     _abrir_detalle(arbol_ev)
     parametros = _por_titulo("Parámetros del evento")

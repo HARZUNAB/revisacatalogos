@@ -25,13 +25,22 @@ EVENTO = {
 
 NO_PICADAS = (
     "id_evento,id_origen,red,estacion,loc_ref,cha_ref,streams_vigentes,"
-    "distancia_km,est_lat,est_lon,est_elev,est_lugar,est_pais,radio_km,"
-    "actividad_ventana,waveform_status,availability_source,cobertura_desde,"
-    "cobertura_hasta\n"
-    "E1,O1,IU,ABC,00,BHZ,2,10.0,-33.1,-71.1,500,Lugar,Chile,400.0,2,"
-    "NO_CONSULTADO,,,\n"
-    "E1,O1,CX,XYZ,,HHZ,1,120.0,-33.2,-71.2,600,Otro,Chile,400.0,0,"
-    "NO_CONSULTADO,,,\n")
+    "streams_vigentes_ids,distancia_km,est_lat,est_lon,est_elev,est_lugar,"
+    "est_pais,radio_km,actividad_ventana,evidencia,waveform_status,"
+    "availability_source,cobertura_desde,cobertura_hasta\n"
+    "E1,O1,IU,ABC,00,BHZ,2,IU.ABC.00.BHZ,10.0,-33.1,-71.1,500,Lugar,Chile,"
+    "400.0,2,INDICIO,NO_CONSULTADO,,,\n"
+    "E1,O1,CX,XYZ,,HHZ,1,CX.XYZ..HHZ,120.0,-33.2,-71.2,600,Otro,Chile,"
+    "400.0,0,NO_CONSULTADO,NO_CONSULTADO,,,\n")
+
+NO_PICADAS_VERIFICADA = (
+    "id_evento,id_origen,red,estacion,loc_ref,cha_ref,streams_vigentes,"
+    "streams_vigentes_ids,distancia_km,est_lat,est_lon,est_elev,est_lugar,"
+    "est_pais,radio_km,actividad_ventana,evidencia,waveform_status,"
+    "availability_source,cobertura_desde,cobertura_hasta\n"
+    "E1,O1,IU,ABC,00,BHZ,1,IU.ABC.00.BHZ,10.0,-33.1,-71.1,500,Lugar,Chile,"
+    "400.0,0,VERIFICADO,CON_DATOS,SDS,2026-09-05T00:00:00Z,"
+    "2026-09-05T00:10:00Z\n")
 
 
 def _buscar(widget, tipo, predicado=None):
@@ -75,11 +84,22 @@ def test_analizar_sin_arribos(cwd_tmp):
     resumenes = rs.analizar_sin_arribos(str(ruta), [EVENTO])
     assert len(resumenes) == 1
     resumen = resumenes[0]
-    # Solo la de 10 km entra en el umbral (50 km por defecto); con actividad 2.
-    assert resumen["destacadas"] == 1
-    assert resumen["cercanas"] == 0
+    # Solo la de 10 km entra en el umbral (50 km por defecto); con actividad 2,
+    # es un indicio (no hay ondas verificadas).
+    assert resumen["verificadas"] == 0
+    assert resumen["indicios"] == 1
+    assert resumen["sin_evidencia"] == 0
     assert resumen["total"] == 2
     assert resumen["evento"] is EVENTO
+
+
+def test_analizar_sin_arribos_verificada(cwd_tmp):
+    ruta = _escribir(cwd_tmp, "datos/np.csv", NO_PICADAS_VERIFICADA)
+    resumen = rs.analizar_sin_arribos(str(ruta), [EVENTO])[0]
+    assert resumen["verificadas"] == 1
+    assert resumen["indicios"] == 0
+    assert resumen["sin_evidencia"] == 0
+    assert resumen["estaciones"][0][-1] == "VERIFICADO"
 
 
 def test_analizar_sin_arribos_sin_archivo(cwd_tmp):

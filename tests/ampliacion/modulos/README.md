@@ -2,8 +2,9 @@
 
 Cobertura nueva de **módulos puros** que no estaban en la suite base:
 `generajson.py`, `prog.py`, `descargas.py` (nombres, escritura y la lógica de
-interfaz con dobles, sin Tk real) y `traequery.py` (refactorizado a
-`main()` + guard). Son tests sin pantalla, sin base y sin red, así que corren
+interfaz con dobles, sin Tk real), `disponibilidad.py` (parser de `scart`,
+fallback SDS→tiempo real, evidencia y progreso) y `traequery.py` (refactorizado
+a `main()` + guard). Son tests sin pantalla, sin base y sin red, así que corren
 siempre y entran al CI.
 
 Van aquí y no en `bordes/` porque `bordes/` es para casos borde de módulos **ya

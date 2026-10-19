@@ -151,7 +151,23 @@ def test_no_picadas_de_evento_basico():
     assert filas[0]["distancia_km"] == 0.0
     assert filas[0]["actividad_ventana"] == 0
     assert filas[0]["waveform_status"] == ex.ESTADO_SIN_CONSULTAR
+    assert filas[0]["streams_vigentes_ids"] == "IU.ABC.00.BHZ"
     assert descartadas == 0
+
+
+def test_no_picadas_de_evento_lista_los_streams_con_la_referencia_primero():
+    filas_inv = [
+        _fila_inventario(epoca_inicio=datetime(2019, 1, 1), cha="BHZ"),
+        _fila_inventario(epoca_inicio=datetime(2020, 1, 1), cha="HHZ"),
+    ]
+    indice = ex._indice_por_celda(filas_inv)
+    filas, _ = ex._no_picadas_de_evento(
+        datetime(2020, 6, 1), "E1", "O1", -26.0, -70.0, indice,
+        picadas=set(), actividad={}, radio_km=100.0)
+    assert filas[0]["streams_vigentes"] == 2
+    # La referencia (época más reciente) va primero; los demás después.
+    assert filas[0]["streams_vigentes_ids"] == \
+        "IU.ABC.00.HHZ;IU.ABC.00.BHZ"
 
 
 def test_no_picadas_de_evento_excluye_picadas():

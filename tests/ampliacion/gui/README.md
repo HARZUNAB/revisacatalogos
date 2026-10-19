@@ -65,8 +65,8 @@ El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 | `revisa_seiscomp.py` | Panel y catálogo (miniatura del perfil, casilla «Sismicidad histórica» y divisor) | `test_rs_panel.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Ventana detalle (botones «Estaciones» y «Planta y perfil») | `test_rs_detalle.py` | sintético | cubierto |
-| `revisa_seiscomp.py` | Estaciones + sin arribos ampliada | `test_rs_estaciones.py` | sintético | cubierto |
-| `revisa_seiscomp.py` | Análisis rápido | `test_rs_analisis.py` | sintético | cubierto |
+| `revisa_seiscomp.py` | Estaciones + sin arribos ampliada (tooltip por fila, consulta de formas de onda con progreso) | `test_rs_estaciones.py` | sintético | cubierto |
+| `revisa_seiscomp.py` | Análisis rápido (tres contadores de evidencia) | `test_rs_analisis.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | `main` (ventana propia) | `test_rs_main.py` | sintético | cubierto |
 | `solicita_catalogos.py` | Ventana de solicitud + helpers | `test_solicita_catalogos.py` | sintético/mock | cubierto |
 

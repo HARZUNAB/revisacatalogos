@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.3 — 16 de octubre de 2026.
+Versión 1.4 — 19 de octubre de 2026.
 
 ---
 
@@ -231,7 +231,7 @@ rehace lo que cambió.
 |---|---|
 | Rendimiento | La estimación de tamaño de exportación se hace con una muestra, en décimas de segundo; las exportaciones grandes (> 200 MB) piden confirmación. |
 | Estabilidad gráfica | Las ventanas pasan de 980×820 a un tope de 1920×1080; los diálogos emergentes se muestran solo con su tamaño y posición finales, centrados en el monitor de la ventana principal. |
-| Usabilidad | Una sola pulsación («Procesar catálogos») deja toda la información disponible; los paneles pendientes se generan en segundo plano. |
+| Usabilidad | Una sola pulsación («Procesar catálogos») deja toda la información disponible; los paneles pendientes se generan en segundo plano. Las consultas de disponibilidad de formas de onda muestran progreso y fase, y bloquean temporalmente los controles que reconstruyen la tabla. |
 | Portabilidad | Corre en Linux con Python 3.7+; el entorno se reconstruye desde `requirements.txt`. |
 | Mantenibilidad | Un módulo por etapa, constantes de ajuste en mayúsculas, sin `argparse`, y rutas centralizadas en `rutas.py`. |
 | Trazabilidad | Cada corrida deja registro y caché; los entregables se distinguen de la caché. |
@@ -405,8 +405,9 @@ corrida por defecto, más los **146** de interfaz y los **36** de base de datos
 
 ### 7.1 Trabajo futuro
 
-- Integrar disponibilidad de formas de onda (SDS, scardac o FDSN Availability)
-  para reemplazar el indicador indirecto de actividad de las estaciones.
+- Integrar FDSN Availability/DataAvailability cuando el archivo SDS esté
+  completo; hoy la disponibilidad se consulta en SDS y, como respaldo, en el
+  recordstream de tiempo real, con la actividad ±2 h como indicador indirecto.
 - Ampliar la comparación con agencias y su cobertura temporal.
 - Extender los tests unitarios de `tests/` a nuevas funciones puras a medida que
   se agreguen, complementando las comprobaciones end-to-end.

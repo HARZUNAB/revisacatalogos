@@ -177,11 +177,27 @@ def test_ruta_no_picadas():
 
 
 @pytest.mark.parametrize("fila, esperado", [
-    ({"actividad_ventana": "3", "distancia_km": "10"}, "destacada"),
-    ({"actividad_ventana": "3", "distancia_km": "100"}, "activa"),
-    ({"actividad_ventana": "0", "distancia_km": "10"}, "cercana"),
+    # Verificado con ondas: certeza (manda sobre la actividad).
+    ({"waveform_status": "CON_DATOS", "distancia_km": "10"},
+     "verificada"),
+    ({"waveform_status": "CON_DATOS", "distancia_km": "100"},
+     "verificada_lejos"),
+    ({"waveform_status": "CON_DATOS", "actividad_ventana": "0",
+      "distancia_km": "10"}, "verificada"),
+    # Indicio por actividad: deducción.
+    ({"actividad_ventana": "3", "distancia_km": "10"}, "indicio"),
+    ({"actividad_ventana": "3", "distancia_km": "100"}, "indicio_lejos"),
+    ({"waveform_status": "SIN_DATOS", "actividad_ventana": "3",
+      "distancia_km": "10"}, "indicio"),
+    # Se miraron las ondas y no hay, ni actividad.
+    ({"waveform_status": "SIN_DATOS", "actividad_ventana": "0",
+      "distancia_km": "10"}, "sin_evidencia"),
+    ({"waveform_status": "SIN_DATOS", "actividad_ventana": "0",
+      "distancia_km": "100"}, "normal"),
+    # Sin consultar y sin actividad: no se destaca.
+    ({"actividad_ventana": "0", "distancia_km": "10"}, "normal"),
     ({"actividad_ventana": "0", "distancia_km": "100"}, "normal"),
-    ({"distancia_km": "10"}, "cercana"),
+    ({"distancia_km": "10"}, "normal"),
 ])
 def test_etiqueta_no_picada(fila, esperado):
     assert r._etiqueta_no_picada(fila) == esperado
@@ -190,12 +206,68 @@ def test_etiqueta_no_picada(fila, esperado):
 def test_valores_no_picada():
     fila = {"distancia_km": "12.345", "red": "IU", "estacion": "ABC",
             "streams_vigentes": 2, "est_elev": "1500"}
-    valores = r._valores_no_picada(fila)
+    claves = [c for c, _, _ in r.COLUMNAS_NO_PICADA]
+    valores = dict(zip(claves, r._valores_no_picada(fila)))
     assert len(valores) == len(r.COLUMNAS_NO_PICADA)
-    assert valores[0] == "12.3"
-    assert valores[1] == "IU"
-    assert valores[5] == "2"
-    assert valores[7] == "1500"
+    assert valores["distancia_km"] == "12.3"
+    assert valores["red"] == "IU"
+    assert valores["streams_vigentes"] == "2"
+    assert valores["est_elev"] == "1500"
+    # Sin consultar: no hay formas de onda ni actividad.
+    assert valores["formas_onda"] == "—"
+    assert valores["evidencia"] == "Sin consultar"
+
+
+# --------------------------------------------------------------------------
+# _texto_ayuda_fila: tooltip por estación
+# --------------------------------------------------------------------------
+def test_texto_ayuda_fila_verificado_sds():
+    fila = {"red": "C", "estacion": "STL", "distancia_km": "5.2",
+            "waveform_status": "CON_DATOS", "availability_source": "SDS",
+            "cobertura_desde": "2026-09-06T00:32:00Z",
+            "cobertura_hasta": "2026-09-06T00:52:00Z"}
+    texto = r._texto_ayuda_fila(fila)
+    assert "C.STL — 5.2 km" in texto
+    assert "Verificado con SDS" in texto
+    assert "Cobertura: 2026-09-06T00:32:00Z a 2026-09-06T00:52:00Z" in texto
+
+
+def test_texto_ayuda_fila_verificado_tiempo_real():
+    fila = {"red": "C", "estacion": "STL", "distancia_km": "5.2",
+            "waveform_status": "CON_DATOS",
+            "availability_source": "RECORDSTREAM"}
+    texto = r._texto_ayuda_fila(fila)
+    assert "Verificado con Tiempo real" in texto
+    assert "Cobertura" not in texto
+
+
+def test_texto_ayuda_fila_indicio():
+    fila = {"red": "C", "estacion": "LEMA", "distancia_km": "18.0",
+            "actividad_ventana": "1"}
+    texto = r._texto_ayuda_fila(fila)
+    assert "Indicio por actividad: picó 1 evento en ±2 h" in texto
+    assert "No se verificaron formas de onda" in texto
+
+
+def test_texto_ayuda_fila_indicio_plural():
+    fila = {"red": "C", "estacion": "LEMA", "distancia_km": "18.0",
+            "actividad_ventana": "2"}
+    assert "picó 2 eventos en ±2 h" in r._texto_ayuda_fila(fila)
+
+
+def test_texto_ayuda_fila_sin_evidencia():
+    fila = {"red": "C", "estacion": "RANC", "distancia_km": "64.8",
+            "waveform_status": "SIN_DATOS", "actividad_ventana": "0"}
+    texto = r._texto_ayuda_fila(fila)
+    assert "Sin evidencia" in texto
+    assert "Posible caída" in texto
+
+
+def test_texto_ayuda_fila_sin_consultar():
+    fila = {"red": "CX", "estacion": "XYZ", "distancia_km": "96.0"}
+    texto = r._texto_ayuda_fila(fila)
+    assert "Sin consultar" in texto
+    assert "Consultar formas de onda" in texto
 
 
 # --------------------------------------------------------------------------

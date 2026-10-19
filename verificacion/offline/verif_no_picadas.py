@@ -165,7 +165,7 @@ print("== _no_picadas_de_evento ==")
 evento_lat, evento_lon = -33.0, -70.8
 ahora = datetime(2020, 6, 1)
 actividad = {("CL", "LPA"): [datetime(2020, 6, 1, 3), datetime(2020, 6, 1, 8)],
-             ("CL", "SCL"): [datetime(2020, 6, 1, 5)]}
+             ("CL", "SCL"): [datetime(2020, 6, 1, 1)]}
 
 con_picadas, desc = E._no_picadas_de_evento(
     ahora, "ev1", "origen-1", evento_lat, evento_lon, indice,

@@ -50,11 +50,13 @@ import os
 import queue
 import sys
 import threading
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 import ajuste
 import comparacion
 import descargas
+import disponibilidad
 import rutas
 
 # Con el histórico completo son casi 70.000 eventos y el árbol se vuelve lento
@@ -169,7 +171,9 @@ COLUMNAS_NO_PICADA = [
     ("loc_ref", "Loc ref.", 65),
     ("cha_ref", "Canal ref.", 75),
     ("streams_vigentes", "Streams vig.", 80),
-    ("actividad_ventana", "Actividad ±24 h", 130),
+    ("evidencia", "Evidencia", 165),
+    ("formas_onda", "Formas de onda", 120),
+    ("actividad_ventana", "Indicio ±2 h", 120),
     ("est_elev", "Elev (m)", 85),
     ("est_lugar", "Lugar", 210),
     ("est_pais", "País", 110),
@@ -202,8 +206,9 @@ COLUMNAS_ANALISIS = [
     ("region", "Región", 220),
     ("operador", "Operador", 100),
     ("fases", "Fases", 55),
-    ("destacadas", "Destacadas", 90),
-    ("cercanas", "Cercanas", 80),
+    ("verificadas", "Verificadas", 90),
+    ("indicios", "Indicios", 80),
+    ("sin_evidencia", "Sin evid.", 80),
     ("dist_min", "Dist. mín. (km)", 110),
 ]
 
@@ -221,7 +226,7 @@ COLUMNAS_ANALISIS_LARGO = [
     ("fases", "Fases", 55),
     ("clasificacion", "Clasificación", 130),
     ("distancia_km", "Dist (km)", 80),
-    ("actividad_ventana", "Actividad ±24 h", 120),
+    ("actividad_ventana", "Indicio ±2 h", 120),
     ("red", "Red", 60),
     ("estacion", "Estación", 100),
 ]
@@ -237,15 +242,17 @@ UMBRAL_AVISO_AMPLIADO = 2000
 AYUDA_SIN_ARRIBOS = (
     "Sin arribos: no hay arrivals/picks asociados al origen preferido del"
     " evento, entre las estaciones con binding (la config actual de SeisComp)."
-    " No demuestra ausencia de formas de onda; para eso hay que"
-    " consultar SDS/DataAvailability.")
+    " No demuestra ausencia de formas de onda. Use «Consultar formas de onda»:"
+    " revisa el archivo SDS y, si no las encuentra, el flujo de tiempo real (y"
+    " los demás streams vigentes de la estación).")
 # Se muestra como línea fija arriba de la tabla Y como tooltip. Es lo más
-# explícito posible a propósito: la ventana de ±24 h (24 h antes y 24 h después
+# explícito posible a propósito: la ventana de ±2 h (2 h antes y 2 h después
 # del origen) es lo que más se presta a confusión.
 AYUDA_ACTIVIDAD = (
-    "«Con actividad ±24 h»: la estación picó otros eventos entre 24 h antes y"
-    " 24 h después del origen (48 h en total). Es un indicador indirecto: 0 no"
-    " prueba que estuviera caída.")
+    "«Con actividad ±2 h»: la estación picó otros eventos entre 2 h antes y"
+    " 2 h después del origen (4 h en total). Es un indicador indirecto: 0 no"
+    " prueba que estuviera caída; para eso están las formas de onda."
+    " Pase el mouse por una estación para ver su evidencia y cobertura.")
 
 # Texto de la solapa «Contexto» del Análisis rápido. Explica en corto qué mide
 # y cómo se lee; va fijo, no como tooltip, porque es la razón de ser de la
@@ -257,15 +264,15 @@ AYUDA_ANALISIS = (
     " fueron usadas en la solución del evento. Sirve para acotar la revisión:"
     " solo hay que mirar los eventos que quedan en la lista.\n\n"
     "Recorre TODO el catálogo, sin importar el filtro del panel.\n\n"
-    "Hay dos casos, y los dos importan:\n\n"
-    "• Cerca, CON actividad (±24 h): la estación estaba operando (picó otros"
-    " eventos) y está cerca, pero no se usó para localizar este evento. Es una"
-    " posible pérdida de calidad de la solución.\n\n"
-    "• Cerca, SIN actividad: no hay señal de que la estación estuviera"
-    " operando. Puede estar caída o sin datos.\n\n"
-    "Ojo: la actividad es un indicador indirecto (cuenta eventos picados 24 h"
-    " antes y 24 h después del origen). «Sin arribos» NO prueba que la estación"
-    " no haya grabado; para eso hay que mirar las formas de onda.\n\n"
+    "Distingue la certeza de la deducción:\n\n"
+    "• Verificadas: hay formas de onda (SDS o tiempo real); la estación estaba"
+    " grabando y no se usó. Es una certeza.\n\n"
+    "• Indicios (±2 h): no hay ondas verificadas, pero la estación picó otros"
+    " eventos cerca en el tiempo. Es una deducción, no una prueba.\n\n"
+    "• Sin evidencia: no hay ondas ni actividad; puede estar caída o sin datos"
+    " (si no se exportó con --formas-onda, figura como «sin consultar»).\n\n"
+    "El análisis usa el CSV exportado: para tener verificadas hay que generarlo"
+    " con --formas-onda, o consultar las ondas on-demand en cada evento.\n\n"
     "Doble clic en un evento de la lista abre sus parámetros y estaciones.")
 
 
@@ -308,6 +315,82 @@ def _ayuda_emergente(widget, texto):
 
     widget.bind("<Enter>", _mostrar, add="+")
     widget.bind("<Leave>", _ocultar, add="+")
+
+
+def _ayuda_filas_arbol(arbol, texto_de_fila):
+    """
+    Tooltip por fila para un Treeview.
+
+    A diferencia de _ayuda_emergente (un solo texto para todo el widget), aquí
+    se identifica la fila bajo el mouse y se pide su texto a 'texto_de_fila'
+    (que recibe el iid). Se muestra un solo emergente con un retardo corto para
+    no parpadear al recorrer la tabla, y se oculta al cambiar de fila, salir,
+    hacer clic o desplazar.
+    """
+    import tkinter as tk
+
+    estado = {"iid": None, "after": None, "tip": None}
+
+    def _ocultar(*_argumentos):
+        if estado["after"] is not None:
+            try:
+                arbol.after_cancel(estado["after"])
+            except Exception:
+                pass
+            estado["after"] = None
+        if estado["tip"] is not None:
+            try:
+                estado["tip"].destroy()
+            except Exception:
+                pass
+            estado["tip"] = None
+        estado["iid"] = None
+
+    def _mostrar(iid, x, y):
+        texto = texto_de_fila(iid)
+        if not texto:
+            return
+        try:
+            emergente = tk.Toplevel(arbol)
+            emergente.wm_overrideredirect(True)
+            # No dejar el globo fuera de la pantalla por la derecha/abajo.
+            ancho = min(460, arbol.winfo_screenwidth() - x - 20)
+            alto = arbol.winfo_screenheight() - y - 40
+            if ancho < 200:
+                x = max(0, x - 440)
+            if alto < 120:
+                y = max(0, y - 140)
+            emergente.wm_geometry("+%d+%d" % (x, y))
+            tk.Label(emergente, text=texto, justify="left",
+                     background="#ffffe1", relief="solid", borderwidth=1,
+                     padx=6, pady=3, wraplength=420).pack()
+        except Exception:
+            return
+        estado["tip"] = emergente
+
+    def _al_mover(evento):
+        iid = arbol.identify_row(evento.y)
+        if iid == estado["iid"]:
+            return
+        _ocultar()
+        if not iid:
+            return
+        estado["iid"] = iid
+
+        def _disparar():
+            if estado["iid"] != iid:
+                return
+            x = arbol.winfo_rootx() + evento.x + 14
+            y = arbol.winfo_rooty() + evento.y + 20
+            _mostrar(iid, x, y)
+
+        estado["after"] = arbol.after(400, _disparar)
+
+    arbol.bind("<Motion>", _al_mover, add="+")
+    arbol.bind("<Leave>", _ocultar, add="+")
+    arbol.bind("<ButtonPress>", _ocultar, add="+")
+    for secuencia in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        arbol.bind(secuencia, _ocultar, add="+")
 
 # Grupos del panel de detalle: (título, [columnas del evento]).
 DETALLE_GRUPOS = [
@@ -615,7 +698,11 @@ def _valores_no_picada(fila):
     """Las columnas de una estación sin arribos asociados, ya formateadas."""
     valores = []
     for clave, _, _ in COLUMNAS_NO_PICADA:
-        if clave in ("distancia_km",):
+        if clave == "evidencia":
+            valores.append(_texto(disponibilidad.texto_evidencia(fila)))
+        elif clave == "formas_onda":
+            valores.append(_texto(disponibilidad.texto_formas_onda(fila)))
+        elif clave in ("distancia_km",):
             valores.append(_numero(fila.get(clave), 1))
         elif clave in ("est_elev", "streams_vigentes"):
             valores.append(_numero(fila.get(clave), 0))
@@ -624,36 +711,72 @@ def _valores_no_picada(fila):
     return valores
 
 
+def _texto_ayuda_fila(fila):
+    """
+    Texto del tooltip de una estación sin arribos.
+
+    Explica qué evidencia hay (certeza por ondas, indicio por actividad, sin
+    evidencia o sin consultar) y, cuando está verificada, la cobertura de las
+    formas de onda.
+    """
+    red = _texto(fila.get("red"))
+    estacion = _texto(fila.get("estacion"))
+    distancia = _numero(fila.get("distancia_km"), 1)
+    encabezado = "%s.%s — %s km" % (red, estacion, distancia)
+    evidencia = disponibilidad.estado_evidencia(fila)
+    if evidencia == disponibilidad.EVIDENCIA_VERIFICADO:
+        fuente = disponibilidad.texto_formas_onda(fila) or "formas de onda"
+        texto = ("%s\nVerificado con %s: hay formas de onda en la ventana."
+                 % (encabezado, fuente))
+        desde = str(fila.get("cobertura_desde") or "").strip()
+        hasta = str(fila.get("cobertura_hasta") or "").strip()
+        if desde or hasta:
+            texto += "\nCobertura: %s a %s" % (desde or "—", hasta or "—")
+        return texto
+    if evidencia == disponibilidad.EVIDENCIA_INDICIO:
+        actividad = _a_float(fila.get("actividad_ventana"))
+        if actividad == float("inf"):
+            actividad = 0.0
+        cantidad = int(actividad)
+        return ("%s\nIndicio por actividad: picó %d evento%s en ±2 h."
+                " No se verificaron formas de onda."
+                % (encabezado, cantidad, "" if cantidad == 1 else "s"))
+    if evidencia == disponibilidad.EVIDENCIA_SIN_EVIDENCIA:
+        return ("%s\nSin evidencia: se consultaron las formas de onda y no"
+                " hay; tampoco actividad en ±2 h. Posible caída."
+                % encabezado)
+    return ("%s\nSin consultar: todavía no se buscaron formas de onda."
+            " Use «Consultar formas de onda»." % encabezado)
+
+
 def _etiqueta_no_picada(fila, umbral_cercano=UMBRAL_CERCANO_KM):
     """
     La etiqueta de color de una estación sin arribos asociados.
 
-    Son cuatro, y el orden importa: lo que tiene actividad inferida Y está
-    cerca va arriba porque es el caso que vale la pena mirar. La actividad es
-    un indicador INDIRECTO de operación, no una prueba de que la estación
-    grabara: una estación con actividad y cerca se ve distinto de una que solo
-    está cerca.
+    Distingue la CERTEZA de la DEDUCCIÓN, que es lo que la tabla tiene que dejar
+    claro:
+
+    - verificada / verificada_lejos: hay formas de onda (SDS o tiempo real); la
+      estación estaba grabando.
+    - indicio / indicio_lejos: no hay ondas verificadas, pero picó otros eventos
+      ±2 h; es una deducción, no una prueba.
+    - sin_evidencia: se miraron las ondas y no hay, y tampoco actividad; cerca
+      se marca como posible caída.
+    - normal: sin consultar y sin actividad, o lejos sin evidencia.
 
     'umbral_cercano' es la distancia (km) a partir de la cual se considera
     "cerca"; se pasa desde la ventana para que sea configurable, con
     UMBRAL_CERCANO_KM por defecto.
-
-    No se agrega una quinta categoría para "sin actividad": en cero la estación
-    puede estar caída, no interesarle el evento o simplemente nadie la revisó,
-    y ese es el caso más común; no tiene por qué verse distinto del resto.
     """
-    actividad = _a_float(fila.get("actividad_ventana"))
-    if actividad == float("inf"):
-        actividad = 0.0
     distancia = _a_float(fila.get("distancia_km"))
     cerca = distancia != float("inf") and distancia <= umbral_cercano
-    activa = actividad > 0
-    if cerca and activa:
-        return "destacada"
-    if activa:
-        return "activa"
-    if cerca:
-        return "cercana"
+    evidencia = disponibilidad.estado_evidencia(fila)
+    if evidencia == disponibilidad.EVIDENCIA_VERIFICADO:
+        return "verificada" if cerca else "verificada_lejos"
+    if evidencia == disponibilidad.EVIDENCIA_INDICIO:
+        return "indicio" if cerca else "indicio_lejos"
+    if evidencia == disponibilidad.EVIDENCIA_SIN_EVIDENCIA and cerca:
+        return "sin_evidencia"
     return "normal"
 
 
@@ -666,16 +789,19 @@ def analizar_sin_arribos(ruta_no_picadas, eventos,
     del umbral, que son las que importan para priorizar: no guarda el archivo
     entero en memoria, solo las filas cercanas (que son pocas por evento).
 
-    Devuelve una lista de resúmenes, uno por evento con al menos una cercana,
-    ordenada por severidad: primero las de estación cercana CON actividad
-    (±24 h), que es el caso de una estación que operaba y no se usó; después
-    las cercanas sin actividad (posible caída); y a igualdad, por distancia.
+    Separa la CERTEZA de la DEDUCCIÓN, igual que la tabla de estaciones:
+    'verificadas' son las que tienen formas de onda; 'indicios', las que solo
+    picaron otros eventos ±2 h; 'sin_evidencia', las que no tienen ninguna de
+    las dos (incluye las «sin consultar» de una exportación sin --formas-onda).
+    Ordena por verificadas, después indicios, después sin evidencia y, a
+    igualdad, por distancia.
 
     Cada resumen es un dict:
-      {'evento', 'destacadas', 'cercanas', 'total', 'dist_min',
-       'estaciones': [(red, estacion, distancia, actividad, clasificacion), …]}
-    con 'estaciones' ordenada por distancia y clasificación 'destacada' o
-    'cercana'.
+      {'evento', 'verificadas', 'indicios', 'sin_evidencia', 'total',
+       'dist_min', 'estaciones': [(red, estacion, distancia, actividad,
+       evidencia), …]}
+    con 'estaciones' ordenada por distancia y 'evidencia' el estado de
+    disponibilidad.
     """
     if not ruta_no_picadas or not os.path.isfile(ruta_no_picadas):
         return []
@@ -685,16 +811,18 @@ def analizar_sin_arribos(ruta_no_picadas, eventos,
         if clave is not None:
             por_id[clave] = fila
     # Cuenta todas las filas del evento (para el total) y guarda aparte las
-    # cercanas, ya clasificadas.
+    # cercanas, ya clasificadas por evidencia.
     totales = {}
     cercanas = {}
     with open(ruta_no_picadas, "r", encoding="utf-8", newline="") as archivo:
         for fila in csv.DictReader(archivo):
             id_evento = fila.get("id_evento", "")
             totales[id_evento] = totales.get(id_evento, 0) + 1
-            etiqueta = _etiqueta_no_picada(fila, umbral_cercano)
-            if etiqueta in ("destacada", "cercana"):
-                cercanas.setdefault(id_evento, []).append((fila, etiqueta))
+            distancia = _a_float(fila.get("distancia_km"))
+            if distancia == float("inf") or distancia > umbral_cercano:
+                continue
+            evidencia = disponibilidad.estado_evidencia(fila)
+            cercanas.setdefault(id_evento, []).append((fila, evidencia))
 
     resumenes = []
     for id_evento, filas in cercanas.items():
@@ -702,10 +830,15 @@ def analizar_sin_arribos(ruta_no_picadas, eventos,
         if evento is None:
             # Sin el evento no hay datos que mostrar (exportaciones cruzadas).
             continue
-        destacadas = sum(1 for _, etiqueta in filas if etiqueta == "destacada")
+        verificadas = sum(
+            1 for _, ev in filas
+            if ev == disponibilidad.EVIDENCIA_VERIFICADO)
+        indicios = sum(
+            1 for _, ev in filas
+            if ev == disponibilidad.EVIDENCIA_INDICIO)
         estaciones = []
         dist_min = float("inf")
-        for fila, etiqueta in filas:
+        for fila, evidencia in filas:
             distancia = _a_float(fila.get("distancia_km"))
             actividad = _a_float(fila.get("actividad_ventana"))
             if actividad == float("inf"):
@@ -714,18 +847,19 @@ def analizar_sin_arribos(ruta_no_picadas, eventos,
                 dist_min = distancia
             estaciones.append((_texto(fila.get("red")),
                                _texto(fila.get("estacion")),
-                               distancia, actividad, etiqueta))
+                               distancia, actividad, evidencia))
         estaciones.sort(key=lambda e: e[2])
         resumenes.append({
             "evento": evento,
-            "destacadas": destacadas,
-            "cercanas": len(filas) - destacadas,
+            "verificadas": verificadas,
+            "indicios": indicios,
+            "sin_evidencia": len(filas) - verificadas - indicios,
             "total": totales.get(id_evento, len(filas)),
             "dist_min": dist_min,
             "estaciones": estaciones,
         })
-    resumenes.sort(key=lambda r: (-r["destacadas"], -r["cercanas"],
-                                  r["dist_min"]))
+    resumenes.sort(key=lambda r: (-r["verificadas"], -r["indicios"],
+                                  -r["sin_evidencia"], r["dist_min"]))
     return resumenes
 
 
@@ -743,8 +877,9 @@ def _valores_analisis(resumen):
         "region": _texto(evento.get("region")),
         "operador": _texto(evento.get("operador")),
         "fases": _texto(evento.get("fases")),
-        "destacadas": str(resumen["destacadas"]),
-        "cercanas": str(resumen["cercanas"]),
+        "verificadas": str(resumen["verificadas"]),
+        "indicios": str(resumen["indicios"]),
+        "sin_evidencia": str(resumen["sin_evidencia"]),
         "dist_min": _numero(resumen["dist_min"], 1),
     }
     return [valores.get(clave, "") for clave, _, _ in COLUMNAS_ANALISIS]
@@ -767,11 +902,15 @@ def filas_analisis_largo(resumenes):
             "operador": _texto(evento.get("operador")),
             "fases": _texto(evento.get("fases")),
         }
-        for red, estacion, distancia, actividad, etiqueta in resumen["estaciones"]:
+        for red, estacion, distancia, actividad, evidencia in \
+                resumen["estaciones"]:
             fila = dict(base)
-            fila["clasificacion"] = ("cerca con actividad"
-                                     if etiqueta == "destacada"
-                                     else "cerca sin actividad")
+            fila["clasificacion"] = {
+                disponibilidad.EVIDENCIA_VERIFICADO: "verificado",
+                disponibilidad.EVIDENCIA_INDICIO: "indicio",
+                disponibilidad.EVIDENCIA_SIN_EVIDENCIA: "sin evidencia",
+                disponibilidad.EVIDENCIA_NO_CONSULTADO: "sin consultar",
+            }.get(evidencia, "sin evidencia")
             fila["distancia_km"] = _numero(distancia, 1)
             fila["actividad_ventana"] = _numero(actividad, 0)
             fila["red"] = red
@@ -788,7 +927,8 @@ def _valores_analisis_largo(fila):
 # Columnas del Análisis rápido que ordenan por número y no por el texto que se
 # muestra (mismo motivo que COLUMNA_NUMERICA en el panel).
 COLUMNAS_ANALISIS_NUMERICAS = (
-    "magnitud", "profundidad_km", "fases", "destacadas", "cercanas", "dist_min",
+    "magnitud", "profundidad_km", "fases", "verificadas", "indicios",
+    "sin_evidencia", "dist_min",
 )
 
 
@@ -797,7 +937,7 @@ def _campo_orden_analisis(resumen, columna):
     evento = resumen["evento"]
     if columna in ("fecha", "hora"):
         valor = str(_campo_tiempo(evento)).strip()
-    elif columna in ("destacadas", "cercanas", "dist_min"):
+    elif columna in ("verificadas", "indicios", "sin_evidencia", "dist_min"):
         valor = resumen.get(columna)
     else:
         valor = _texto(evento.get(columna))
@@ -1476,8 +1616,34 @@ def _construir_arbol_fases(ttk, marco, filas_fases, padre=None, cwd=None,
     return arbol
 
 
+def _consultar_disponibilidad(filas, instante, al_progreso=None):
+    """
+    Consulta SDS/tiempo real para las filas de sin arribos y las actualiza.
+
+    Junta los streams de todas las filas (con la referencia primero), consulta
+    una vez por fuente y vuelca el resultado en cada fila. Devuelve el resultado
+    crudo por stream, o {} si no hay nada que consultar. 'al_progreso' se pasa a
+    disponibilidad.consultar (mensajes de fase).
+    """
+    specs = []
+    for fila in filas:
+        for spec in disponibilidad.specs_de_fila(fila):
+            if spec not in specs:
+                specs.append(spec)
+    if not specs or instante is None:
+        return {}
+    desde = instante - timedelta(minutes=disponibilidad.VENTANA_MINUTOS)
+    hasta = instante + timedelta(minutes=disponibilidad.VENTANA_MINUTOS)
+    resultado = disponibilidad.consultar(specs, desde, hasta,
+                                         al_progreso=al_progreso)
+    for fila in filas:
+        disponibilidad.aplicar_resultado(fila, resultado)
+    return resultado
+
+
 def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
-                       log=None, umbral_cercano=UMBRAL_CERCANO_KM):
+                       log=None, umbral_cercano=UMBRAL_CERCANO_KM,
+                       instante=None, al_ocupar=None, al_liberar=None):
     """
     Dibuja la tabla de estaciones sin arribos (y su descarga) para una lista.
 
@@ -1485,6 +1651,10 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
     filtrar por radio o al mostrar el resultado ampliado contra la base: la
     tabla, la descarga y los resaltados son siempre los mismos; lo único que
     cambia es la lista de filas.
+
+    'instante' es la hora del evento. Si se pasa, se habilita «Consultar formas
+    de onda»: revisa el SDS y el tiempo real para decidir si la estación estaba
+    grabando, y llena la columna «Formas de onda».
     """
     import ttkbootstrap as _t
     for hijo in marco.winfo_children():
@@ -1499,33 +1669,43 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
         oscuro = bool(paleta.dark)
     except Exception:
         oscuro = False
-    fondo = "#1f2b34" if oscuro else "#fff4d6"
-    texto_color = "#f2f2f2" if oscuro else "#7a4b00"
-    color_activa = "#5fd08a" if oscuro else "#1a7f37"
+    # Dos tonos para no mezclar certeza y deducción: verde = verificado con
+    # formas de onda; ámbar = indicio por actividad.
+    fondo_verificado = "#123f24" if oscuro else "#d4f5dd"
+    texto_verificado = "#d7f5df" if oscuro else "#14532d"
+    color_verificado = "#5fd08a" if oscuro else "#1a7f37"
+    fondo_indicio = "#4a3a10" if oscuro else "#fff4d6"
+    texto_indicio = "#ffe6a3" if oscuro else "#7a4b00"
+    color_indicio = "#e0b34a" if oscuro else "#9a6a00"
 
     if not filas:
         _t.Label(marco, text="Ninguna estación dentro del radio elegido.",
                  font=("", 10, "bold")).pack(anchor="w", padx=8, pady=10)
         return None, None
 
-    # Leyenda de 2 líneas: la primera explica qué mide la actividad; la segunda,
-    # los colores de las filas, con los mismos que usa tag_configure más abajo.
+    # Leyenda: la primera línea explica qué mide el indicio; después, los
+    # colores que separan la certeza (ondas) de la deducción (actividad).
     _t.Label(marco, text=AYUDA_ACTIVIDAD, bootstyle="secondary",
              justify="left", wraplength=900).pack(anchor="w", padx=8,
                                                   pady=(4, 2))
     leyenda = _t.Frame(marco)
-    leyenda.pack(anchor="w", padx=8, pady=(0, 4))
+    leyenda.pack(anchor="w", padx=8, pady=(0, 2))
     _t.Label(leyenda, text="Colores (Cerca = ≤ %g km):" % umbral_cercano,
              bootstyle="secondary").pack(side="left")
-    _t.Label(leyenda, text=" Cerca, con actividad → no se usó ",
-             background=fondo, foreground=texto_color,
+    _t.Label(leyenda, text=" Verificado con ondas: grabó y no se usó ",
+             background=fondo_verificado, foreground=texto_verificado,
              font=("", 9, "bold")).pack(side="left", padx=(6, 4))
-    _t.Label(leyenda, text=" Con actividad, más lejos ",
-             foreground=color_activa, font=("", 9)).pack(side="left", padx=4)
-    _t.Label(leyenda, text=" Cerca, sin actividad → ¿caída? ",
+    _t.Label(leyenda, text=" Indicio por actividad: pudo operar ",
+             background=fondo_indicio, foreground=texto_indicio,
              font=("", 9, "bold")).pack(side="left", padx=4)
-    _t.Label(leyenda, text=" Lejos, sin actividad ",
-             font=("", 9)).pack(side="left", padx=4)
+    _t.Label(leyenda, text=" Sin evidencia → ¿caída? ",
+             font=("", 9, "bold")).pack(side="left", padx=4)
+    leyenda2 = _t.Frame(marco)
+    leyenda2.pack(anchor="w", padx=8, pady=(0, 4))
+    _t.Label(leyenda2,
+             text="Más lejos: verde = verificado, ámbar = indicio. "
+                  "«Sin consultar» no se resalta: use «Consultar formas de onda».",
+             bootstyle="secondary", font=("", 9)).pack(anchor="w")
 
     claves = [c for c, _, _ in COLUMNAS_NO_PICADA]
     titulos = [titulo for _, titulo, _ in COLUMNAS_NO_PICADA]
@@ -1548,13 +1728,15 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
     arbol.configure(xscrollcommand=barra_h.set)
     barra_h.pack(side="bottom", fill="x")
     arbol.pack(side="left", fill="both", expand=True)
-    _ayuda_emergente(arbol, AYUDA_ACTIVIDAD)
 
     # Los colores ya se calcularon arriba (leyenda); aquí se aplican los tags.
-    arbol.tag_configure("destacada", background=fondo, foreground=texto_color,
-                        font=("", 9, "bold"))
-    arbol.tag_configure("activa", foreground=color_activa)
-    arbol.tag_configure("cercana", font=("", 9, "bold"))
+    arbol.tag_configure("verificada", background=fondo_verificado,
+                        foreground=texto_verificado, font=("", 9, "bold"))
+    arbol.tag_configure("verificada_lejos", foreground=color_verificado)
+    arbol.tag_configure("indicio", background=fondo_indicio,
+                        foreground=texto_indicio, font=("", 9, "bold"))
+    arbol.tag_configure("indicio_lejos", foreground=color_indicio)
+    arbol.tag_configure("sin_evidencia", font=("", 9, "bold"))
 
     ordenadas = sorted(filas,
                        key=lambda f: (_a_float(f.get("distancia_km")),
@@ -1564,9 +1746,41 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
     # perder el scroll ni la selección.
     arbol._filas_no_picadas = ordenadas
     arbol._umbral_cercano = umbral_cercano
-    for fila in ordenadas:
-        arbol.insert("", "end", values=_valores_no_picada(fila),
+    for indice, fila in enumerate(ordenadas):
+        arbol.insert("", "end", iid=str(indice),
+                     values=_valores_no_picada(fila),
                      tags=(_etiqueta_no_picada(fila, umbral_cercano),))
+
+    def _texto_de_iid(iid):
+        try:
+            return _texto_ayuda_fila(ordenadas[int(iid)])
+        except (IndexError, TypeError, ValueError):
+            return ""
+
+    _ayuda_filas_arbol(arbol, _texto_de_iid)
+
+    def _conteos_evidencia():
+        """(verificadas, indicios, sin evidencia, sin consultar)."""
+        cuenta = {
+            disponibilidad.EVIDENCIA_VERIFICADO: 0,
+            disponibilidad.EVIDENCIA_INDICIO: 0,
+            disponibilidad.EVIDENCIA_SIN_EVIDENCIA: 0,
+            disponibilidad.EVIDENCIA_NO_CONSULTADO: 0,
+        }
+        for fila in filas:
+            cuenta[disponibilidad.estado_evidencia(fila)] += 1
+        return (cuenta[disponibilidad.EVIDENCIA_VERIFICADO],
+                cuenta[disponibilidad.EVIDENCIA_INDICIO],
+                cuenta[disponibilidad.EVIDENCIA_SIN_EVIDENCIA],
+                cuenta[disponibilidad.EVIDENCIA_NO_CONSULTADO])
+
+    def _texto_resumen():
+        verificadas, indicios, sin_ev, sin_cons = _conteos_evidencia()
+        return ("%d %s: %d %s, %d con indicio, %d sin evidencia,"
+                " %d sin consultar."
+                % (len(filas), "estación" if len(filas) == 1 else "estaciones",
+                   verificadas, "verificada" if verificadas == 1
+                   else "verificadas", indicios, sin_ev, sin_cons))
 
     etiqueta_estado = None
     if padre is not None and cwd is not None:
@@ -1585,17 +1799,143 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
 
         marco_botones = _t.Frame(marco)
         marco_botones.pack(anchor="w", padx=4, pady=(4, 0))
-        activas = sum(1 for f in filas
-                      if _etiqueta_no_picada(f, umbral_cercano)
-                      in ("activa", "destacada"))
-        etiqueta_estado = _t.Label(
-            marco_botones,
-            text="%d estaciones, %d con actividad inferida."
-            % (len(filas), activas))
+        etiqueta_estado = _t.Label(marco_botones, text=_texto_resumen())
         etiqueta_estado.pack(side="left", padx=(0, 8))
-        _t.Button(marco_botones, text="Descargar sin arribos",
-                  bootstyle="secondary-outline",
-                  command=_al_descargar_no_picadas).pack(side="right")
+        boton_descarga = _t.Button(marco_botones, text="Descargar sin arribos",
+                                   bootstyle="secondary-outline",
+                                   command=_al_descargar_no_picadas)
+        boton_descarga.pack(side="right")
+
+        if instante is not None:
+            etiqueta_formas = _t.Label(marco_botones, text="",
+                                       bootstyle="secondary")
+            etiqueta_formas.pack(side="left", padx=(8, 0))
+            barra_avance = _t.Progressbar(marco_botones, mode="indeterminate",
+                                          length=140,
+                                          bootstyle="info-striped")
+            estado_consulta = {"inicio": None, "fase": "", "tictac": None}
+
+            def _actualizar_etiqueta():
+                if estado_consulta["inicio"] is None:
+                    return
+                segundos = int(time.monotonic() - estado_consulta["inicio"])
+                etiqueta_formas.config(
+                    text="%s (%d s)" % (estado_consulta["fase"], segundos))
+
+            def _tictac():
+                if estado_consulta["inicio"] is None:
+                    return
+                _actualizar_etiqueta()
+                estado_consulta["tictac"] = arbol.after(500, _tictac)
+
+            def _liberar_controles():
+                if al_liberar is not None:
+                    try:
+                        al_liberar()
+                    except Exception:
+                        pass
+
+            def _terminar(error):
+                if estado_consulta["tictac"] is not None:
+                    try:
+                        arbol.after_cancel(estado_consulta["tictac"])
+                    except Exception:
+                        pass
+                    estado_consulta["tictac"] = None
+                estado_consulta["inicio"] = None
+                try:
+                    barra_avance.stop()
+                    barra_avance.pack_forget()
+                except Exception:
+                    pass
+                try:
+                    arbol.configure(cursor="")
+                except Exception:
+                    pass
+                boton_formas.configure(state="normal",
+                                       text="Consultar formas de onda")
+                boton_descarga.configure(state="normal")
+                _liberar_controles()
+                for item, fila in zip(arbol.get_children(), ordenadas):
+                    arbol.item(
+                        item, values=_valores_no_picada(fila),
+                        tags=(_etiqueta_no_picada(fila, umbral_cercano),))
+                etiqueta_estado.config(text=_texto_resumen())
+                if error is not None:
+                    etiqueta_formas.config(
+                        text="No se pudo consultar: %s" % error)
+                    return
+                con_datos = sum(
+                    1 for f in filas
+                    if f.get("waveform_status")
+                    == disponibilidad.ESTADO_CON_DATOS)
+                sin_datos = sum(
+                    1 for f in filas
+                    if f.get("waveform_status")
+                    == disponibilidad.ESTADO_SIN_DATOS)
+                etiqueta_formas.config(
+                    text="Formas de onda: %d con datos, %d sin datos."
+                    % (con_datos, sin_datos))
+
+            def _al_consultar_formas():
+                if estado_consulta["inicio"] is not None:
+                    return
+                estado_consulta["inicio"] = time.monotonic()
+                estado_consulta["fase"] = "Consultando formas de onda…"
+                _actualizar_etiqueta()
+                _tictac()
+                boton_formas.configure(state="disabled", text="Consultando…")
+                boton_descarga.configure(state="disabled")
+                try:
+                    arbol.configure(cursor="watch")
+                except Exception:
+                    pass
+                if al_ocupar is not None:
+                    try:
+                        al_ocupar()
+                    except Exception:
+                        pass
+                barra_avance.pack(side="left", padx=(8, 0))
+                try:
+                    barra_avance.start(12)
+                except Exception:
+                    pass
+                cola = queue.Queue()
+
+                def _trabajo():
+                    try:
+                        _consultar_disponibilidad(
+                            filas, instante,
+                            al_progreso=lambda mensaje: cola.put(
+                                ("progreso", mensaje)))
+                    except Exception as exc:
+                        cola.put(("fin", exc))
+                    else:
+                        cola.put(("fin", None))
+
+                def _drenar():
+                    if not arbol.winfo_exists():
+                        return
+                    while True:
+                        try:
+                            mensaje = cola.get_nowait()
+                        except queue.Empty:
+                            arbol.after(100, _drenar)
+                            return
+                        if mensaje[0] == "progreso":
+                            estado_consulta["fase"] = mensaje[1]
+                            _actualizar_etiqueta()
+                            continue
+                        _terminar(mensaje[1])
+                        return
+
+                threading.Thread(target=_trabajo, daemon=True).start()
+                arbol.after(100, _drenar)
+
+            boton_formas = _t.Button(
+                marco_botones, text="Consultar formas de onda",
+                bootstyle="secondary-outline", command=_al_consultar_formas)
+            boton_formas.pack(side="right", padx=(6, 0))
     return arbol, etiqueta_estado
 
 
@@ -1628,7 +1968,9 @@ def _radio_exportado(filas):
 def _construir_arbol_no_picadas(ttk, marco, filas_no_picadas, padre=None,
                                 cwd=None, etiqueta=None, log=None,
                                 hay_archivo=True,
-                                umbral_cercano=UMBRAL_CERCANO_KM):
+                                umbral_cercano=UMBRAL_CERCANO_KM,
+                                instante=None, al_ocupar=None,
+                                al_liberar=None):
     """
     Arma el contenido de la solapa de estaciones sin arribos: ayuda y tabla.
 
@@ -1664,7 +2006,8 @@ def _construir_arbol_no_picadas(ttk, marco, filas_no_picadas, padre=None,
     contenedor.pack(fill="both", expand=True)
     arbol, _etiqueta = _tabla_sin_arribos(
         _t, contenedor, filas_no_picadas, padre=padre, cwd=cwd,
-        etiqueta=etiqueta, log=log, umbral_cercano=umbral_cercano)
+        etiqueta=etiqueta, log=log, umbral_cercano=umbral_cercano,
+        instante=instante, al_ocupar=al_ocupar, al_liberar=al_liberar)
     return contenedor, arbol
 
 
@@ -1812,6 +2155,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
     cantidad en el estado. Si falta 'al_ampliar', no hay consulta disponible.
     """
     import ttkbootstrap as _t
+    instante_evento = _instante_de_evento(evento)
     resumen = _resumen_fases(filas_fases)
     partes = ["%d picadas de %d estaciones" % (resumen["fases"],
                                                resumen["estaciones"])]
@@ -1926,12 +2270,34 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
     cuaderno.add(marco_picadas, text="Con arribos")
     cuaderno.add(marco_no_picadas, text="Sin arribos")
 
+    def _ocupar_consulta():
+        """Bloquea los controles que reconstruyen la tabla mientras se consulta."""
+        for widget in (ent_radio, chk_limite, boton_aplicar, ent_cerca,
+                       chk_solo):
+            try:
+                widget.configure(state="disabled")
+            except Exception:
+                pass
+
+    def _liberar_consulta():
+        for widget in (chk_limite, boton_aplicar, ent_cerca, chk_solo):
+            try:
+                widget.configure(state="normal")
+            except Exception:
+                pass
+        try:
+            ent_radio.configure(
+                state="disabled" if var_sin_limite.get() else "normal")
+        except Exception:
+            pass
+
     _construir_arbol_fases(_t, marco_picadas, filas_fases, padre=ventana,
                            cwd=cwd, etiqueta=etiqueta_fuente, log=log)
     contenedor_no_picadas, arbol_no_picadas = _construir_arbol_no_picadas(
         _t, marco_no_picadas, filas_no_picadas, padre=ventana, cwd=cwd,
         etiqueta=etiqueta_fuente, log=log, hay_archivo=hay_no_picadas,
-        umbral_cercano=umbral_cercano)
+        umbral_cercano=umbral_cercano, instante=instante_evento,
+        al_ocupar=_ocupar_consulta, al_liberar=_liberar_consulta)
     datos["arbol"] = arbol_no_picadas
 
     # Barra de estado, debajo de los controles y a todo el ancho: dice cuántas
@@ -1956,8 +2322,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
 
     def _contar_cerca():
         return sum(1 for f in datos["mostradas"]
-                   if _etiqueta_no_picada(f, umbral_cercano)
-                   in ("destacada", "cercana"))
+                   if _a_float(f.get("distancia_km")) <= umbral_cercano)
 
     def _actualizar_estado():
         if not hay_no_picadas:
@@ -1996,7 +2361,8 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
             arbol, _etiqueta = _tabla_sin_arribos(
                 _t, contenedor_no_picadas, filas, padre=ventana, cwd=cwd,
                 etiqueta=etiqueta_fuente, log=log,
-                umbral_cercano=umbral_cercano)
+                umbral_cercano=umbral_cercano, instante=instante_evento,
+                al_ocupar=_ocupar_consulta, al_liberar=_liberar_consulta)
             datos["arbol"] = arbol
 
     def _aplicar_local(_evento=None):
@@ -2202,7 +2568,8 @@ def _ventana_sin_arribos_ampliada(padre, evento, filas, radio, base, cwd,
     marco_tabla.pack(fill="both", expand=True, padx=8, pady=(0, 8))
     _tabla_sin_arribos(_t, marco_tabla, filas, padre=ventana, cwd=cwd,
                        etiqueta="ampliado_%s" % (etiqueta_fuente or "seiscomp"),
-                       log=log, umbral_cercano=umbral_cercano)
+                       log=log, umbral_cercano=umbral_cercano,
+                       instante=_instante_de_evento(evento))
 
     ancho = 230 + sum(a for _, _, a in COLUMNAS_NO_PICADA) + 60
     ancho = max(ancho, 900)
@@ -2246,8 +2613,10 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         oscuro = bool(paleta.dark)
     except Exception:
         oscuro = False
-    fondo = "#1f2b34" if oscuro else "#fff4d6"
-    texto_color = "#f2f2f2" if oscuro else "#7a4b00"
+    fondo_verificado = "#123f24" if oscuro else "#d4f5dd"
+    texto_verificado = "#d7f5df" if oscuro else "#14532d"
+    fondo_indicio = "#4a3a10" if oscuro else "#fff4d6"
+    texto_indicio = "#ffe6a3" if oscuro else "#7a4b00"
 
     datos = {"filas": [], "mostradas": []}
     vista = {"arbol": None}
@@ -2290,10 +2659,13 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
     leyenda = _t.Frame(marco_resultados)
     leyenda.pack(anchor="w", padx=8, pady=(2, 0))
     _t.Label(leyenda, text="Colores:", bootstyle="secondary").pack(side="left")
-    _t.Label(leyenda, text=" Cerca, con actividad → no se usó ",
-             background=fondo, foreground=texto_color,
+    _t.Label(leyenda, text=" Verificado con ondas: grabó y no se usó ",
+             background=fondo_verificado, foreground=texto_verificado,
              font=("", 9, "bold")).pack(side="left", padx=(6, 4))
-    _t.Label(leyenda, text=" Cerca, sin actividad → ¿caída? ",
+    _t.Label(leyenda, text=" Indicio por actividad: pudo operar ",
+             background=fondo_indicio, foreground=texto_indicio,
+             font=("", 9, "bold")).pack(side="left", padx=4)
+    _t.Label(leyenda, text=" Sin evidencia → ¿caída? ",
              font=("", 9, "bold")).pack(side="left", padx=4)
 
     marco_tabla = _t.Frame(marco_resultados)
@@ -2359,13 +2731,22 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         arbol.configure(xscrollcommand=barra_h.set)
         barra_h.pack(side="bottom", fill="x")
         arbol.pack(side="left", fill="both", expand=True)
-        arbol.tag_configure("destacada", background=fondo,
-                            foreground=texto_color, font=("", 9, "bold"))
-        arbol.tag_configure("cercana", font=("", 9, "bold"))
+        arbol.tag_configure("verificada", background=fondo_verificado,
+                            foreground=texto_verificado, font=("", 9, "bold"))
+        arbol.tag_configure("indicio", background=fondo_indicio,
+                            foreground=texto_indicio, font=("", 9, "bold"))
+        arbol.tag_configure("sin_evidencia", font=("", 9, "bold"))
         datos["mostradas"] = _ordenar_analisis(
             datos["filas"], orden["columna"], orden["descendente"])
         for indice, resumen in enumerate(datos["mostradas"]):
-            etiqueta = "destacada" if resumen["destacadas"] else "cercana"
+            if resumen["verificadas"]:
+                etiqueta = "verificada"
+            elif resumen["indicios"]:
+                etiqueta = "indicio"
+            elif resumen["sin_evidencia"]:
+                etiqueta = "sin_evidencia"
+            else:
+                etiqueta = "normal"
             arbol.insert("", "end", iid=str(indice),
                          values=_valores_analisis(resumen), tags=(etiqueta,))
         arbol.bind("<Double-1>", _abrir)

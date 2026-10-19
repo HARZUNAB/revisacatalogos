@@ -76,12 +76,12 @@ def test_plurales_de_cero():
 # --------------------------------------------------------------------------
 def test_etiqueta_no_picada_umbral_inclusivo():
     assert r._etiqueta_no_picada(
-        {"distancia_km": "50", "actividad_ventana": "0"}) == "cercana"
+        {"distancia_km": "50", "actividad_ventana": "3"}) == "indicio"
     assert r._etiqueta_no_picada(
-        {"distancia_km": "50.1", "actividad_ventana": "0"}) == "normal"
+        {"distancia_km": "50.1", "actividad_ventana": "3"}) == "indicio_lejos"
     assert r._etiqueta_no_picada(
-        {"distancia_km": "0", "actividad_ventana": "0"}, umbral_cercano=0) \
-        == "cercana"
+        {"distancia_km": "0", "actividad_ventana": "3"}, umbral_cercano=0) \
+        == "indicio"
 
 
 # --------------------------------------------------------------------------

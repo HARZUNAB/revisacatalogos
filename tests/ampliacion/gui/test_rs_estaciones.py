@@ -6,6 +6,8 @@ Cubre `_ventana_estaciones` y `_ventana_sin_arribos_ampliada` con **ventana
 real** y datos sintéticos. Sin mocks. Necesita `DISPLAY`.
 """
 
+import threading
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -55,6 +57,15 @@ def _buscar(widget, tipo, predicado=None):
         if encontrado is not None:
             return encontrado
     return None
+
+
+def _buscar_todos(widget, tipo):
+    encontrados = []
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, tipo):
+            encontrados.append(hijo)
+        encontrados.extend(_buscar_todos(hijo, tipo))
+    return encontrados
 
 
 def _label(widget, fragmento):
@@ -110,3 +121,123 @@ def test_sin_arribos_ampliada(raiz_tk, cwd_tmp):
     assert _label(win, "radio 400 km") is not None
     assert _label(win, "2 estaciones") is not None
     assert _buscar(win, ttk.Treeview) is not None
+
+
+# --------------------------------------------------------------------------
+# Formas de onda (on-demand)
+# --------------------------------------------------------------------------
+def test_estaciones_tiene_boton_formas_onda(raiz_tk, cwd_tmp):
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, FASES, NO_PICADAS,
+                                 str(cwd_tmp), etiqueta_fuente="seiscomp")
+    boton = _buscar(win, ttk.Button,
+                    lambda w: w.cget("text") == "Consultar formas de onda")
+    assert boton is not None
+
+
+def test_estaciones_tabla_sin_arribos_tiene_tooltip_por_fila(raiz_tk, cwd_tmp):
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, FASES, NO_PICADAS,
+                                 str(cwd_tmp), etiqueta_fuente="seiscomp")
+    win.update()
+    tablas = _buscar_todos(win, ttk.Treeview)
+    # La segunda es la de sin arribos (la primera es la de llegadas).
+    tabla = tablas[1]
+    assert tabla.bind("<Motion>")
+    # Los iid son índices, que es lo que usa el tooltip para ubicar la fila.
+    assert list(tabla.get_children()) == ["0", "1"]
+
+
+def test_estaciones_tooltip_muestra_la_evidencia_de_la_fila(raiz_tk, cwd_tmp):
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, FASES, NO_PICADAS,
+                                 str(cwd_tmp), etiqueta_fuente="seiscomp")
+    notebook = _buscar(win, ttk.Notebook)
+    notebook.select(1)
+    win.update()
+    tabla = _buscar_todos(win, ttk.Treeview)[1]
+    bbox = tabla.bbox(tabla.get_children()[0])
+    assert bbox
+    tabla.event_generate("<Motion>", x=bbox[0] + 5, y=bbox[1] + 5, when="now")
+
+    tip = None
+    fin = time.time() + 2.0
+    while time.time() < fin and tip is None:
+        raiz_tk.update()
+        time.sleep(0.05)
+        for w in _buscar_todos(win, tk.Toplevel):
+            if w.overrideredirect():
+                tip = w
+                break
+    assert tip is not None
+    texto = "\n".join(
+        str(c.cget("text")) for c in tip.winfo_children()
+        if isinstance(c, tk.Label))
+    # La primera fila (ABC) tiene actividad 1: debe decir «Indicio».
+    assert "ABC" in texto and "Indicio" in texto, texto
+
+
+def test_consultar_formas_muestra_progreso_y_deshabilita(raiz_tk, cwd_tmp,
+                                                         monkeypatch):
+    inicio = threading.Event()
+    seguir = threading.Event()
+
+    def consultar_falso(_specs, _desde, _hasta, al_progreso=None):
+        if al_progreso:
+            al_progreso("Consultando el archivo SDS…")
+        inicio.set()
+        seguir.wait(3)
+        return {}
+
+    monkeypatch.setattr(rs.disponibilidad, "consultar", consultar_falso)
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, FASES, NO_PICADAS,
+                                 str(cwd_tmp), etiqueta_fuente="seiscomp")
+    win.update()
+    boton = _buscar(
+        win, ttk.Button,
+        lambda w: "Consultar formas de onda" in str(w.cget("text")))
+    barra = _buscar(win, ttk.Progressbar)
+    assert boton is not None and barra is not None
+    assert barra.winfo_manager() == ""
+
+    boton.invoke()
+    assert inicio.wait(2)
+    win.update()
+    assert str(boton.cget("state")) == "disabled"
+    assert "Consultando" in str(boton.cget("text"))
+    assert barra.winfo_manager() == "pack"
+
+    # El mensaje de fase llega por la cola y actualiza la etiqueta.
+    fin = time.time() + 2.0
+    while time.time() < fin and _label(win, "Consultando el archivo SDS") is None:
+        win.update()
+        time.sleep(0.05)
+    assert _label(win, "Consultando el archivo SDS") is not None
+
+    seguir.set()
+    fin = time.time() + 3.0
+    while time.time() < fin and str(boton.cget("state")) != "normal":
+        win.update()
+        time.sleep(0.05)
+    assert str(boton.cget("state")) == "normal"
+    assert "Consultar formas de onda" in str(boton.cget("text"))
+    assert barra.winfo_manager() == ""
+
+
+def test_consultar_disponibilidad_llena_las_filas(monkeypatch):
+    filas = [dict(NO_PICADAS[0], streams_vigentes_ids="IU.ABC.00.BHZ"),
+             dict(NO_PICADAS[1])]
+    monkeypatch.setattr(
+        rs.disponibilidad, "consultar",
+        lambda specs, desde, hasta, **kwargs: {
+            "IU.ABC.00.BHZ": {"status": "CON_DATOS", "source": "SDS",
+                              "desde": "d", "hasta": "h"},
+            "CX.XYZ..HHZ": {"status": "SIN_DATOS", "source": "",
+                            "desde": "", "hasta": ""},
+        })
+    rs._consultar_disponibilidad(filas, rs._instante_de_evento(EVENTO))
+    assert filas[0]["waveform_status"] == "CON_DATOS"
+    assert filas[0]["availability_source"] == "SDS"
+    assert filas[1]["waveform_status"] == "SIN_DATOS"
+    assert rs._valores_no_picada(filas[0])[
+        [c for c, _, _ in rs.COLUMNAS_NO_PICADA].index("formas_onda")] == "SDS"
+    assert rs._valores_no_picada(filas[1])[
+        [c for c, _, _ in rs.COLUMNAS_NO_PICADA].index("formas_onda")] == \
+        "Sin datos"

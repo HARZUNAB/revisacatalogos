@@ -41,6 +41,7 @@ sin marcador) y otra no (`gui`/`db`).
 | `compara.py` | scripts | `scripts/test_compara_helpers.py` | sí |
 | `consultaapi.py` | red | `red/test_consultaapi_fechas.py`, `red/test_consultaapi_cuadrantes.py` | sí |
 | `descargas.py` | modulos, gui | `modulos/test_descargas_archivos.py`, `modulos/test_descargas_interfaz.py`, `gui/test_descargas_dialogo.py`, `gui/test_descargas_widgets.py` | parcial |
+| `disponibilidad.py` | modulos | `modulos/test_disponibilidad.py` | sí |
 | `exporta_ventana_seiscomp.py` | base, bordes, db | `base/test_exporta_ventana_seiscomp.py`, `bordes/test_exporta_ventana_seiscomp_bordes.py`, `db/test_exporta_ventana_db.py` | parcial |
 | `generajson.py` | modulos | `modulos/test_generajson_args.py`, `modulos/test_generajson_distancia.py`, `modulos/test_generajson_analistas.py`, `modulos/test_generajson_procesar.py` | sí |
 | `plotear.py` | gui | `gui/test_plotear_helpers.py`, `gui/test_plotear_figuras.py`, `gui/test_plotear_panel.py`, `gui/test_plotear_abrir.py` | no |

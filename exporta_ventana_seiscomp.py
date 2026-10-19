@@ -59,8 +59,8 @@ picks de esa estación dentro de ±ACTIVIDAD_HORAS. Es un indicador indirecto de
 operación: en cero la estación puede estar caída, no interesarle el evento o
 simplemente nadie la revisó; mayor que cero indica que estaba operando y no
 tiene arribos en ESTE evento, que es el caso a revisar. El radio sale de
---radio-km (400 km por defecto) y la ventana de --actividad-h (24 horas por
-defecto).
+--radio-km (400 km por defecto) y la ventana de --actividad-h (2 horas por
+defecto, o sea 4 h en total).
 
 Este radio es SOLO para las estaciones sin arribos de los eventos de SeisComp:
 no tiene nada que ver con los catálogos de Seisan ni de eventquery, que no
@@ -69,15 +69,17 @@ estima cuántas filas y cuántos MB tendría la lista antes de calcularla, para
 avisar cuando la ventana es grande.
 
 Los campos waveform_status, availability_source, cobertura_desde y
-cobertura_hasta quedan previstos para cuando se consulte disponibilidad real
-(SDS, scardac/DataAvailability o FDSN Availability). Hoy waveform_status vale
-NO_CONSULTADO y los otros van vacíos: no se afirma nada sobre las formas de
-onda.
+cobertura_hasta se llenan con --formas-onda: consultan el archivo SDS y, para lo
+que falte, el recordstream de tiempo real (ver disponibilidad.py). Sin ese flag
+quedan en NO_CONSULTADO/vacíos: no se afirma nada sobre las formas de onda. La
+ventana de revisión también puede llenarlos on-demand con «Consultar formas de
+onda».
 
 Uso:
     ./exporta_ventana_seiscomp.py
     ./exporta_ventana_seiscomp.py <inicio> <fin> [salida.csv] [--base <nombre>]
     ./exporta_ventana_seiscomp.py --sugerencia <inicio> <fin> [--reusar]
+    ./exporta_ventana_seiscomp.py <inicio> <fin> --formas-onda
     ./seiscomp.sh <catalogo.csv>
 
 La forma recomendada es el lanzador ./seiscomp.sh, que encadena la exportación
@@ -149,6 +151,7 @@ import sys
 from bisect import bisect_left, bisect_right
 from datetime import datetime, timedelta
 
+import disponibilidad
 import prog
 
 try:
@@ -191,10 +194,12 @@ RADIO_ESTACIONES_KM = 400.0
 # Qué tan lejos en el tiempo se busca que una estación haya picado otro evento
 # para considerarla "activa". No es lo mismo que estar en el inventario: una
 # estación puede tener su época vigente y no haber grabado nunca. La señal de
-# que hubo datos fluyendo es que haya picado algo cerca en el tiempo. Con 24 h
-# una estación que operó ese día cuenta, y una que solo trabajó a principios de
-# mes no aparece como disponible para un evento del 28.
-ACTIVIDAD_HORAS = 24.0
+# que hubo datos fluyendo es que haya picado algo cerca en el tiempo. Con 2 h
+# se mira el entorno inmediato del evento (4 h en total): una estación que solo
+# trabajó a la mañana no cuenta como operativa para un evento de la noche. La
+# disponibilidad real de formas de onda (SDS/tiempo real) es la prueba directa;
+# esto es el respaldo indirecto cuando no hay acceso a las ondas.
+ACTIVIDAD_HORAS = 2.0
 
 # Las mismas 14 columnas, en el mismo orden, que consulta_eventosSC.py, más
 # base_datos al final: de qué base salió la fila. Con varias bases en juego no
@@ -558,6 +563,10 @@ CABECERA_NO_PICADAS = [
     # Stream de REFERENCIA: el de época más reciente entre los vigentes. No es
     # el único stream disponible; para eso está streams_vigentes.
     "loc_ref", "cha_ref", "streams_vigentes",
+    # Todos los streams vigentes, con el de referencia primero: la consulta de
+    # formas de onda usa esta lista para probar los demás si el de referencia no
+    # tiene datos. Formato: NET.STA.LOC.CHA separados por ';'.
+    "streams_vigentes_ids",
     # Distancia al hipocentro en kilómetros. Es la columna por la que se ordena
     # la solapa de la interfaz: lo interesante es lo que quedó cerca.
     "distancia_km",
@@ -572,9 +581,11 @@ CABECERA_NO_PICADAS = [
     # tiene arribos en ESTE evento, que es exactamente el caso a revisar. No
     # demuestra que haya grabado.
     "actividad_ventana",
-    # Disponibilidad de formas de onda. Hoy no se consulta ninguna fuente: va
-    # NO_CONSULTADO y los demás vacíos, para que el archivo ya tenga el lugar
-    # cuando se integren SDS, scardac/DataAvailability o FDSN Availability.
+    # Resumen de la evidencia: VERIFICADO (hay ondas), INDICIO (picó otros
+    # eventos), SIN_EVIDENCIA (se miró y no hay) o NO_CONSULTADO.
+    "evidencia",
+    # Disponibilidad de formas de onda. Se llena con --formas-onda o con la
+    # consulta on-demand; sin consultar queda NO_CONSULTADO y vacíos.
     "waveform_status", "availability_source", "cobertura_desde",
     "cobertura_hasta",
 ]
@@ -1313,6 +1324,15 @@ def _vigente(inicio, fin, instante):
     return True
 
 
+def _streams_vigentes(registros, instante):
+    """Los registros de inventario (uno por stream) vigentes en el instante."""
+    return [r for r in registros
+            if _vigente(r["red_inicio"], r["red_fin"], instante)
+            and _vigente(r["epoca_inicio"], r["epoca_fin"], instante)
+            and _vigente(r["loc_inicio"], r["loc_fin"], instante)
+            and _vigente(r["cha_inicio"], r["cha_fin"], instante)]
+
+
 def _stream_valido(registros, instante):
     """
     El stream de referencia vigente para una estación, y cuántos hay.
@@ -1327,11 +1347,7 @@ def _stream_valido(registros, instante):
     que es el que se usa como referencia. 'cantidad' cuenta TODOS los streams
     vigentes: es lo que deja claro que el de referencia no es el único.
     """
-    vigentes = [r for r in registros
-                if _vigente(r["red_inicio"], r["red_fin"], instante)
-                and _vigente(r["epoca_inicio"], r["epoca_fin"], instante)
-                and _vigente(r["loc_inicio"], r["loc_fin"], instante)
-                and _vigente(r["cha_inicio"], r["cha_fin"], instante)]
+    vigentes = _streams_vigentes(registros, instante)
     if not vigentes:
         return None, 0
     minimo = datetime.min
@@ -1383,6 +1399,13 @@ def _no_picadas_de_evento(instante, id_evento, id_origen, latitud, longitud,
         if vigente is None:
             descartadas += 1
             continue
+        # TODOS los streams vigentes, con el de referencia primero: la consulta
+        # de formas de onda prueba ese y, si no hay datos, los demás.
+        vigentes = _streams_vigentes(registros, instante)
+        orden = [vigente] + [r for r in vigentes if r is not vigente]
+        streams_ids = ";".join(
+            "%s.%s.%s.%s" % (r["red"], r["estacion"], r["loc"] or "", r["cha"])
+            for r in orden)
         distancia = _distancia_km(latitud, longitud,
                                   vigente["latitud"], vigente["longitud"])
         if radio_km is not None and distancia > radio_km:
@@ -1396,7 +1419,7 @@ def _no_picadas_de_evento(instante, id_evento, id_origen, latitud, longitud,
             desde = bisect_left(horas, instante - tolerancia)
             hasta = bisect_right(horas, instante + tolerancia)
             cercana = hasta - desde
-        filas.append({
+        fila = {
             "id_evento": id_evento,
             "id_origen": id_origen,
             "red": vigente["red"],
@@ -1404,6 +1427,7 @@ def _no_picadas_de_evento(instante, id_evento, id_origen, latitud, longitud,
             "loc_ref": vigente["loc"],
             "cha_ref": vigente["cha"],
             "streams_vigentes": cantidad,
+            "streams_vigentes_ids": streams_ids,
             "distancia_km": round(distancia, 1),
             "est_lat": vigente["latitud"],
             "est_lon": vigente["longitud"],
@@ -1416,7 +1440,11 @@ def _no_picadas_de_evento(instante, id_evento, id_origen, latitud, longitud,
             "availability_source": "",
             "cobertura_desde": "",
             "cobertura_hasta": "",
-        })
+        }
+        # Sin consultar ondas, la actividad es un indicio; si tampoco hay
+        # actividad, el estado es «sin consultar».
+        fila["evidencia"] = disponibilidad.estado_evidencia(fila)
+        filas.append(fila)
     filas.sort(key=lambda f: (f["distancia_km"], f["red"], f["estacion"]))
     return filas, descartadas
 
@@ -1838,7 +1866,8 @@ def _aviso_cobertura(nombre, inicio, fin, cobertura):
 def exportar_ventana(inicio, fin, salida=None, base=None,
                      solo_confirmados=True, reusar=False,
                      radio_km=RADIO_ESTACIONES_KM,
-                     actividad_horas=ACTIVIDAD_HORAS):
+                     actividad_horas=ACTIVIDAD_HORAS,
+                     formas_onda=False):
     """
     Consulta los eventos de la ventana y sus fases, y escribe los tres CSV.
     Devuelve un diccionario con las rutas y las cantidades de filas.
@@ -1850,7 +1879,10 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
     El tercer CSV, _no_picadas.csv, son las estaciones del inventario que
     quedaron dentro de radio_km del evento y no fueron picadas. 'radio_km' fija
     ese radio y 'actividad_horas' qué tan cerca en el tiempo tiene que haber
-    picado una estación para que se la considere activa.
+    picado una estación para que se la considere activa. Con formas_onda=True se
+    consulta además el SDS y el tiempo real para llenar waveform_status,
+    availability_source y la cobertura de cada estación sin arribos (suma tiempo
+    por evento).
 
     Con reusar=True, si esa ventana ya está exportada y completa, devuelve sus
     archivos sin consultar la base. El resultado trae "reusado": True y las
@@ -2079,6 +2111,19 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
             actividad, radio_km=radio_km, actividad_horas=actividad_horas)
         total_descartadas += descartadas
         if no_picadas:
+            if formas_onda:
+                desde = instante - timedelta(
+                    minutes=disponibilidad.VENTANA_MINUTOS)
+                hasta = instante + timedelta(
+                    minutes=disponibilidad.VENTANA_MINUTOS)
+                specs = []
+                for fila_np in no_picadas:
+                    for spec in disponibilidad.specs_de_fila(fila_np):
+                        if spec not in specs:
+                            specs.append(spec)
+                resultado = disponibilidad.consultar(specs, desde, hasta)
+                for fila_np in no_picadas:
+                    disponibilidad.aplicar_resultado(fila_np, resultado)
             _escribir_csv(salida_no_picadas, no_picadas,
                           CABECERA_NO_PICADAS, append=True)
             total_no_picadas += len(no_picadas)
@@ -2136,6 +2181,7 @@ def main():
     reusar = False
     radio_km = RADIO_ESTACIONES_KM
     actividad_horas = ACTIVIDAD_HORAS
+    formas_onda = False
     resto = []
     i = 0
     while i < len(argumentos):
@@ -2177,6 +2223,12 @@ def main():
             reusar = True
             i += 1
             continue
+        if argumentos[i] == "--formas-onda":
+            # Consulta SDS y tiempo real para llenar waveform_status y la
+            # cobertura de las estaciones sin arribos. Suma tiempo por evento.
+            formas_onda = True
+            i += 1
+            continue
         if argumentos[i] == "--radio-km":
             # El radio de la búsqueda de estaciones sin arribos. Se acepta con o
             # sin la unidad, porque "300" y "300km" son lo mismo y no vale la
@@ -2205,7 +2257,7 @@ def main():
                 actividad_horas = float(argumentos[i + 1].rstrip("hH"))
             except ValueError:
                 print("[X] --actividad-h debe ser un número de horas"
-                      " (por ejemplo 24 o 24h).")
+                      " (por ejemplo 2 o 2h).")
                 return 2
             if actividad_horas < 0:
                 print("[X] --actividad-h no puede ser negativo.")
@@ -2239,7 +2291,7 @@ def main():
         print("[X] Indique inicio y término, o ninguno para que se los pregunte.")
         print("    Uso: %s [<inicio> <fin> [salida.csv]] [--base <nombre>]"
               " [--sugerencia <inicio> <fin>] [--reusar]"
-              " [--radio-km <km>] [--actividad-h <horas>]"
+              " [--radio-km <km>] [--actividad-h <horas>] [--formas-onda]"
               % os.path.basename(__file__))
         return 2
     else:
@@ -2250,7 +2302,8 @@ def main():
         resultado = exportar_ventana(inicio, fin, salida, base,
                                     solo_confirmados, reusar,
                                     radio_km=radio_km,
-                                    actividad_horas=actividad_horas)
+                                    actividad_horas=actividad_horas,
+                                    formas_onda=formas_onda)
     except FaltanParametros as e:
         print("[X] %s" % e)
         return 2

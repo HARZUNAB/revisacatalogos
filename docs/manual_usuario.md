@@ -1,14 +1,14 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.13 — 16 de octubre de 2026.
+Versión 1.14 — 19 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.12, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.13, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -502,17 +502,37 @@ preferido:
 
 > **Ojo:** «sin arribos» **no** significa «no grabó». La base de SeisComp no sabe
 > qué estaciones tienen formas de onda de cada evento; eso vive en el archivo de
-> ondas. Por eso la columna **«Actividad ±24 h»** es solo un indicador indirecto:
-> cuenta otros eventos que esa estación picó entre 24 h antes y 24 h después del
-> origen (48 h en total). Un 0 no prueba que la estación estuviera caída.
+> ondas. Por eso la columna **«Indicio ±2 h»** es solo un indicador indirecto:
+> cuenta otros eventos que esa estación picó entre 2 h antes y 2 h después del
+> origen (4 h en total). Un 0 no prueba que la estación estuviera caída.
+>
+> La columna **«Formas de onda»**, con el botón **«Consultar formas de onda»**,
+> sí consulta las ondas: revisa el archivo SDS y, si no las encuentra, el flujo
+> de tiempo real y los demás streams vigentes de la estación. Si aparece **SDS** o
+> **Tiempo real**, la estación estaba grabando y no se usó; **Sin datos** indica
+> que no se encontraron ondas en ninguno de los dos.
+>
+> Mientras consulta se muestra una **barra de progreso** y la fase en curso
+> («SDS…», «tiempo real…») con los segundos transcurridos; el botón y la descarga
+> quedan deshabilitados hasta que termina. Puede tardar hasta ~40 s si tiene que
+> pasar por las dos fuentes.
+>
+> La columna **«Evidencia»** resume la diferencia entre **certeza** y
+> **deducción**: **Verificado (SDS/tiempo real)** = hay ondas; **Indicio
+> (actividad)** = solo picó otros eventos; **Sin evidencia** = se miraron las
+> ondas y no hay, ni actividad; **Sin consultar** = todavía no se consultaron.
+>
+> **Pasá el mouse por una estación** para ver su evidencia en detalle y, si está
+> verificada, la cobertura de las formas de onda.
 
-El resaltado cruza dos umbrales independientes del radio:
+El resaltado cruza el umbral de distancia con la evidencia:
 
-- **fondo destacado** — *cerca **y** con actividad*: estaba operando cerca y
-  **no se usó** en la solución (posible pérdida de calidad).
-- **verde** — *con actividad, más lejos*.
-- **negrita** — *cerca **y** sin actividad*: **¿caída?**.
-- **normal** — *lejos y sin actividad*.
+- **fondo verde** — *cerca **y** verificado con ondas*: estaba grabando cerca y
+  **no se usó** en la solución (certeza, posible pérdida de calidad).
+- **fondo ámbar** — *cerca **y** con indicio por actividad*: probablemente
+  operaba, pero es una deducción, no una prueba.
+- **negrita** — *cerca **y** sin evidencia*: **¿caída?**.
+- **normal** — *lejos*, o *sin consultar* (use «Consultar formas de onda»).
 
 Controles del encabezado (bloque **Distancias**):
 
@@ -556,8 +576,9 @@ La pestaña **Contexto** explica en corto qué mide y cómo se lee.
 ![Análisis rápido — Resultados](img/08_analisis_resultados.png)
 
 La pestaña **Resultados** trae los datos clave del evento y el **operador**, más
-cuántas estaciones cercanas son *con actividad* (**no se usó**) y cuántas *sin
-actividad* (**¿caída?**). Controles:
+tres contadores de estaciones cercanas: **Verificadas** (hay ondas), **Indicios**
+(solo actividad ±2 h) y **Sin evid.** (ni ondas ni actividad; posible caída).
+Controles:
 
 - **«Distancia máxima (km)»** + **«Recalcular»**: cambian el umbral y recalculan
   en el acto.
@@ -701,16 +722,19 @@ directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
 | **Loc ref.** | Localización del stream de **referencia** de esa estación. |
 | **Canal ref.** | Canal del stream de **referencia**. |
 | **Streams vig.** | Cuántos streams de esa estación había vigentes. |
-| **Actividad ±24 h** | Cuántos *otros* eventos picó esa estación entre 24 h antes y 24 h después del origen. |
+| **Evidencia** | **Verificado (SDS/tiempo real)**, **Indicio (actividad)**, **Sin evidencia** o **Sin consultar**: separa la certeza de la deducción. |
+| **Formas de onda** | Resultado de «Consultar formas de onda»: **SDS**, **Tiempo real** o **Sin datos** (y «—» si no se consultó). |
+| **Indicio ±2 h** | Cuántos *otros* eventos picó esa estación entre 2 h antes y 2 h después del origen. |
 
 ### Análisis rápido de sin arribos
 
 | Columna | Qué indica |
 |---|---|
-| **Destacadas** | Estaciones cercanas **y** con actividad que **no** se usaron en la solución. |
-| **Cercanas** | Estaciones cercanas sin actividad (posible caída). |
+| **Verificadas** | Estaciones cercanas **con formas de onda** que **no** se usaron en la solución (certeza). |
+| **Indicios** | Estaciones cercanas que picaron otros eventos ±2 h, sin ondas verificadas (deducción). |
+| **Sin evid.** | Estaciones cercanas sin ondas verificadas ni actividad (posible caída; «sin consultar» si la exportación no trae ondas). |
 | **Dist. mín. (km)** | Distancia a la estación sin arribos más cercana al evento. |
-| **Clasificación** | Categoría del evento en el análisis (según las estaciones cercanas). |
+| **Clasificación** | En la descarga larga: `verificado`, `indicio`, `sin evidencia` o `sin consultar`. |
 
 ### Catálogo de SeisComp
 
@@ -756,6 +780,11 @@ directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
   con la sismicidad histórica), o sin perfil asignado.
 - **Sin arribos**: estación del inventario, dentro del radio, que no tiene un
   arribo asociado al evento. No implica que no haya grabado.
-- **Actividad ±24 h**: cuántos *otros* eventos picó esa estación dentro de las
-  24 h anteriores y posteriores al origen. Indicador indirecto de que estaba
-  operando.
+- **Indicio ±2 h**: cuántos *otros* eventos picó esa estación dentro de las
+  2 h anteriores y posteriores al origen. Indicador indirecto de que estaba
+  operando (una deducción, no una certeza).
+- **Formas de onda**: consulta directa al archivo SDS y al flujo de tiempo real
+  para saber si la estación estaba grabando; es la verificación que supera al
+  indicio.
+- **Evidencia**: resumen que separa **Verificado** (ondas), **Indicio**
+  (actividad), **Sin evidencia** y **Sin consultar**.

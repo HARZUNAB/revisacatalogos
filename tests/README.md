@@ -74,9 +74,10 @@ Cubierto en `base/`: `comparacion`, `agencias`, `rutas`,
 
 Cubierto en `ampliacion/modulos/`: `generajson` (parseo de args, distancia,
 analistas, `procesar_csv`/resumen), `prog` (protocolo de progreso),
-`descargas` (nombres, escritura de archivos y los avisos/carpeta sin Tk) y
-`traequery` (refactorizado: `solicitar`, armado de argumentos y flujo
-interactivo con `main()`).
+`descargas` (nombres, escritura de archivos y los avisos/carpeta sin Tk),
+`disponibilidad` (parser de `scart`, fallback SDS→tiempo real, evidencia y
+mensajes de progreso) y `traequery` (refactorizado: `solicitar`, armado de
+argumentos y flujo interactivo con `main()`).
 
 Cubierto en `ampliacion/red/`: `consultaapi` (limpieza de fechas y consulta por
 cuadrante de EMSC/USGS/GFZ) y la capa SSH/SCP de `traer_catalogos` (clase
@@ -101,10 +102,12 @@ Cubierto en `ampliacion/gui/` (marcador `gui`, necesita pantalla): la interfaz
 de `descargas` (diálogo de formato, `encima_de`, `_etiqueta_secundaria` y las
 descargas de tabla/texto), `app.py` completo (ventana principal, ventanas de
 consulta, diálogos, agencias y cobertura), `revisa_seiscomp.py` completo
-(panel/catálogo, no actualizados, detalle, estaciones, análisis rápido y las
-ramas CLI de `main`), `plotear.py` completo (helpers, figuras, panel + aviso
-"Sin datos" y las figuras interactivas `abrir_eventos`/`abrir_evento`/
-`abrir_comparacion`) y `solicita_catalogos.py` (helpers y ventana de solicitud).
+(panel/catálogo, no actualizados, detalle, estaciones con tooltip por fila y
+consulta de formas de onda on-demand, análisis rápido con los tres contadores
+de evidencia y las ramas CLI de `main`), `plotear.py` completo (helpers,
+figuras, panel + aviso "Sin datos" y las figuras interactivas
+`abrir_eventos`/`abrir_evento`/`abrir_comparacion`) y `solicita_catalogos.py`
+(helpers y ventana de solicitud).
 
 Con esto **todos los módulos del proyecto tienen cobertura**: no quedan
 pendientes por módulo. El tablero está en `ampliacion/gui/README.md`.
