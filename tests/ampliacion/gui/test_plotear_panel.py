@@ -66,13 +66,14 @@ def _contenedor(raiz):
     return marco
 
 
-def _perfil():
+def _perfil(pid="P001", num=1):
     slab = {"p": np.array([0.0, 100.0, 200.0]),
             "lon": np.array([0.0, 1.0, 2.0]),
             "lat": np.array([0.0, 0.0, 0.0]),
             "depth": np.array([50.0, 60.0, 70.0])}
-    return {"id": "P001", "num": 1, "archivo": "slabP001.tmp", "lat_media": 0.0,
-            "slab": slab, "topo_p": np.array([]), "topo_alt": np.array([])}
+    return {"id": pid, "num": num, "archivo": "slab%s.tmp" % pid,
+            "lat_media": 0.0, "slab": slab, "topo_p": np.array([]),
+            "topo_alt": np.array([])}
 
 
 def _evento(perfil="P001", **extra):
@@ -168,3 +169,50 @@ def test_avisar_sin_datos_aceptar_cierra(raiz_tk):
 
     assert plotear._TOP_AVISO is None
     assert _top_sin_datos(raiz_tk) is None
+
+
+
+def test_panel_no_actualizados_filtra_alta_prioridad(raiz_tk, cwd_tmp,
+                                                    monkeypatch):
+    import asigna_perfiles as ap
+    monkeypatch.setattr(ap, "detectar_perfiles",
+                        lambda *a, **k: [_perfil("P001", 1),
+                                         _perfil("P002", 2)])
+    eventos = [
+        _evento("P001", revision="Alta", publicacion_probable="Esta fuente"),
+        _evento("P002", revision="Baja", publicacion_probable="Otra fuente"),
+    ]
+    archivo = cwd_tmp / "eventos_seiscomp_noact.json"
+    archivo.write_text(json.dumps(eventos), encoding="utf-8")
+    contenedor = _contenedor(raiz_tk)
+
+    assert plotear.abrir_panel(contenedor, str(archivo), "seiscomp",
+                               vista="seiscomp_noact") is True
+    arbol = _buscar(contenedor, ttk.Treeview)
+    assert len(arbol.get_children()) == 2
+    boton = _buscar(contenedor, ttk.Button,
+                    lambda w: w.cget("text") == "Solo alta prioridad")
+    assert boton is not None
+    assert _buscar(contenedor, ttk.Button,
+                   lambda w: w.cget("text") == "Criterios de clasificación") is not None
+
+    llamado = []
+    monkeypatch.setattr(plotear.descargas, "mostrar_texto_mono",
+                        lambda *a, **k: llamado.append(a))
+    ayuda = _buscar(contenedor, ttk.Button,
+                    lambda w: w.cget("text") == "Criterios de clasificación")
+    ayuda.invoke()
+    assert llamado
+    assert llamado[0][1] == "Clasificación de No actualizados"
+    assert llamado[0][2] == plotear.cruce_noact.AYUDA_REVISION_NO_ACTUALIZADOS
+
+    boton.invoke()
+    raiz_tk.update()
+    assert len(arbol.get_children()) == 1
+    assert arbol.item(arbol.get_children()[0], "values")[1] == "P001"
+
+    inicio = _buscar(contenedor, ttk.Button,
+                     lambda w: w.cget("text") == "Inicio")
+    inicio.invoke()
+    raiz_tk.update()
+    assert len(arbol.get_children()) == 2

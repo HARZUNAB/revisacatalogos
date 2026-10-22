@@ -165,6 +165,18 @@ def test_radio_de_la_marca_variantes(tmp_path):
     assert ex._radio_de_la_marca(str(ruta)) is None
 
 
+def test_eventos_de_la_marca_variantes(tmp_path):
+    ruta = tmp_path / "x.completo"
+    ruta.write_text("ventana A B | eventos 0 | fases 0 | bases x,y",
+                    encoding="utf-8")
+    assert ex._eventos_de_la_marca(str(ruta)) == 0
+    ruta.write_text("ventana A B | eventos 145 | fases 3", encoding="utf-8")
+    assert ex._eventos_de_la_marca(str(ruta)) == 145
+    ruta.write_text("sin el campo", encoding="utf-8")
+    assert ex._eventos_de_la_marca(str(ruta)) is None
+    assert ex._eventos_de_la_marca(str(tmp_path / "no_existe")) is None
+
+
 # --------------------------------------------------------------------------
 # _bases_a_consultar / _prioridad_por_base
 # --------------------------------------------------------------------------

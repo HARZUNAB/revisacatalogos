@@ -59,9 +59,21 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import asigna_perfiles as ap
 import comparacion
+import cruce_noact
 import sismicidad
 import rutas
 import prog
+
+# Columnas que cruza_nopub.py agrega a los CSV de No publicados. Se copian al
+# JSON del panel para que tenga la misma información que el listado; el ploteo
+# no las usa.
+_CAMPOS_NOPUB = {
+    "Publicado_en": "publicado_en",
+    "Estado": "estado",
+    "Dt_otra_seg": "dt_otra_seg",
+    "Dist_otra_km": "dist_otra_km",
+    "Analista_otra": "analista_otra",
+}
 
 
 def parsear_extra_args(args):
@@ -267,14 +279,12 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
         if faltantes:
             archivos = ', '.join('datos/atribucion_%s.csv' % n
                                  for n in faltantes)
-            remedio = ('Use «Datos de SeisComp» para generar el catálogo de '
-                       'soluciones preferred y después «Datos de eventquery».'
+            remedio = ('Use «Datos de SeisComp» y luego «Datos de eventquery».'
                        if 'seiscomp' in faltantes else
                        'Use «Ejecutar análisis» para generar '
                        'salida_collect.csv.')
-            print('[generajson] Aviso: sin atribución contra %s porque no '
-                  'está %s. Los eventos de eventquery se mostrarán sin '
-                  'posible analista. %s'
+            print('[generajson] Aviso: sin atribución contra %s (falta %s); '
+                  'el panel quedará sin analista. %s'
                   % (', '.join(faltantes), archivos, remedio))
 
     # Progreso monotónico global: lectura 0-10%, asignación de perfiles 10-70%,
@@ -290,7 +300,16 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
 
     with open(archivo_csv, 'r', newline='') as csvfile:
         lector_csv = csv.reader(csvfile)
-        next(lector_csv, None)  # Omitir encabezado si existe
+        encabezado = next(lector_csv, None)  # Omitir encabezado si existe
+        # Los no publicados pueden traer las columnas de cruce con la otra
+        # fuente. Se buscan por nombre, no por posición, para que agregar o
+        # mover columnas al final no obligue a tocar este lector.
+        indices_nopub = {}
+        if salida and salida.endswith("_nopub") and encabezado:
+            normal = [str(c).strip().lstrip("\ufeff") for c in encabezado]
+            for columna in _CAMPOS_NOPUB:
+                if columna in normal:
+                    indices_nopub[columna] = normal.index(columna)
 
         for i, fila in enumerate(lector_csv):
             prog.avance(_fraccion(0.0, 0.10, i / total_filas))
@@ -351,6 +370,10 @@ def procesar_csv(archivo_csv, fuente, umbral=None, k_peso=None,
             evento['n_fila_origen'] = int(fila[0])
             evento['lon'] = longitud
             evento['lat'] = latitud
+            for columna, clave in _CAMPOS_NOPUB.items():
+                indice = indices_nopub.get(columna)
+                if indice is not None and indice < len(fila):
+                    evento[clave] = fila[indice]
             if atribuciones:
                 # Se recorren TODOS los índices, no se corta en el primero:
                 # el pedido es mostrar ambas fuentes, y un evento puede tener
@@ -504,8 +527,8 @@ def _resumen_y_conteo(eventos, vista, perfiles, sospechosos_csv='(no generado)')
         for m in sorted(motivos):
             print('  %-40s %d' % (etiquetas.get(m, m), motivos[m]))
         if any(k.startswith('fuera_cobertura') for k in motivos):
-            print('  [Aviso] El set de grillas no cubre todo el catálogo: use '
-                  'un set con mayor cobertura (o ajuste --margen-borde).')
+            print('  [Aviso] El set de grillas no cubre todo el catálogo; '
+                  'amplíe la cobertura o ajuste --margen-borde.')
     #print('Distribución por perfil:')
     conteo_labels = {}
     for per in sorted(conteo, key=lambda x: (x is None, '' if x is None else x)):
@@ -559,6 +582,10 @@ def procesar_pares(fuente, salida=None, umbral=None, k_peso=None,
     with open(ruta, encoding="utf-8", newline="") as f:
         filas = list(csv.DictReader(f))
     pares = comparacion.no_actualizados(filas)
+    # Misma clasificación que muestra el listado: cruce_noact la calcula con
+    # las dos atribuciones crudas, no solo con la mejor fila de cada evento.
+    filas_otras, motivo = cruce_noact.cargar_otra(os.getcwd(), fuente)
+    cruce_noact.anotar(pares, filas, filas_otras, fuente, motivo)
 
     eventos = []
     filas_ok = []
@@ -576,6 +603,10 @@ def procesar_pares(fuente, salida=None, umbral=None, k_peso=None,
             'magnitud': fila.get("mag_local", ""),
             'tipo': fila.get("tipo_mag_local", ""),
             'analista': fila.get("analista", ""),
+            'publicacion_probable': fila.get("publicacion_probable", ""),
+            'revision': fila.get("revision", ""),
+            'revision_motivo': fila.get("revision_motivo", ""),
+            'revision_orden': fila.get("revision_orden", 9),
             'archivo_origen': os.path.basename(ruta),
             'n_fila_origen': i + 1,
             'lon': lon,

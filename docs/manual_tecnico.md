@@ -83,6 +83,8 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 | `revisaselect.py` | Parsea `select.out`; separa válidos de excluidos. | `select.out` | `trabajo/newcollect.txt`, `trabajo/excluidostmp1.txt` | No |
 | `revisacollect.py` | Arma el CSV maestro y los CSV por analista. | `trabajo/newcollect.txt` | `datos/salida_collect.csv` | No |
 | `compara.py` | Compara el público contra la solución de la fuente: **no publicados** y **no actualizados**. | CSV público, CSV de la fuente | `datos/no_pub_desde_2_5_*.csv`, `datos/atribucion_*.csv`, `informes/no_act_*.txt` | Sí |
+| `cruza_nopub.py` | Cruza cada no publicado con las soluciones publicadas de la otra fuente y agrega columnas informativas. | CSV de no publicados, `datos/atribucion_<otra>.csv` | mismas CSV con `Publicado_en`, `Estado`, `Dt_otra_seg`, `Dist_otra_km`, `Analista_otra` | Sí |
+| `cruce_noact.py` | Clasifica los no actualizados por publicación probable y prioridad de revisión. | atribuciones crudas de ambas fuentes, catálogos locales | columnas en memoria y en el JSON del panel | Sí |
 | `comparacion.py` | Comparación numérica de parámetros (funciones puras). | — | — | — |
 | `revisaexcluidos.py` | Normaliza excluidos y detecta líneas anómalas. | `informes/excluidos.txt` | `datos/excluidos.csv` | No |
 | `repetidos.py` | Detecta repetidos dentro de cada fuente (amplio/estricto). | CSV público, Seisan, SeisComp | `informes/rep_*.txt` | Sí |
@@ -169,12 +171,27 @@ directorio de trabajo):
    `dlat`, `dlon` y los valores de la fuente/publicado).
 5. **Atribución a SeisComp** — `seiscomp_a_parametros.py` convierte la
    exportación cruda y `compara.py` la usa como fuente.
-6. **`revisaexcluidos.py`** — normaliza excluidos a `datos/excluidos.csv`.
-7. **`repetidosexclu.py`** y **`repetidos.py`** — detectan repeticiones.
-8. **`generajson.py`** — por fuente: asigna perfil (vía `asigna_perfiles.py`),
+6. **`cruza_nopub.py`** — para cada no publicado busca en
+   `datos/atribucion_<otra>.csv` soluciones locales de la otra fuente. La
+   confirmación exige **6 s / 0,5° y una única candidata**; si hay varias, el
+   caso queda como **ambiguo**. Una ventana de revisión de **120 s / 2°**
+   identifica candidatos cercanos sin marcarlos como publicados. Agrega al CSV
+   `Publicado_en`, `Estado`, `Dt_otra_seg`, `Dist_otra_km` y `Analista_otra`.
+   No elimina ni reordena eventos. No usa una atribución más vieja que su
+   catálogo local. Si la otra fuente no tiene datos, la atribución está vieja o
+   la comparación no se ejecutó, el estado es `No evaluable` con el motivo.
+   Si `compara.py` no encontró catálogo publicado, no se generan listados de no
+   publicados.
+7. **`revisaexcluidos.py`** — normaliza excluidos a `datos/excluidos.csv`.
+8. **`repetidosexclu.py`** y **`repetidos.py`** — detectan repeticiones.
+9. **`generajson.py`** — por fuente: asigna perfil (vía `asigna_perfiles.py`),
    clasifica sospechosos (vía `sismicidad.es_sospechoso`) y escribe
-   `datos/eventos_<vista>.json` y `datos/conteo_perfiles_<vista>.json`.
-9. **`plotear.py` / `revisa_seiscomp.py`** — dibujan los paneles con la GUI.
+   `datos/eventos_<vista>.json` y `datos/conteo_perfiles_<vista>.json`. En los
+   no publicados copia además las cinco columnas de cruce al JSON. En los no
+   actualizados, `procesar_pares` llama `cruce_noact.cargar_otra` y
+   `cruce_noact.anotar`, y copia `publicacion_probable`, `revision`,
+   `revision_motivo` y `revision_orden` al JSON del panel.
+10. **`plotear.py` / `revisa_seiscomp.py`** — dibujan los paneles con la GUI.
 
 ---
 
@@ -192,6 +209,7 @@ escriben como `--clave=valor`.
 | `python3 asigna_perfiles.py <lon> <lat> <prof>` | Asigna un perfil a una coordenada. |
 | `python3 sismicidad.py [-h] [<eventos_<fuente>.json>]` | Indica si cada evento es sospechoso. |
 | `python3 compara.py <csv_publico> <csv_local> [prefijo]` | Compara y escribe reportes. |
+| `python3 cruza_nopub.py` | Agrega a los dos CSV de no publicados las columnas de cruce con la otra fuente. |
 | `python3 repetidos.py <csv_publico> <csv_seisan> [csv_seiscomp]` | Detecta repetidos. |
 | `python3 repetidosexclu.py <csv_excluidos> <csv_select>` | Cruza excluidos con select. |
 | `python3 exporta_ventana_seiscomp.py <catalogo.csv>` | Exporta la ventana de SeisComp. |
@@ -235,6 +253,10 @@ ubicar y cambiar. Ubicación `archivo:línea` (puede variar con ediciones).
 | `MAX_LAT_LON_AMPLIO` | `compara.py:34`, `repetidos.py:54` | `2.0` | Tolerancia de coordenadas (°) del amplio. |
 | `MAX_SEG_ESTRICTO` | `compara.py:35`, `repetidos.py:55` | `3` | Tolerancia de tiempo (s) del **estricto**. |
 | `MAX_LAT_LON_ESTRICTO` | `compara.py:36`, `repetidos.py:56` | `1.0` | Tolerancia de coordenadas (°) del estricto. |
+| `VENTANA_SEG` | `cruza_nopub.py` | `6.0` | Tolerancia de tiempo (s) para confirmar una publicación en la otra fuente. |
+| `TOL_GRADOS` | `cruza_nopub.py` | `0.5` | Tolerancia de lat/lon (°) para confirmar esa publicación. |
+| `VENTANA_REVISION_SEG` | `cruza_nopub.py` | `120.0` | Ventana de tiempo (s) para avisar candidatos que requieren revisión manual. |
+| `TOL_REVISION_GRADOS` | `cruza_nopub.py` | `2.0` | Tolerancia de lat/lon (°) de esa revisión; no confirma publicación. |
 | Magnitud mínima de CSV | `compara.py` (~217) | `2.5` | Umbral para escribir los CSV de no publicados. |
 
 ### Precisión de comparación (`comparacion.py`)
@@ -333,6 +355,48 @@ miniatura opcional, y devuelve los ganchos (`arbol`, `fila_actual`, `marco_mini`
 funcional de la aplicación (qué hace y dónde está cada cosa) está en
 `docs/proyecto/img/09_mapa_funcional.png` y en el manual de usuario.
 
+En **No publicados**, `_construir_tabla_no_publicados` agrega sobre la tabla una
+leyenda de estados y el botón **«Criterios de clasificación»**, que muestra
+`AYUDA_ESTADOS_NO_PUBLICADOS` en un diálogo. Los anchos de columna se calculan
+con `TkHeadingFont`/`TkDefaultFont` a partir del encabezado y los datos, con
+mínimo y máximo, para no dejar columnas sobredimensionadas. La misma tabla agrega
+**«Abrir en sismologia.cl»**: con una fila seleccionada, `_url_dia_sismologia`
+convierte `Fecha_Hora` al catálogo diario
+(`.../catalogo/AAAA/MM/AAAAMMDD.html`) y `webbrowser.open` lo abre en el
+navegador. Si la fecha no se puede interpretar, el botón queda deshabilitado.
+El listado reserva además un panel derecho con
+`plotear.dibujar_mini_mapa_evento`, que dibuja solo el evento seleccionado en
+una vista nacional con `MARGEN_MINI_MAPA_NACIONAL = 3.0` grados de margen en
+latitud y longitud. Se actualiza con `<<TreeviewSelect>>`; sin selección muestra
+una ayuda y no acumula eventos de otras filas. `conectar_zoom_mapa` agrega zoom
+con rueda, arrastre para mover, centrado sobre el evento y restablecimiento,
+limitado a la extensión nacional inicial. El `PanedWindow` fija el ancho
+solicitado de la lista y del mapa para que las columnas no desplacen el panel
+derecho.
+
+En **No actualizados**, `revisa_seiscomp._no_actualizados` llama
+`cruce_noact.cargar_otra(cwd, fuente)` y `cruce_noact.anotar(...)` antes de
+construir la tabla. El módulo agrupa los eventos publicados por fuente, elige la
+mejor candidata local de cada una y decide `Esta fuente`, `Compartida`,
+`Otra fuente`, `Duplicado público` o `No evaluable`, con la prioridad
+`Alta`/`Media`/`Baja`/`—`. No escribe esas columnas en los CSV de `compara.py`.
+Para que el listado no se demore con catálogos grandes, `anotar` parsea cada
+clave una sola vez y busca las candidatas por índice; `_clusters_publicados`
+ordena por instante y recorre solo la ventana de 3 s. `_no_actualizados` además
+cachea el resultado por firma (`mtime`, `ctime` y tamaño) de la atribución
+propia, la de la otra fuente y el catálogo de esa otra fuente; la caché se
+invalida sola cuando el análisis regenera esos archivos. La ventana de consulta
+se crea una vez y se oculta al cerrarla; cada pestaña reutiliza su frame y solo
+se rearma cuando cambia su firma.
+El listado muestra la leyenda y el botón **«Criterios de clasificación»** con
+`AYUDA_REVISION_NO_ACTUALIZADOS`; `claves_orden["revision"]` ordena por
+`revision_orden`. En el panel, `plotear.abrir_panel` detecta la presencia de
+`revision` (`con_prioridad`) y agrega la columna **Alta**, el conteo
+`n_altas`, el filtro **«Solo alta prioridad»** y el mismo botón de ayuda. Ese
+filtro se combina con **«Solo sospechosos»** y **«Inicio»** apaga ambos;
+`_eventos_descarga` aplica la intersección y `COLUMNAS_DESCARGA_NOACT` agrega
+las dos columnas a la descarga.
+
 ### Descargas (`descargas.py`)
 
 Todas las descargas a `descargas/` pasan por `descargas.py`.
@@ -361,7 +425,10 @@ dos y una referencia o un analista con espacios corría la fila). `repetidos.py`
 expone las columnas de cada informe (`COLUMNAS_PUBLICA`, `COLUMNAS_SEISAN`,
 `COLUMNAS_EXCLU`), que `app._ver_repetidos` usa para mostrar y descargar el
 informe elegido como tabla ordenable (vía `revisa_seiscomp.abrir_tabla`, con
-«Descargar» = lo filtrado y «Descargar todo» = el completo).
+«Descargar» = lo filtrado y «Descargar todo» = el completo). Cada tabla recibe
+el botón **«Abrir en sismologia.cl»** mediante `app._agregar_boton_web`, que
+usa `_url_dia_sismologia` con la columna `fecha_hora`; el mismo método se usa
+en No publicados.
 
 Para los repetidos **publicados** (eventquery), que no traen responsable, la app
 agrega dos columnas «Analista probable (Seisan)» y «Analista probable
@@ -409,6 +476,13 @@ indicios, sin evidencia) y la descarga larga clasifica cada estación como
 `verificado`, `indicio`, `sin evidencia` o `sin consultar`.
 
 ### Ajuste de ventanas (`ajuste.py`) y arranque (`app.py`)
+
+`app.App._ajustar_popup(top, minimo)` aplica el criterio de `ajuste.ajustar` a
+las ventanas secundarias: combina el tamaño mínimo con el actual para que solo
+crezcan y las acota a la pantalla. Se llama al construir cada pestaña de
+**No publicados** y **No actualizados**, y al elegir un informe en **Repetidos**.
+Esas ventanas fijan además un `minsize` moderado; si el contenido no entra, las
+tablas mantienen su barra horizontal.
 
 | Constante | Archivo:línea | Valor | Efecto |
 |---|---|---|---|
@@ -487,12 +561,33 @@ fecha/hora (nunca el id de una agencia).
   `lat_local`, `lon_local`, `prof_local`, `mag_local`, `*_eventquery`, `analista`,
   `dt_seg`.
 - **`datos/no_pub_desde_2_5_*estricto.csv`**: `Fecha_Hora, Latitud, Longitud,
-  Prof., Mag., Tipo_mag., Analista`.
+  Prof., Mag., Tipo_mag., Analista, Publicado_en, Estado, Dt_otra_seg,
+  Dist_otra_km, Analista_otra`. Las cinco últimas las agrega `cruza_nopub.py`.
+  `Publicado_en` solo se llena con una confirmación única; `Estado` distingue
+  `Publicado en ...`, `Ambiguo: N candidatos en ...`, `Candidato en ...`,
+  `Sin coincidencia` y `No evaluable: ...`. El diagnóstico se llena con el
+  candidato más cercano (también en ambiguos y candidatos).
 - **`datos/eventos_<vista>.json`**: lista de eventos con `id`, `fecha hora`,
   `latitud`, `longitud`, `prof`, `magnitud`, `tipo`, `perfil`, `along_km`,
-  `perp_km`, `residuo_km`, `dist_asoc`, `sospechoso`, `percibido`.
+  `perp_km`, `residuo_km`, `dist_asoc`, `sospechoso`, `percibido`. En las vistas
+  `*_nopub` incluye además `publicado_en`, `estado`, `dt_otra_seg`,
+  `dist_otra_km` y `analista_otra`.
 - **CSV vs TXT**: CSV usa `utf-8-sig` (BOM para Excel); TXT va sin BOM y separado
   por tabulaciones.
+
+### Catálogos sin datos
+
+- `rutas.csv_tiene_filas(ruta)`: distingue un CSV con datos de uno que solo trae
+  encabezado. Lo usan la app, la solicitud y el cruce de no publicados.
+- `traer_catalogos.select_tiene_eventos(ruta)`: detecta si el `select.out` de
+  Seisan tiene al menos una línea de evento.
+- `exporta_ventana_seiscomp._eventos_de_la_marca(ruta)`: lee `eventos N` de la
+  marca `.completo`; se usa para avisar cuando SeisComp no trajo eventos.
+- `app.ESTADOS_CATALOGO["sin_datos"]`: chip `⚠ sin datos`. Se aplica a Seisan,
+  eventquery y SeisComp cuando su entrada o derivado no tiene filas.
+- Si el catálogo publicado (`new_2_*.csv`) está vacío, `compara.py` no genera
+  listados de no publicados, borra los derivados viejos y deja los informes
+  `no_act_*` con cabecera.
 
 ---
 
@@ -524,6 +619,7 @@ en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 | **Resid (s)** / **Residuo** | Residual del arribo (observado − teórico), en segundos. | `revisa_seiscomp` |
 | **Dist (°)** / **Azimut** | Distancia epicentral (grados) / azimut de la estación respecto del epicentro. | `revisa_seiscomp` |
 | **Usada** / **Modo** / **Peso** | Si el arribo entró a la solución / manual o automático / peso en la solución. | `revisa_seiscomp` |
+| **Colores de llegadas** | Rojo y negrita = pick manual usado; ámbar = manual no usado; sin resaltado = automático. | `revisa_seiscomp._colores_pick` y `_construir_arbol_fases` |
 | **SNR** / **QC** | Relación señal-ruido / marca de control de calidad del *pick*. | `revisa_seiscomp` |
 | **Elev (m)** | Elevación de la estación, en metros. | `revisa_seiscomp` |
 | **Streams vig.** / **Loc ref.** / **Canal ref.** | Streams vigentes / localización y canal del stream de referencia. | `revisa_seiscomp` |
@@ -534,6 +630,7 @@ en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 | **Dist. mín. (km)** / **Clasificación** | Distancia a la estación sin arribos más cercana / categoría del evento en el análisis. | `revisa_seiscomp` |
 | **Estatus** / **Base** / **Fases** | Estado de revisión / base de datos de origen / cantidad de fases. | `exporta_ventana_seiscomp` |
 | **Percib.** / **Referencia** / **Analista probable** | Percibido por la población / referencia del catálogo público / analista probable del evento. | `revisa_seiscomp` |
+| **Publicación probable** / **Revisión** | Fuente que parece haber publicado (Esta fuente, Compartida, Otra fuente, Duplicado público, No evaluable) / prioridad de revisión (Alta, Media, Baja, —). | `cruce_noact` |
 
 Las constantes de asociación (`UMBRAL_DIST_KM`, `UMBRAL_PERP_KM`,
 `K_PESO_PROFUNDIDAD`) y las de sospechosos están en la

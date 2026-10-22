@@ -140,3 +140,35 @@ def test_descargar_texto_real(raiz_tk, cwd_tmp, monkeypatch):
 
     assert ruta.endswith(".txt") and os.path.isfile(ruta)
     assert avisos == [ruta]
+
+
+# --------------------------------------------------------------------------
+# mostrar_texto_mono (diálogo con fuente fija)
+# --------------------------------------------------------------------------
+def test_mostrar_texto_mono_usa_fuente_fija_y_wrap_none(raiz_tk):
+    from tkinter import font as tkfont
+
+    texto = "a  | b\n1  | 2"
+    top = descargas.mostrar_texto_mono(raiz_tk, "Tabla", texto)
+    raiz_tk.update()
+
+    assert top is not None
+    assert top.title() == "Tabla"
+    caja = _buscar(top, tk.Text)
+    assert caja is not None
+    assert str(caja.cget("wrap")) == "none"
+    assert caja.cget("state") == "disabled"
+    assert "a  | b" in caja.get("1.0", "end")
+    familia = tkfont.Font(font=caja.cget("font")).actual("family")
+    esperada = tkfont.nametofont("TkFixedFont").actual("family")
+    assert familia == esperada
+    assert _buscar(top, ttk.Scrollbar,
+                   lambda w: str(w.cget("orient")) == "horizontal") is not None
+
+    _buscar(top, ttk.Button, lambda w: w.cget("text") == "Cerrar").invoke()
+    raiz_tk.update()
+    try:
+        existe = bool(top.winfo_exists())
+    except tk.TclError:
+        existe = False
+    assert not existe

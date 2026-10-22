@@ -14,6 +14,7 @@ corta ahí sin tocar el catálogo histórico).
 import csv
 import json
 import os
+import time
 
 import pytest
 
@@ -164,3 +165,80 @@ def test_resumen_y_conteo_cuenta_perfiles(cwd_tmp):
     assert conteo["sin_perfil"] == 1
     assert conteo["conteo"] == {"P001": 2, "(sin perfil)": 1}
     assert conteo["sin_perfil_motivos"] == {"fuera_cobertura_norte": 1}
+
+
+def test_procesar_csv_no_publicados_copia_campos_de_cruce(
+        cwd_tmp, sin_perfiles, sin_entregables):
+    # El CSV de no publicados puede traer las columnas que agrega
+    # cruza_nopub.py. generajson debe llevarlas al JSON del panel para que
+    # listado y panel tengan la misma información.
+    ruta = _escribir_csv(
+        str(cwd_tmp / "no_pub.csv"),
+        ["", "Fecha_Hora", "Latitud", "Longitud", "Prof.", "Mag.",
+         "Tipo_mag.", "Analista", "Publicado_en", "Estado", "Dt_otra_seg",
+         "Dist_otra_km", "Analista_otra"],
+        [[0, "2026-01-01  00:00:00", -33.0, -71.0, 30.0, 5.0, "ML",
+          "seis", "SeisComp", "Publicado en SeisComp", "1.2", "8.5", "ana"]])
+
+    generajson.procesar_csv(ruta, "seisan", salida="seisan_nopub")
+
+    eventos = _leer_json(
+        os.path.join(str(cwd_tmp), "datos", "eventos_seisan_nopub.json"))
+    assert eventos[0]["publicado_en"] == "SeisComp"
+    assert eventos[0]["estado"] == "Publicado en SeisComp"
+    assert eventos[0]["dt_otra_seg"] == "1.2"
+    assert eventos[0]["dist_otra_km"] == "8.5"
+    assert eventos[0]["analista_otra"] == "ana"
+
+
+def test_procesar_csv_comun_no_copia_campos_de_cruce(
+        cwd_tmp, sin_perfiles, sin_entregables):
+    ruta = _escribir_csv(
+        str(cwd_tmp / "eventos.csv"),
+        ["id", "fecha hora", "lat", "lon", "prof", "mag", "tipo", "analista",
+         "Publicado_en"],
+        [[0, "2026-01-01 00:00:00", -30.0, -71.0, 50.0, 4.5, "ML", "jere",
+          "SeisComp"]])
+    generajson.procesar_csv(ruta, "seisan", salida="prueba")
+    eventos = _leer_json(
+        os.path.join(str(cwd_tmp), "datos", "eventos_prueba.json"))
+    assert "publicado_en" not in eventos[0]
+
+
+
+def test_procesar_pares_copia_clasificacion(cwd_tmp, sin_perfiles,
+                                            sin_entregables):
+    (cwd_tmp / "datos").mkdir()
+    cab = ["fecha_eventquery", "lat_eventquery", "lon_eventquery",
+           "prof_eventquery", "mag_eventquery", "tipo_mag_eventquery",
+           "fecha_local", "lat_local", "lon_local", "prof_local",
+           "mag_local", "tipo_mag_local", "analista", "dt_seg", "dist_km"]
+    _escribir_csv(
+        str(cwd_tmp / "datos" / "atribucion_seiscomp.csv"), cab,
+        [["2026-09-05 00:00:00", "-33.000", "-71.000", "30.0", "5.0", "ML",
+          "2026-09-05 00:00:02", "-33.000", "-71.000", "30.0", "5.5", "ML",
+          "tark", "2.0", "0.0"]])
+    _escribir_csv(
+        str(cwd_tmp / "datos" / "atribucion_seisan.csv"), cab,
+        [["2026-09-05 00:00:00", "-33.000", "-71.000", "30.0", "5.0", "ML",
+          "2026-09-05 00:00:02", "-33.000", "-71.000", "30.0", "5.0", "ML",
+          "ana", "2.0", "0.0"]])
+    catalogo = _escribir_csv(
+        str(cwd_tmp / "datos" / "salida_collect.csv"),
+        ["Fecha_Hora", "Latitud", "Longitud", "Prof.", "Mag.", "Tipo_mag.",
+         "Analista"],
+        [["2026-09-05 00:00:00", "-33.000", "-71.000", "30.0", "5.0", "ML",
+          "ana"]])
+    atribucion = cwd_tmp / "datos" / "atribucion_seisan.csv"
+    os.utime(catalogo, (1000, 1000))
+    futuro = time.time() + 5
+    os.utime(str(atribucion), (futuro, futuro))
+
+    generajson.procesar_pares("seiscomp", salida="noact")
+
+    eventos = _leer_json(
+        os.path.join(str(cwd_tmp), "datos", "eventos_noact.json"))
+    assert len(eventos) == 1
+    assert eventos[0]["publicacion_probable"] == "Otra fuente"
+    assert eventos[0]["revision"] == "Baja"
+    assert eventos[0]["revision_orden"] == 3

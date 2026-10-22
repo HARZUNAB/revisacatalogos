@@ -124,7 +124,8 @@ class ConexionEspia:
 def test_traer_seisan_reusa_sin_llamar_a_la_red(tmp_path):
     ini, fin = "20260101000000", "20260102000000"
     (tmp_path / ("select_%s_%s.out" % (ini, fin))).write_text(
-        "contenido", encoding="utf-8")
+        " 2025  2 1 0041 28.5QL -28.121 -70.037109.0  GUC 10 0.3\n",
+        encoding="utf-8")
     espia = ConexionEspia()
     destino = t.traer_seisan(ini, fin, espia, cwd=str(tmp_path))
     assert destino == str(tmp_path / ("select_%s_%s.out" % (ini, fin)))

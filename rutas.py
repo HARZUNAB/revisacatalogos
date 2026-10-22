@@ -117,3 +117,24 @@ def p_trabajo(nombre):
 
 def p_descargas(nombre):
     return _p(DIR_DESCARGAS, nombre)
+
+
+def csv_tiene_filas(ruta):
+    """
+    True si el CSV tiene al menos una fila de datos después del encabezado.
+
+    Un archivo que solo trae el encabezado existe y no está vacío para
+    os.path.getsize(), pero no sirve como catálogo: leerlo como si tuviera
+    datos hace que el análisis invente resultados. Se usa para decidir si un
+    catálogo está realmente disponible.
+    """
+    import csv
+    try:
+        with open(ruta, encoding="utf-8-sig", errors="replace",
+                  newline="") as archivo:
+            lector = csv.reader(archivo)
+            next(lector, None)
+            return any(any(str(celda).strip() for celda in fila)
+                       for fila in lector)
+    except OSError:
+        return False

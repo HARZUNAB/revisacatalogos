@@ -76,7 +76,8 @@ remotas y a la base no tienen un total conocido de antemano.
 
 La barra lateral tiene un solo botón de trabajo, «Procesar catálogos»: corre el
 análisis (proc_query -> revisaselect -> revisacollect -> compara -> atribución a
-SeisComp -> excluidos -> repetidos) y, con los mismos catálogos ya en disco,
+SeisComp -> cruce de no publicados -> excluidos -> repetidos) y, con los mismos
+catálogos ya en disco,
 genera el JSON de todas las fuentes (Seisan, eventquery, SeisComp y los dos «No
 publicados») y arma las tres pestañas de catálogo. Una sola pulsación deja toda
 la información disponible para consultar. Al volver a pulsarlo se confirma y se
@@ -135,12 +136,47 @@ el título y, en una fila aparte debajo, la carpeta de ejecución a la derecha; 
 archivo de entrada no va ahí porque con su ruta completa los textos se pisaban
 —queda en el Registro cuando se procesan los catálogos.
 
+Los listados de «No publicados» no eliminan eventos: cada uno puede decir que el
+mismo sismo sí se publicó desde la otra fuente. `cruza_nopub.py` busca en
+`datos/atribucion_<otra>.csv` una solución local de la otra fuente y agrega al
+CSV `Publicado_en`, `Estado`, `Dt_otra_seg`, `Dist_otra_km` y `Analista_otra`.
+La confirmación exige **6 s / 0,5° y una única solución candidata**; si hay
+varias, el caso queda como **ambiguo** y no se marca como publicado. Una ventana
+más amplia de **120 s / 2°** solo sirve para avisar de candidatos que conviene
+revisar a mano. Si la otra fuente no tiene datos en la ventana, o la atribución
+o comparación está desactualizada, el estado es **No evaluable** en vez de
+`Sin coincidencia`. Las mismas columnas viajan al JSON del panel, así que
+listado, descargas y panel muestran la misma información.
+
+Si **eventquery** no tiene filas, no se generan los listados de no publicados:
+sin catálogo publicado no hay contra qué comparar y marcar todos los eventos
+locales como no publicados sería falso. La app muestra `⚠ sin datos` para el
+catálogo vacío y un aviso con el motivo. Con una fila seleccionada, **«Abrir en
+sismologia.cl»** abre el catálogo diario del evento en el navegador usando la
+fecha local. El panel derecho muestra una **vista nacional** del evento
+seleccionado, con 3° de margen en latitud y longitud, para ubicarlo rápidamente
+respecto de todo el país. Las columnas se ajustan al contenido y el mapa tiene
+zoom con rueda, arrastre para mover, «Centrar» para recuperar el evento y
+«Restablecer» para volver a la vista nacional.
+
 El listado de «No actualizados» muestra los eventos que sí están publicados pero
 cuyos parámetros (latitud, longitud, profundidad o magnitud) no coinciden con la
 solución local. Muestra, por cada parámetro, el valor local y el publicado, más
 los deltas, y una columna final que dice cuál o cuáles discreparon. No recalcula
-nada: lee `datos/atribucion_<fuente>.csv`, que escribe `compara.py` al correr el
-análisis.
+el cruce: lee `datos/atribucion_<fuente>.csv`, que escribe `compara.py` al correr
+el análisis.
+
+Sobre ese mismo listado se agregan **Publicación probable** (Esta fuente,
+Compartida, Otra fuente, Duplicado público o No evaluable) y **Revisión** (Alta,
+Media, Baja o —). La clasificación vive en `cruce_noact.py` y se calcula al
+vuelo con las atribuciones crudas de las dos fuentes; no se persiste en los CSV
+de `compara.py`. El panel de «No actualizados» muestra las dos columnas en la
+viñeta y en la descarga, y suma el filtro **«Solo alta prioridad»**; el botón
+**«Criterios de clasificación»** resume las reglas en el listado y en el panel. El
+cálculo se hace una vez por fuente y se cachea en memoria; se invalida solo si
+cambian las atribuciones o el catálogo de la otra fuente. La ventana se oculta
+al cerrarla y reutiliza sus pestañas: solo rearma la tabla activa cuando cambió
+su firma de archivos.
 
 La comparación es **numérica**, a la precisión con la que se manejan los datos
 (coordenadas a 3 decimales; profundidad y magnitud a 1), y vive en
@@ -196,8 +232,10 @@ se está mirando.
 
 La tabla de «Con arribos» muestra, por cada llegada, si el pick fue **manual o
 automático** (`pick.m_evaluation_mode`), con el autor, la agencia y el método.
-Los picks manuales se resaltan —fuerte si esa llegada entró a la solución
-(`Usada`), suave si quedó afuera—, y tanto el encabezado de la ventana como el
+Los picks manuales se resaltan: **rojo y negrita** si esa llegada entró a la
+solución (`Usada`), **ámbar** si quedó afuera, y **sin resaltado** si el pick es
+automático. La leyenda sobre la tabla lo explica y aclara que el color indica la
+procedencia del pick, no su calidad. Tanto el encabezado de la ventana como el
 de cada estación desglosan las usadas y las sin usar por modo (por ejemplo,
 `11 usadas (3 manuales, 8 automáticas)`). En un pick manual el autor es el
 analista y el método va vacío; en uno automático el autor es el daemon
@@ -328,6 +366,11 @@ Se apoya en lo que Tk dice que necesita cada contenido (`winfo_reqwidth` /
 `winfo_reqheight`), acotado por un tope de 1920×1080 combinado con lo que admite
 el gestor de ventanas (`wm_maxsize`, que ya descuenta el marco de la ventana).
 
+El mismo criterio se aplica a las ventanas de consulta **No publicados**,
+**No actualizados** y **Repetidos**: crecen al abrirse y al cambiar de pestaña o
+de informe para mostrar sus columnas. Si la pantalla no alcanza, `ajuste.py`
+acota el tamaño y cada tabla conserva su barra horizontal.
+
 Ojo con la fuente: **no se agranda**. Al crecer la ventana los textos de la
 interfaz mantienen su tamaño en puntos, y en los paneles la figura de matplotlib
 se estira (el lienzo va con `expand`), pero como el dpi no cambia, el texto que
@@ -405,7 +448,8 @@ En las vistas con tabla, «Descargar» arma el archivo con el filtro y el orden 
 se ven en pantalla, y «Descargar todo» lo escribe entero. En el panel de análisis,
 «Descargar» pregunta el ámbito: el perfil de la fila seleccionada, todos los
 perfiles visibles o los eventos sin perfil, con la cantidad de cada uno. Si el
-filtro «Solo sospechosos» está prendido, solo entran los eventos sospechosos.
+filtro «Solo sospechosos» está prendido, solo entran los eventos sospechosos; en
+«No actualizados», «Solo alta prioridad» deja solo los eventos de revisión Alta.
 
 Al escribir en las tablas se respeta lo que se está mostrando, incluido el guion
 de «sin dato»: un vacío en el archivo significa que el dato no está, y no que valga

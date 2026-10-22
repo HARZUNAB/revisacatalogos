@@ -148,3 +148,39 @@ def test_texto_parametros_evento_along_con_un_decimal():
           "perfil": "P001", "along_km": 101.429}
     texto = plotear._texto_parametros_evento(ev)
     assert "along: 101.4 km" in texto
+
+
+
+def test_resumen_perfil_cuenta_altas():
+    eventos = [{"latitud": 0, "longitud": 0, "revision": "Alta"},
+               {"latitud": 0, "longitud": 0, "revision": "Baja"}]
+    total, sosp, perc, altas, _a_min, _a_max = plotear._resumen_perfil(
+        eventos, "seiscomp")
+    assert (total, sosp, perc, altas) == (2, 0, 0, 1)
+
+
+def test_columnas_descarga_noact_incluyen_clasificacion():
+    claves = [c for c, _t, _a in plotear.COLUMNAS_DESCARGA_NOACT]
+    assert claves.index("publicacion_probable") == claves.index("analistas") + 1
+    assert claves.index("revision") == claves.index("analistas") + 2
+
+
+def test_fila_descarga_noact_exporta_clasificacion():
+    ev = {"id": "x", "publicacion_probable": "Esta fuente",
+          "revision": "Alta"}
+    celdas = {clave: valor for (clave, _t, _a), valor
+              in zip(plotear.COLUMNAS_DESCARGA_NOACT,
+                     plotear._fila_descarga(
+                         ev, plotear.COLUMNAS_DESCARGA_NOACT))}
+    assert celdas["publicacion_probable"] == "Esta fuente"
+    assert celdas["revision"] == "Alta"
+
+
+def test_texto_parametros_evento_muestra_clasificacion():
+    ev = {"fecha hora": "2026-01-01 00:00:00", "latitud": -33.0,
+          "longitud": -70.0, "prof": 90.0, "magnitud": 3.0, "tipo": "ML",
+          "publicacion_probable": "Otra fuente", "revision": "Baja",
+          "revision_motivo": "Seisan está más cerca"}
+    texto = plotear._texto_parametros_evento(ev)
+    assert "publicación probable: Otra fuente" in texto
+    assert "revisión: Baja (Seisan está más cerca)" in texto

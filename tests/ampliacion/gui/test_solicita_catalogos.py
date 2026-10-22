@@ -102,6 +102,12 @@ def test_hay_archivo(cwd_tmp):
     assert sc._hay_archivo(str(lleno)) is True
 
 
+def test_barra_de_avance_celeste_solida(app_solicita):
+    estilo = str(app_solicita.barra.cget("style")).lower()
+    assert "info" in estilo
+    assert "striped" not in estilo
+
+
 # --------------------------------------------------------------------------
 # Validaciones
 # --------------------------------------------------------------------------
@@ -192,8 +198,12 @@ def test_refrescar_estado_archivos(app_solicita, cwd_tmp):
     texto = a.estado_archivos.cget("text")
     assert "Seisan: no" in texto and "eventquery: no" in texto
 
-    _escribir(cwd_tmp, "select_%s_%s.out" % (_INI, _FIN))
-    _escribir(cwd_tmp, "eventquery_%s_%s.csv" % (_INI, _FIN))
+    _escribir(cwd_tmp, "select_%s_%s.out" % (_INI, _FIN),
+              " 2025  2 1 0041 28.5QL -28.121 -70.037109.0  GUC 10 0.3\n")
+    _escribir(cwd_tmp, "eventquery_%s_%s.csv" % (_INI, _FIN),
+              ",Fecha_Hora,Latitud,Longitud,Prof.,Mag.,Tipo_mag.,"
+              "Referencia,Percep.\n"
+              "0,2025-02-01 00:00:00,-33.0,-71.0,10.0,3.0,ML,R,N\n")
     a._refrescar_estado_archivos()
     texto = a.estado_archivos.cget("text")
     assert "Seisan: sí" in texto and "eventquery: sí" in texto
@@ -337,3 +347,43 @@ def test_main_arranca(monkeypatch):
     sc.main()
 
     assert llamado.get("mainloop") is True
+
+
+# --------------------------------------------------------------------------
+# Catálogos vacíos
+# --------------------------------------------------------------------------
+_SELECT_OK = " 2025  2 1 0041 28.5QL -28.121 -70.037109.0  GUC 10 0.3\n"
+_EVENTQUERY_OK = (",Fecha_Hora,Latitud,Longitud,Prof.,Mag.,Tipo_mag.,"
+                  "Referencia,Percep.\n"
+                  "0,2025-02-01 00:00:00,-33.0,-71.0,10.0,3.0,ML,R,N\n")
+
+
+def test_tarea_avisa_catalogos_locales_vacios(app_solicita, monkeypatch,
+                                              cwd_tmp):
+    a = app_solicita
+    _escribir(cwd_tmp, "select_%s_%s.out" % (_INI, _FIN),
+              " Welcome to select\n")
+    _escribir(cwd_tmp, "eventquery_%s_%s.csv" % (_INI, _FIN),
+              ",Fecha_Hora,Latitud,Longitud\n")
+    a._inicio, a._fin, a._radio = _INI, _FIN, 400.0
+    monkeypatch.setattr(a, "_exportar_seiscomp", lambda *args: 1)
+
+    a._tarea("usar")
+
+    _ruta, estado = [d for t, d in _drenar(a) if t == "fin"][0]
+    catalogos = {aviso["catalogo"] for aviso in estado["avisos"]}
+    assert catalogos == {"Seisan", "eventquery"}
+
+
+def test_tarea_avisa_seiscomp_sin_eventos(app_solicita, monkeypatch, cwd_tmp):
+    a = app_solicita
+    _escribir(cwd_tmp, "select_%s_%s.out" % (_INI, _FIN), _SELECT_OK)
+    _escribir(cwd_tmp, "eventquery_%s_%s.csv" % (_INI, _FIN), _EVENTQUERY_OK)
+    a._inicio, a._fin, a._radio = _INI, _FIN, 400.0
+    monkeypatch.setattr(a, "_exportar_seiscomp", lambda *args: 0)
+
+    a._tarea("usar")
+
+    _ruta, estado = [d for t, d in _drenar(a) if t == "fin"][0]
+    assert [a["catalogo"] for a in estado["avisos"]] == ["SeisComp"]
+    assert estado["faltantes"] == []

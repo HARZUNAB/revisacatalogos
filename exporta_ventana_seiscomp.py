@@ -963,6 +963,22 @@ def _radio_de_la_marca(ruta):
         return None
 
 
+def _eventos_de_la_marca(ruta):
+    """Cantidad de eventos anotada en la marca, o None si no se puede leer."""
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            texto = f.read()
+    except OSError:
+        return None
+    coincidencia = re.search(r"eventos\s+(\d+)", texto)
+    if coincidencia is None:
+        return None
+    try:
+        return int(coincidencia.group(1))
+    except ValueError:
+        return None
+
+
 def _resumen_fases(filas_fases):
     """
     Cuenta las fases con y sin magnitud de estación, y las que están fuera del
@@ -1992,8 +2008,8 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
           % ("{:,}".format(estimado).replace(",", "."),
              "" if solo_confirmados else " (sin filtrar por estado)"))
     if estimado > AVISO_DE_LOTES:
-        print("   [Aviso] Es una ventana grande: puede tardar. Se escribe por"
-              " lotes, así que la memoria se mantiene acotada.")
+        print("   [Aviso] Ventana grande: puede tardar; se escribe por lotes, "
+              "con memoria acotada.")
 
     filas = _fusionar_eventos(eventos_por_base, prioridad)
     for fila in filas:
@@ -2132,9 +2148,8 @@ def exportar_ventana(inicio, fin, salida=None, base=None,
              sum(len(celda) for celda in indice.values()),
              "con bindings" if bindings else "sin bindings"))
     if total_descartadas:
-        print("      [Aviso] %d estaciones quedaron afuera por no tener"
-              " sensorlocation/stream vigente en la hora del evento."
-              % total_descartadas)
+        print("      [Aviso] %d estaciones sin sensorlocation/stream vigente "
+              "en la hora del evento." % total_descartadas)
     _medir("no_picadas_fin")
 
     # La marca va al final, después de escribir los tres CSV: es lo último que
@@ -2344,13 +2359,11 @@ def main():
               " asociados dentro de %.0f km." % resultado["radio_km"])
     descartadas = resultado.get("descartadas_sin_stream") or 0
     if descartadas:
-        print("[Aviso] %d estaciones quedaron afuera por no tener"
-              " sensorlocation/stream vigente en la hora del evento."
-              % descartadas)
+        print("[Aviso] %d estaciones sin sensorlocation/stream vigente en la "
+              "hora del evento." % descartadas)
     print("     Archivo: %s" % resultado["ruta_no_picadas"])
-    print("     Ojo: 'sin arribos' es que no tienen arrivals/picks asociados al"
-          " origen preferido, no que no hayan grabado. Para eso hay que mirar"
-          " la señal (SDS/DataAvailability).")
+    print("     Ojo: «sin arribos» = sin arrivals/picks del origen preferido, "
+          "no sin grabación; para eso mire SDS/DataAvailability.")
 
     por_base = resultado.get("eventos_por_base") or {}
     if len(por_base) > 1:

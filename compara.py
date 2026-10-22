@@ -382,6 +382,25 @@ def main(argv=None):
           else "( fuente %s )" % _ETIQUETA_FUENTE.get(
               PREFIJO.rstrip("_"), PREFIJO.rstrip("_")))
 
+    # Sin catálogo publicado no hay contra qué comparar. Si se siguiera, cada
+    # evento local quedaría como no publicado y el listado sería falso. Se
+    # dejan los no_act con cabecera (para distinguir "se intentó" de "nunca
+    # corrió") y se borran los derivados de una corrida anterior.
+    if not listacsv_1:
+        print("Sin catálogo publicado (eventquery): no se generan no "
+              "publicados.")
+        for sufijo_guardado in ("amplio", "estricto"):
+            ruta_informe = rutas.p_informes(
+                "no_act_" + PREFIJO + sufijo_guardado + ".txt")
+            with open(ruta_informe, "w") as arch:
+                arch.write(cabecera)
+        nombre_no_pub = "no_pub_desde_2_5_" + PREFIJO + "estricto.csv"
+        _borrar(rutas.p_datos(nombre_no_pub))
+        _borrar(rutas.p_descargas(nombre_no_pub))
+        fuente_guardada = PREFIJO.rstrip("_") or "seisan"
+        _borrar(rutas.p_datos("atribucion_%s.csv" % fuente_guardada))
+        return
+
     print("Comparando con filtro amplio ({}s/{}°/{}°)...".format(MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO))
     total_eventos_amplio, total_diferentes_amplio, totsobre2_5_amplio, salida_amplio, sinmag_amplio = comparar(listacsv_1, listacsv_2, MAX_SEG_AMPLIO, MAX_LAT_LON_AMPLIO, MAX_LAT_LON_AMPLIO, "amplio", PREFIJO, numsis_csv_2)
 

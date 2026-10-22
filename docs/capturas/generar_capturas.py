@@ -211,37 +211,62 @@ def _preparar_demo():
          "lon_eventquery", "prof_eventquery", "mag_eventquery",
          "tipo_mag_eventquery", "analista", "dt_seg", "dlat", "dlon"])
 
-    # Atribución de Seisan (para el «Analista probable» de los repetidos).
+    # Atribución de Seisan (para el «Analista probable» de los repetidos y
+    # para clasificar los no actualizados de SeisComp). Lleva también la
+    # solución local, que es la que se compara con la publicada.
     _escribir_csv(
         os.path.join(DEMO, "datos", "atribucion_seisan.csv"),
         [{"fecha_eventquery": "2026-09-06 00:42:31",
           "lat_eventquery": "-33.410", "lon_eventquery": "-70.580",
+          "fecha_local": "2026-09-06 00:42:31", "lat_local": "-33.410",
+          "lon_local": "-70.580", "prof_local": "35.0", "mag_local": "2.3",
+          "tipo_mag_local": "ML", "prof_eventquery": "35.0",
+          "mag_eventquery": "2.3", "tipo_mag_eventquery": "ML",
           "fuente": "seisan", "analista": "jere", "dt_seg": "1.20"},
          {"fecha_eventquery": "2026-09-06 00:42:45",
-          "lat_eventquery": "-33.420", "lon_eventquery": "-70.592",
-          "fuente": "seisan", "analista": "ana", "dt_seg": "0.90"},
+          "lat_eventquery": "-33.451", "lon_eventquery": "-70.610",
+          "fecha_local": "2026-09-06 00:42:45", "lat_local": "-33.420",
+          "lon_local": "-70.592", "prof_local": "92.0", "mag_local": "2.2",
+          "tipo_mag_local": "Mlv", "prof_eventquery": "88.0",
+          "mag_eventquery": "2.4", "tipo_mag_eventquery": "ML",
+          "fuente": "seisan", "analista": "ana", "dt_seg": "2.30"},
          {"fecha_eventquery": "2026-09-24 08:18:30",
-          "lat_eventquery": "-33.640", "lon_eventquery": "-72.010",
+          "lat_eventquery": "-33.600", "lon_eventquery": "-72.070",
+          "fecha_local": "2026-09-24 08:18:30", "lat_local": "-33.600",
+          "lon_local": "-72.070", "prof_local": "18.0", "mag_local": "3.9",
+          "tipo_mag_local": "Mlv", "prof_eventquery": "18.0",
+          "mag_eventquery": "3.9", "tipo_mag_eventquery": "Mlv",
           "fuente": "seisan", "analista": "cris", "dt_seg": "2.00"}],
-        ["fecha_eventquery", "lat_eventquery", "lon_eventquery", "fuente",
-         "analista", "dt_seg"])
+        ["fecha_eventquery", "lat_eventquery", "lon_eventquery",
+         "fecha_local", "lat_local", "lon_local", "prof_local", "mag_local",
+         "tipo_mag_local", "prof_eventquery", "mag_eventquery",
+         "tipo_mag_eventquery", "fuente", "analista", "dt_seg"])
 
     # No publicados (estricto).
     cab_np = ["Fecha_Hora", "Latitud", "Longitud", "Prof.", "Mag.", "Tipo_mag.",
-              "Analista"]
+              "Analista", "Publicado_en", "Estado", "Dt_otra_seg",
+              "Dist_otra_km", "Analista_otra"]
     _escribir_csv(os.path.join(DEMO, "datos",
                                "no_pub_desde_2_5_estricto.csv"),
                   [{"Fecha_Hora": "2026-09-12 04:11:03", "Latitud": "-31.220",
                     "Longitud": "-71.410", "Prof.": "35.0", "Mag.": "2.9",
-                    "Tipo_mag.": "Mlv", "Analista": "eatl"},
+                    "Tipo_mag.": "Mlv", "Analista": "eatl",
+                    "Publicado_en": "SeisComp",
+                    "Estado": "Publicado en SeisComp", "Dt_otra_seg": "1.2",
+                    "Dist_otra_km": "8.5", "Analista_otra": "mdur"},
                    {"Fecha_Hora": "2026-09-21 19:45:52", "Latitud": "-34.880",
                     "Longitud": "-71.030", "Prof.": "61.0", "Mag.": "2.7",
-                    "Tipo_mag.": "Mlv", "Analista": "mdur"}], cab_np)
+                    "Tipo_mag.": "Mlv", "Analista": "mdur",
+                    "Estado": "Candidato en SeisComp", "Dt_otra_seg": "42.0",
+                    "Dist_otra_km": "31.2", "Analista_otra": "eatl"}], cab_np)
     _escribir_csv(os.path.join(DEMO, "datos",
                                "no_pub_desde_2_5_seiscomp_estricto.csv"),
                   [{"Fecha_Hora": "2026-09-12 04:11:03", "Latitud": "-31.220",
                     "Longitud": "-71.410", "Prof.": "35.0", "Mag.": "2.9",
-                    "Tipo_mag.": "Mlv", "Analista": "eatl"}], cab_np)
+                    "Tipo_mag.": "Mlv", "Analista": "eatl",
+                    "Publicado_en": "Seisan",
+                    "Estado": "Publicado en Seisan", "Dt_otra_seg": "1.2",
+                    "Dist_otra_km": "8.5", "Analista_otra": "mdur"}], cab_np)
 
     # Catálogo de Seisan (para la pestaña de catálogo de Seisan/eventquery).
     _escribir_csv(
@@ -255,8 +280,8 @@ def _preparar_demo():
          {"Fecha_Hora": "2026-09-17 07:13:21", "Latitud": "-34.110",
           "Longitud": "-70.310", "Prof.": "52.5", "Mag.": "1.0",
           "Tipo_mag.": "M", "Analista": "tark"},
-         {"Fecha_Hora": "2026-09-24 08:18:30", "Latitud": "-33.640",
-          "Longitud": "-72.010", "Prof.": "21.0", "Mag.": "3.7",
+         {"Fecha_Hora": "2026-09-24 08:18:30", "Latitud": "-33.600",
+          "Longitud": "-72.070", "Prof.": "18.0", "Mag.": "3.9",
           "Tipo_mag.": "Mlv", "Analista": "cris"}],
         cab_np)
 
@@ -283,6 +308,31 @@ def _preparar_demo():
                               ("rep_seisan_estricto", seisan)):
         with open(os.path.join(DEMO, "informes", nombre + ".txt"), "w") as f:
             f.write(contenido)
+
+    # Catálogo local de SeisComp, para que la atribución de Seisan pueda
+    # considerarse vigente al clasificar sus no actualizados.
+    _escribir_csv(
+        os.path.join(DEMO, "datos", "seiscomp_parametros.csv"),
+        [{"Fecha_Hora": "2026-09-06 00:42:45", "Latitud": "-33.420",
+          "Longitud": "-70.592", "Prof.": "92.0", "Mag.": "2.2",
+          "Tipo_mag.": "Mlv", "Analista": "tark"},
+         {"Fecha_Hora": "2026-09-10 15:06:00", "Latitud": "-32.980",
+          "Longitud": "-71.540", "Prof.": "38.0", "Mag.": "3.1",
+          "Tipo_mag.": "Mlv", "Analista": "eatl"},
+         {"Fecha_Hora": "2026-09-17 07:13:21", "Latitud": "-34.110",
+          "Longitud": "-70.310", "Prof.": "52.5", "Mag.": "1.0",
+          "Tipo_mag.": "M", "Analista": "tark"},
+         {"Fecha_Hora": "2026-09-24 08:18:30", "Latitud": "-33.640",
+          "Longitud": "-72.010", "Prof.": "21.0", "Mag.": "3.7",
+          "Tipo_mag.": "Mlv", "Analista": "cris"}],
+        ["Fecha_Hora", "Latitud", "Longitud", "Prof.", "Mag.", "Tipo_mag.",
+         "Analista"])
+
+    # Las atribuciones tienen que quedar más nuevas que los catálogos locales;
+    # si no, cruce_noact las marca como desactualizadas.
+    ahora = time.time() + 10
+    for nombre in ("atribucion_seisan.csv", "atribucion_seiscomp.csv"):
+        os.utime(os.path.join(DEMO, "datos", nombre), (ahora, ahora))
 
     # JSON del panel de análisis (formato de generajson.py).
     eventos_json = []

@@ -67,3 +67,24 @@ def test_asegurar_dirs_es_idempotente(cwd_tmp):
     rutas.asegurar_dirs()
     for d in rutas.DIRS:
         assert os.path.isdir(os.path.join(str(cwd_tmp), d))
+
+
+# --------------------------------------------------------------------------
+# csv_tiene_filas
+# --------------------------------------------------------------------------
+def test_csv_tiene_filas_con_datos(cwd_tmp):
+    ruta = os.path.join(str(cwd_tmp), "con.csv")
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(",Fecha_Hora,Latitud\n0,2026-01-01,-33.0\n")
+    assert rutas.csv_tiene_filas(ruta) is True
+
+
+def test_csv_tiene_filas_solo_encabezado(cwd_tmp):
+    ruta = os.path.join(str(cwd_tmp), "vacio.csv")
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(",Fecha_Hora,Latitud\n")
+    assert rutas.csv_tiene_filas(ruta) is False
+
+
+def test_csv_tiene_filas_inexistente(tmp_path):
+    assert rutas.csv_tiene_filas(str(tmp_path / "no_existe.csv")) is False

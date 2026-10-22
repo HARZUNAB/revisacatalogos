@@ -55,6 +55,7 @@ from datetime import datetime, timedelta
 
 import ajuste
 import comparacion
+import cruce_noact
 import descargas
 import disponibilidad
 import rutas
@@ -1511,6 +1512,14 @@ def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,
     cajas.columnconfigure(1, weight=1)
 
 
+def _colores_pick(oscuro):
+    """Colores de los picks manuales, adaptados al tema claro u oscuro."""
+    return {
+        "usada": "#ff8a80" if oscuro else "#c0392b",
+        "sin_usar": "#f0c674" if oscuro else "#b9770e",
+    }
+
+
 def _construir_arbol_fases(ttk, marco, filas_fases, padre=None, cwd=None,
                            etiqueta=None, log=None):
     """
@@ -1528,6 +1537,32 @@ def _construir_arbol_fases(ttk, marco, filas_fases, padre=None, cwd=None,
         _t.Label(marco, text="Este evento no tiene llegadas registradas.",
                  font=("", 10, "bold")).pack(anchor="w", padx=6, pady=10)
         return None
+
+    # Los colores salen del tema para que no queden texto claro sobre fondo
+    # claro con un tema oscuro. La leyenda y los tags usan los mismos valores.
+    try:
+        from ttkbootstrap.style import Style
+        oscuro = bool(Style.get_instance().colors.dark)
+    except Exception:
+        oscuro = False
+    colores = _colores_pick(oscuro)
+
+    leyenda = _t.Frame(marco)
+    leyenda.pack(anchor="w", padx=6, pady=(2, 2))
+    _t.Label(leyenda, text="Colores de las llegadas:",
+             bootstyle="secondary").pack(side="left")
+    _t.Label(leyenda, text=" Rojo (negrita): manual usada en la solución ",
+             foreground=colores["usada"],
+             font=("", 9, "bold")).pack(side="left", padx=(6, 4))
+    _t.Label(leyenda, text=" Ámbar: manual no usada ",
+             foreground=colores["sin_usar"],
+             font=("", 9)).pack(side="left", padx=4)
+    _t.Label(leyenda, text=" Sin resaltado: automática ",
+             font=("", 9)).pack(side="left", padx=4)
+    _t.Label(marco,
+             text="El color indica la procedencia del pick, no su calidad.",
+             bootstyle="secondary", font=("", 9)).pack(
+                 anchor="w", padx=8, pady=(0, 4))
 
     claves = [c for c, _, _ in COLUMNAS_FASE]
     titulos = ["Estación / llegada"] + [t for _, t, _ in COLUMNAS_FASE]
@@ -1557,18 +1592,10 @@ def _construir_arbol_fases(ttk, marco, filas_fases, padre=None, cwd=None,
     arbol.pack(side="left", fill="both", expand=True)
 
     # Resaltado de los picks manuales: el que entró a la solución va fuerte,
-    # el que quedó afuera va suave. Los colores salen del tema para que no
-    # queden texto claro sobre fondo claro con un tema oscuro.
-    try:
-        from ttkbootstrap.style import Style
-        oscuro = bool(Style.get_instance().colors.dark)
-    except Exception:
-        oscuro = False
-    arbol.tag_configure("manual_usada",
-                        foreground="#c0392b" if not oscuro else "#ff8a80",
+    # el que quedó afuera va suave.
+    arbol.tag_configure("manual_usada", foreground=colores["usada"],
                         font=("", 9, "bold"))
-    arbol.tag_configure("manual_sin_usar",
-                        foreground="#b9770e" if not oscuro else "#f0c674")
+    arbol.tag_configure("manual_sin_usar", foreground=colores["sin_usar"])
 
     for clave, nombre, filas in _agrupar_por_estacion(filas_fases):
         nodo = arbol.insert("", "end", text=_encabezado_estacion(nombre, filas),
@@ -1812,7 +1839,7 @@ def _tabla_sin_arribos(ttk, marco, filas, padre=None, cwd=None, etiqueta=None,
             etiqueta_formas.pack(side="left", padx=(8, 0))
             barra_avance = _t.Progressbar(marco_botones, mode="indeterminate",
                                           length=140,
-                                          bootstyle="info-striped")
+                                          bootstyle="info")
             estado_consulta = {"inicio": None, "fase": "", "tictac": None}
 
             def _actualizar_etiqueta():
@@ -3185,6 +3212,7 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
                 claves_orden=None,
                 max_filas=None, iid_por_id=True,
                 con_miniatura=False,
+                ancho_lista=None, ancho_mini=None,
                 etiqueta=None, descarga_texto="Exportar lista",
                 descarga_bootstyle="secondary-outline", descarga_ancho=None,
                 descarga_todo=False,
@@ -3209,6 +3237,9 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     - max_filas: tope de filas que se muestran; la descarga usa todas.
     - iid_por_id: el iid del árbol es id(fila) (True) o el índice (False).
     - con_miniatura: reserva un panel a la derecha y devuelve "marco_mini".
+    - ancho_lista/ancho_mini: ancho solicitado de cada panel de la miniatura.
+      Evita que una tabla con muchas columnas empuje el panel derecho fuera
+      de la ventana; la tabla conserva su barra horizontal.
     - extras_izquierda(barra, marco_mini): widgets propios a la izquierda, antes
       de «Aplicar» (p. ej. la casilla de sismicidad histórica).
     - extras_derecha(barra): botones propios a la derecha (p. ej. Análisis
@@ -3233,8 +3264,14 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
         paned = ttk.PanedWindow(cuerpo, orient="horizontal")
         paned.pack(fill="both", expand=True)
         marco_lista = ttk.Frame(paned)
+        if ancho_lista is not None:
+            marco_lista.configure(width=ancho_lista)
+            marco_lista.pack_propagate(False)
         paned.add(marco_lista, weight=3)
         marco_mini = ttk.Frame(paned)
+        if ancho_mini is not None:
+            marco_mini.configure(width=ancho_mini)
+            marco_mini.pack_propagate(False)
         paned.add(marco_mini, weight=1)
     else:
         marco_lista = ttk.Frame(cuerpo)
@@ -3570,6 +3607,8 @@ COLUMNAS_NO_ACTUALIZADO = [
     ("mag_local", "Mag. (%s)", 80),
     ("mag_eventquery", "Mag. publicada", 95),
     ("analista", "Analista", 90),
+    ("publicacion_probable", "Publicación probable", 150),
+    ("revision", "Revisión", 80),
     ("dt_seg", "Δt (s)", 70),
     ("dlat", "Δlat (°)", 80),
     ("dlon", "Δlon (°)", 80),
@@ -3633,6 +3672,41 @@ def _valores_no_actualizado(fila):
     return ["0" if v == "-0.0" else v for v in valores]
 
 
+_CACHE_NO_ACTUALIZADOS = {}
+
+
+def _limpiar_cache_no_actualizados():
+    """Vacía la caché del listado; la usan los tests y las recargas manuales."""
+    _CACHE_NO_ACTUALIZADOS.clear()
+
+
+def firma_no_actualizados(cwd, fuente):
+    """
+    Firma de los archivos que definen el listado de una fuente.
+
+    Incluye la atribución propia, la de la otra fuente y el catálogo con el que
+    se decide si esa otra atribución está vigente. Con mtime/ctime y tamaño
+    alcanza para invalidar la caché cuando el análisis regenera los datos.
+    """
+    info = cruce_noact.FUENTES.get(fuente)
+    if info is None:
+        return None
+    rutas = (
+        os.path.join(cwd, "datos", "atribucion_%s.csv" % fuente),
+        os.path.join(cwd, "datos", "atribucion_%s.csv" % info["otra"]),
+        os.path.join(cwd, "datos", info["catalogo_otra"]),
+    )
+    firma = []
+    for ruta in rutas:
+        try:
+            st = os.stat(ruta)
+        except OSError:
+            firma.append((ruta, None, None, None))
+        else:
+            firma.append((ruta, st.st_mtime_ns, st.st_ctime_ns, st.st_size))
+    return tuple(firma)
+
+
 def _no_actualizados(fuente, cwd=None):
     """
     Filas de 'no actualizado' de una fuente, una por evento local.
@@ -3644,8 +3718,12 @@ def _no_actualizados(fuente, cwd=None):
     agrupar para no mostrar el mismo evento repetido. De cada grupo se queda el
     mejor cruce (menor Δt), que es la misma idea de _analistas_para_evento.
     """
-    if cwd is None:
-        cwd = os.getcwd()
+    cwd = os.path.abspath(cwd or os.getcwd())
+    clave_cache = (cwd, fuente)
+    firma = firma_no_actualizados(cwd, fuente)
+    entrada = _CACHE_NO_ACTUALIZADOS.get(clave_cache)
+    if entrada is not None and entrada[0] == firma:
+        return entrada[1]
     ruta = os.path.join(cwd, "datos", "atribucion_%s.csv" % fuente)
     if not os.path.isfile(ruta):
         return None
@@ -3656,6 +3734,12 @@ def _no_actualizados(fuente, cwd=None):
     # El agrupado y el filtro de «no actualizado» viven en comparacion.py, para
     # que el listado y el panel de mapas/perfiles no puedan separarse.
     resultado = comparacion.no_actualizados(filas)
+    # La clasificación se calcula al vuelo con las dos atribuciones crudas:
+    # comparacion.no_actualizados ya agrupó por evento local y se quedaría con
+    # una sola candidata, pero para ver duplicados y alternativas hacen falta
+    # todas las filas.
+    filas_otras, motivo = cruce_noact.cargar_otra(cwd, fuente)
+    cruce_noact.anotar(resultado, filas, filas_otras, fuente, motivo)
     # Se anota qué parámetros discreparon, con el mismo helper que usa
     # compara.py para decidir el flag: la columna no puede contradecir al
     # informe.
@@ -3663,6 +3747,7 @@ def _no_actualizados(fuente, cwd=None):
         fila["discrepancias"] = ", ".join(
             ETIQUETAS_DISCREPANCIA.get(c, c)
             for c in _discrepancias(fila)) or VACIO
+    _CACHE_NO_ACTUALIZADOS[clave_cache] = (firma, resultado)
     return resultado
 
 
@@ -3725,6 +3810,9 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
             "prof": _num("prof_local"), "magnitud": fila.get("mag_local", ""),
             "tipo": fila.get("tipo_mag_local", ""),
             "analista": fila.get("analista", ""),
+            "publicacion_probable": fila.get("publicacion_probable", ""),
+            "revision": fila.get("revision", ""),
+            "revision_motivo": fila.get("revision_motivo", ""),
         }
         eventos = [local]
         # Si la fila trae la solución publicada, va también para comparar.
@@ -3745,12 +3833,44 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
             log("[error] no se pudo plotear: %s" % e)
             tabla["etiqueta_estado"].config(text="No se pudo plotear el evento.")
 
+    # Leyenda y ayuda de la clasificación, arriba de la tabla como en
+    # «No publicados». La explicación completa va en un botón para no ocupar
+    # el ancho de la tabla con un texto largo.
+    ayuda = ttk.Frame(contenedor, padding=(8, 6, 8, 0))
+    ayuda.pack(fill="x")
+    leyenda = ttk.Label(
+        ayuda, bootstyle="secondary", justify="left",
+        text=("Esta fuente = Alta · Compartida = Media · Otra fuente = Baja · "
+              "Duplicado público = Alta · No evaluable = —"))
+
+    def _mostrar_ayuda():
+        try:
+            descargas.mostrar_texto_mono(
+                contenedor.winfo_toplevel(),
+                "Clasificación de No actualizados",
+                cruce_noact.AYUDA_REVISION_NO_ACTUALIZADOS)
+        except Exception as e:
+            log("[error] no se pudo abrir la ayuda: %s" % e)
+
+    boton_ayuda = ttk.Button(
+        ayuda, text="Criterios de clasificación", bootstyle="secondary-outline",
+        command=_mostrar_ayuda)
+    boton_ayuda.pack(side="right", padx=(8, 0))
+    leyenda.pack(side="left", fill="x", expand=True)
+
+    def _acomodar_leyenda(evento):
+        leyenda.configure(wraplength=max(260, evento.width - 260))
+
+    ayuda.bind("<Configure>", _acomodar_leyenda, add="+")
+
     # La tabla lleva el padding del marco, como antes del refactor.
     marco = ttk.Frame(contenedor)
     marco.pack(fill="both", expand=True, padx=8, pady=6)
+    claves_orden = _claves_numericas(_COLUMNAS_ORDENABLES)
+    claves_orden["revision"] = ("num", "revision_orden")
     tabla = abrir_tabla(marco, filas, columnas, _valores_no_actualizado,
                         cwd=cwd, log=log, filtros=("texto",),
-                        claves_orden=_claves_numericas(_COLUMNAS_ORDENABLES),
+                        claves_orden=claves_orden,
                         iid_por_id=False, etiqueta="no actualizados %s" % fuente,
                         descarga_texto="Descargar",
                         descarga_bootstyle="primary-outline", descarga_todo=True,

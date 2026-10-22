@@ -136,3 +136,13 @@ def test_valores_fase_no_pega_micro_si_ya_hay_punto():
 
 def test_conteo_modo_normaliza_y_ignora_none():
     assert r._conteo_modo([{"modo_pick": "MANUAL"}, {"modo_pick": None}]) == (1, 0)
+
+
+# --------------------------------------------------------------------------
+# _colores_pick
+# --------------------------------------------------------------------------
+def test_colores_pick_claro_y_oscuro():
+    claro = r._colores_pick(False)
+    oscuro = r._colores_pick(True)
+    assert claro == {"usada": "#c0392b", "sin_usar": "#b9770e"}
+    assert oscuro == {"usada": "#ff8a80", "sin_usar": "#f0c674"}

@@ -101,6 +101,21 @@ def test_estaciones_sin_archivo_no_picadas(raiz_tk, cwd_tmp):
     assert _label(win, "no trae el archivo de estaciones") is not None
 
 
+def test_estaciones_leyenda_colores(raiz_tk, cwd_tmp):
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, FASES, NO_PICADAS,
+                                 str(cwd_tmp))
+    assert _label(win, "Rojo (negrita): manual usada") is not None
+    assert _label(win, "Ámbar: manual no usada") is not None
+    assert _label(win, "Sin resaltado: automática") is not None
+    assert _label(win, "no su calidad") is not None
+
+
+def test_estaciones_sin_llegadas_no_rompe(raiz_tk, cwd_tmp):
+    win = rs._ventana_estaciones(_padre(raiz_tk), EVENTO, [], NO_PICADAS,
+                                 str(cwd_tmp))
+    assert _label(win, "no tiene llegadas registradas") is not None
+
+
 def test_estaciones_reusa_ventana(raiz_tk, cwd_tmp):
     padre = _padre(raiz_tk)
     w1 = rs._ventana_estaciones(padre, EVENTO, FASES, NO_PICADAS,
@@ -196,6 +211,9 @@ def test_consultar_formas_muestra_progreso_y_deshabilita(raiz_tk, cwd_tmp,
     barra = _buscar(win, ttk.Progressbar)
     assert boton is not None and barra is not None
     assert barra.winfo_manager() == ""
+    estilo = str(barra.cget("style")).lower()
+    assert "info" in estilo
+    assert "striped" not in estilo
 
     boton.invoke()
     assert inicio.wait(2)

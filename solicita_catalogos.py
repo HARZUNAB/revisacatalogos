@@ -227,7 +227,7 @@ class App:
         ttk.Label(marco, text="Avance", bootstyle="secondary").pack(
             anchor=W, pady=(10, 2))
         self.barra = ttk.Progressbar(marco, maximum=1000, value=0,
-                                     bootstyle="primary")
+                                     bootstyle="info")
         self.barra.pack(fill=X)
         self.estado = ttk.Label(marco, text="En espera.",
                                 bootstyle="secondary", wraplength=600)
@@ -370,11 +370,15 @@ class App:
         cwd = os.getcwd()
         nombre_select = "select_%s_%s.out" % (inicio14, fin14)
         nombre_evento = "eventquery_%s_%s.csv" % (inicio14, fin14)
+        ruta_select = os.path.join(cwd, nombre_select)
+        ruta_evento = os.path.join(cwd, nombre_evento)
         return (
             ("Seisan", nombre_select,
-             _hay_archivo(os.path.join(cwd, nombre_select))),
+             _hay_archivo(ruta_select)
+             and tc.select_tiene_eventos(ruta_select)),
             ("eventquery", nombre_evento,
-             _hay_archivo(os.path.join(cwd, nombre_evento))),
+             _hay_archivo(ruta_evento)
+             and rutas.csv_tiene_filas(ruta_evento)),
         )
 
     def _revisar_locales(self, inicio14, fin14):
@@ -590,6 +594,7 @@ class App:
         ruta_evento = os.path.join(
             cwd, "eventquery_%s_%s.csv" % (inicio14, fin14))
         fallas = {}
+        avisos = []
 
         try:
             rutas.asegurar_dirs()
@@ -635,6 +640,11 @@ class App:
             if _hay_archivo(ruta_select):
                 shutil.copy2(ruta_select, os.path.join(cwd, "select.out"))
                 self._log("select.out actualizado desde %s" % nombre_select)
+                if not tc.select_tiene_eventos(ruta_select):
+                    avisos.append({
+                        "catalogo": "Seisan",
+                        "mensaje": "Seisan no tiene eventos en la ventana.",
+                    })
             else:
                 fallas.setdefault("Seisan", "no está %s" % nombre_select)
 
@@ -642,12 +652,24 @@ class App:
                 fallas.setdefault(
                     "eventquery",
                     "no está %s" % os.path.basename(ruta_evento))
+            elif not rutas.csv_tiene_filas(ruta_evento):
+                avisos.append({
+                    "catalogo": "eventquery",
+                    "mensaje": "eventquery no tiene eventos en la ventana.",
+                })
 
             try:
-                self._exportar_seiscomp(
+                eventos_seiscomp = self._exportar_seiscomp(
                     inicio14, fin14,
                     4 if modo == "descargar" else 1,
                     5 if modo == "descargar" else 2)
+                if eventos_seiscomp == 0:
+                    avisos.append({
+                        "catalogo": "SeisComp",
+                        "mensaje": "SeisComp no tiene eventos en la ventana; "
+                                   "puede estar fuera de la cobertura de las "
+                                   "bases.",
+                    })
             except Exception as e:
                 self._log("[X] No se obtuvo SeisComp: %s" % e)
                 fallas.setdefault("SeisComp", str(e))
@@ -660,7 +682,10 @@ class App:
             "fin": fin14,
             "faltantes": sorted(fallas),
             "detalles": fallas,
+            "avisos": avisos,
         }
+        for aviso in avisos:
+            self._log("[Aviso] %s" % aviso["mensaje"])
         if fallas:
             self._log("Se abre la revisión con los catálogos disponibles. "
                       "Faltaron: %s." % ", ".join(sorted(fallas)))
@@ -684,6 +709,9 @@ class App:
                         inicio14, fin14]) != 0:
             raise RuntimeError("La exportación de SeisComp falló (ver el "
                                "registro).")
+        marca = os.path.join(
+            "datos", "seiscomp_%s_%s.csv.completo" % (inicio14, fin14))
+        return ev._eventos_de_la_marca(marca)
 
     def _popen(self, args):
         args = [PY] + args

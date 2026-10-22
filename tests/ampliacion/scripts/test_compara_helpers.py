@@ -62,3 +62,39 @@ def test_borrar_archivo_existente(compara, tmp_path):
 
 def test_borrar_inexistente_no_revienta(compara, tmp_path):
     compara._borrar(str(tmp_path / "no_existe.csv"))  # no debe levantar
+
+
+# --------------------------------------------------------------------------
+# catálogo publicado vacío
+# --------------------------------------------------------------------------
+def test_sin_catalogo_publicado_no_genera_no_publicados(compara, cwd_tmp,
+                                                        capsys):
+    import csv
+    import os
+
+    os.makedirs("datos", exist_ok=True)
+    os.makedirs("informes", exist_ok=True)
+    publicado = "datos/publico.csv"
+    local = "datos/local.csv"
+    with open(publicado, "w", newline="") as f:
+        csv.writer(f).writerow(
+            ["n", "fecha", "lat", "lon", "prof", "mag", "tipo", "ref", "perc"])
+    with open(local, "w", newline="") as f:
+        escritor = csv.writer(f)
+        escritor.writerow(["", "Fecha_Hora", "Latitud", "Longitud", "Prof.",
+                           "Mag.", "Tipo_mag.", "Analista"])
+        escritor.writerow([0, "2026-01-01  00:00:00", "-33.0", "-71.0",
+                           "10.0", "3.0", "ML", "ana"])
+    # Derivados viejos que deben desaparecer.
+    with open("datos/no_pub_desde_2_5_estricto.csv", "w") as f:
+        f.write("viejo\n")
+    with open("datos/atribucion_seisan.csv", "w") as f:
+        f.write("viejo\n")
+
+    compara.main(["compara.py", publicado, local])
+
+    assert not os.path.exists("datos/no_pub_desde_2_5_estricto.csv")
+    assert not os.path.exists("datos/atribucion_seisan.csv")
+    assert os.path.exists("informes/no_act_estricto.txt")
+    assert os.path.exists("informes/no_act_amplio.txt")
+    assert "no se generan no publicados" in capsys.readouterr().out

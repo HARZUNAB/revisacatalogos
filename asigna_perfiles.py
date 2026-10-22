@@ -278,9 +278,8 @@ def detectar_perfiles(grillas_dir=GRILLAS_DIR):
     for pid, archivos in sorted(por_id.items()):
         if len(archivos) > 1:
             print("[asigna_perfiles] Aviso: el id '%s' lo producen varios "
-                  "archivos (%s). Normalice la nomenclatura de 'grillas' para "
-                  "evitar que se confundan secciones distintas."
-                  % (pid, ", ".join(archivos)))
+                  "archivos (%s). Normalice 'grillas' para no confundir "
+                  "secciones." % (pid, ", ".join(archivos)))
 
     return perfiles
 
@@ -586,13 +585,10 @@ def asignar_eventos(eventos, umbral=UMBRAL_DIST_KM, k_peso=K_PESO_PROFUNDIDAD,
         ev.update(resultado)
 
     if prof_negativos:
-        print("[asigna_perfiles] Aviso: {} de {} eventos llegaron con "
-              "profundidad negativa (el primero en el índice {}). El residuo "
-                "se calcula como suma y no como diferencia contra el slab, así "
-                "que dist_asoc queda inflado y el umbral de asociación puede "
-                "dejar de ser correcto. Revisa el origen de los datos "
-                "antes de confiar en los perfiles ni en los conteos de "
-                "sismicidad.".format(prof_negativos, total_ev, primero_negativo))
+        print("[asigna_perfiles] Aviso: {} de {} eventos con profundidad "
+              "negativa (primero: índice {}). Perfiles y sismicidad poco "
+              "confiables; revise el origen de los datos."
+              .format(prof_negativos, total_ev, primero_negativo))
 
     return eventos
 

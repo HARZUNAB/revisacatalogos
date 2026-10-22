@@ -42,6 +42,7 @@ from PIL import Image
 from adjustText import adjust_text
 
 import asigna_perfiles as ap
+import cruce_noact
 import rutas
 import descargas
 
@@ -114,6 +115,16 @@ ALT_MAR_KM = 15
 # MARGEN_PLANTA_GRADOS: margen en grados alrededor de la extensión del perfil
 # para recortar la imagen de planta desde el relieve (local o global).
 MARGEN_PLANTA_GRADOS = 0.6
+
+# MARGEN_MINI_MAPA_NACIONAL: margen en grados (latitud y longitud) de la vista
+# nacional que acompaña al listado de No publicados. Es amplio a propósito:
+# el objetivo es ubicar el evento respecto de todo el país, no hacer zoom.
+MARGEN_MINI_MAPA_NACIONAL = 3.0
+
+# ZOOM_MINI_MAPA_FACTOR: cuánto acerca/aleja cada paso de rueda o botón.
+# ZOOM_MINI_MAPA_MIN_GRADOS: extensión mínima para no perder la referencia.
+ZOOM_MINI_MAPA_FACTOR = 1.25
+ZOOM_MINI_MAPA_MIN_GRADOS = 0.1
 
 # RESOLUCION_RELIEVE_PLANTA: alto (px) al que se redimensiona el recorte de
 # relieve de la planta al proyectarlo. Controla la nitidez del fondo.
@@ -877,12 +888,14 @@ def _sismicidad_perfil(ax_perfil, perfil):
 def _resumen_perfil(eventos, fuente):
     """
     Resumen de un grupo de eventos (un perfil) para la tabla del panel:
-    (total, sospechosos, percibidos, along_min, along_max).
+    (total, sospechosos, percibidos, altas, along_min, along_max).
     along_min/along_max son None si ningún evento tiene along_km válido.
+    'altas' cuenta los eventos con revisión Alta; en el panel normal vale 0.
     """
     total = 0
     sospechosos = 0
     percibidos = 0
+    altas = 0
     alongs = []
     for ev in eventos:
         try:
@@ -893,6 +906,8 @@ def _resumen_perfil(eventos, fuente):
         total += 1
         if ev.get('sospechoso'):
             sospechosos += 1
+        if ev.get('revision') == "Alta":
+            altas += 1
         if fuente == "eventquery" and ev.get('percibido') == "S":
             percibidos += 1
         try:
@@ -901,7 +916,7 @@ def _resumen_perfil(eventos, fuente):
             pass
     a_min = min(alongs) if alongs else None
     a_max = max(alongs) if alongs else None
-    return total, sospechosos, percibidos, a_min, a_max
+    return total, sospechosos, percibidos, altas, a_min, a_max
 
 
 def _prof_fondo_perfil(perfil, profundidades_eventos):
@@ -1015,16 +1030,22 @@ def _mini_perfil(ax, perfil, eventos, fuente, mostrar_hist=False):
     return True
 
 
-def _mini_mapa_territorio(ax, nombre, eventos, fuente):
+def _mini_mapa_territorio(ax, nombre, eventos, fuente,
+                          margen_adicional=None):
     """
     Mini-mapa simplificado de un territorio para el sub-panel de eventos sin
     perfil: fondo claro, costas/fronteras y eventos. SIN relieve, grilla,
     localidades ni adjust_text (barato: ~decenas de ms tras la primera carga
     de las features de cartopy). Devuelve True si dibujó.
+
+    'margen_adicional' permite ampliar la vista (por ejemplo, la vista nacional
+    del listado de No publicados). Si es None se usa MARGEN_PLANTA_GRADOS.
     """
-    extent = _extent_planta_por_eventos(eventos, perfil=None, territorio=nombre)
+    extent = _extent_planta_por_eventos(
+        eventos, perfil=None, territorio=nombre,
+        margen_adicional=margen_adicional)
     if extent is None:
-        extent = _extent_territorio(nombre)
+        extent = _extent_territorio(nombre, margen=margen_adicional)
     if extent is None:
         return False
     lon_min, lon_max, lat_min, lat_max = extent
@@ -1551,6 +1572,14 @@ COLUMNAS_DESCARGA_EVENTO = [
     ("motivo", "Motivo", 130),
 ]
 
+# El panel de «No actualizados» agrega la clasificación a la descarga. No se
+# suman a COLUMNAS_DESCARGA_EVENTO para que la descarga del panel normal no
+# lleve dos columnas siempre vacías.
+COLUMNAS_DESCARGA_NOACT = COLUMNAS_DESCARGA_EVENTO[:11] + [
+    ("publicacion_probable", "Publicación probable", 160),
+    ("revision", "Revisión", 85),
+] + COLUMNAS_DESCARGA_EVENTO[11:]
+
 
 def _valor_descarga(valor):
     """
@@ -1601,10 +1630,10 @@ def _analistas_de_descarga(ev):
     return "; ".join(textos)
 
 
-def _fila_descarga(ev):
-    """Una fila del archivo, en el orden de COLUMNAS_DESCARGA_EVENTO."""
+def _fila_descarga(ev, columnas=None):
+    """Una fila del archivo, en el orden de las columnas pedidas."""
     fila = []
-    for clave, _titulo, _ancho in COLUMNAS_DESCARGA_EVENTO:
+    for clave, _titulo, _ancho in (columnas or COLUMNAS_DESCARGA_EVENTO):
         if clave == "analistas":
             fila.append(_analistas_de_descarga(ev))
         elif clave in ("latitud", "longitud"):
@@ -1724,6 +1753,13 @@ def _texto_parametros_evento(ev):
         lineas.append("perfil: %s   along: %s km"
                       % (ev.get('perfil'),
                          _numero_evento(ev.get('along_km'), 1)))
+    if ev.get('publicacion_probable') or ev.get('revision'):
+        lineas.append("publicación probable: %s"
+                      % (ev.get('publicacion_probable') or "—"))
+        revision = ev.get('revision') or "—"
+        motivo = str(ev.get('revision_motivo') or "").strip()
+        lineas.append("revisión: %s%s"
+                      % (revision, (" (%s)" % motivo) if motivo else ""))
     return "\n".join(lineas)
 
 def _distancia_a_rectangulo(lon, lat, limites):
@@ -1769,8 +1805,8 @@ def _categorizar_por_territorio(eventos):
                 mejor_dist = d
                 mejor_nombre = nombre
         resultado[mejor_nombre].append(ev)
-        print("[Aviso] Evento %s (%.2f, %.2f) fuera de los límites por defecto; "
-              "asignado al territorio '%s' (a ~%d km). El mapa se expandirá."
+        print("[Aviso] Evento %s (%.2f, %.2f) fuera de los límites; asignado "
+              "a '%s' (~%d km). El mapa se expandirá."
               % (ev.get('id'), lat, lon, mejor_nombre,
                  round(mejor_dist * 111.0)))
 
@@ -3117,6 +3153,234 @@ def _preparar_un_evento(evento, perfiles):
     return perfil_obj
 
 
+def extent_mapa_nacional(evento, margen=MARGEN_MINI_MAPA_NACIONAL):
+    """Extensión (lon_min, lon_max, lat_min, lat_max) de la vista nacional."""
+    if evento is None:
+        return None
+    return _extent_planta_por_eventos(
+        [evento], territorio="Nacional", margen_adicional=margen)
+
+
+def conectar_zoom_mapa(fig, extent_inicial, centro=None):
+    """
+    Conecta zoom y reinicio a una figura del mini-mapa nacional.
+
+    La rueda acerca/aleja alrededor del cursor; los botones del panel lo hacen
+    alrededor del evento. Arrastrar con el botón izquierdo mueve la vista y
+    'centrar' devuelve el evento al centro sin cambiar el zoom. 'extent_inicial'
+    es el límite al que se puede volver y más allá del cual no se permite
+    alejar ni desplazar. 'actualizar' se llama al cambiar de evento para fijar
+    una nueva vista inicial.
+    """
+    if fig is None or extent_inicial is None:
+        return {"zoom_in": lambda: None, "zoom_out": lambda: None,
+                "reset": lambda: None, "actualizar": lambda *a, **k: None}
+
+    estado = {"inicial": tuple(extent_inicial),
+              "extent": tuple(extent_inicial), "centro": centro}
+    arrastre = {"activo": False, "x": 0, "y": 0, "extent": None}
+
+    def _ax():
+        return fig.axes[-1] if fig.axes else None
+
+    def _aplicar(extent):
+        ax = _ax()
+        if ax is None:
+            return
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
+        estado["extent"] = tuple(extent)
+        fig.canvas.draw_idle()
+
+    def _recortar(extent):
+        x0, x1, y0, y1 = extent
+        i0, i1, j0, j1 = estado["inicial"]
+        ancho = x1 - x0
+        alto = y1 - y0
+        if ancho >= i1 - i0:
+            x0, x1 = i0, i1
+        elif x0 < i0:
+            x0, x1 = i0, i0 + ancho
+        elif x1 > i1:
+            x1, x0 = i1, i1 - ancho
+        if alto >= j1 - j0:
+            y0, y1 = j0, j1
+        elif y0 < j0:
+            y0, y1 = j0, j0 + alto
+        elif y1 > j1:
+            y1, y0 = j1, j1 - alto
+        return (x0, x1, y0, y1)
+
+    def _zoom(factor, foco=None):
+        x0, x1, y0, y1 = estado["extent"]
+        ancho = max(ZOOM_MINI_MAPA_MIN_GRADOS, (x1 - x0) / factor)
+        alto = max(ZOOM_MINI_MAPA_MIN_GRADOS, (y1 - y0) / factor)
+        fx, fy = foco if foco is not None else (0.5, 0.5)
+        fx = max(0.0, min(1.0, fx))
+        fy = max(0.0, min(1.0, fy))
+        centro_lon = x0 + fx * (x1 - x0)
+        centro_lat = y0 + fy * (y1 - y0)
+        nuevo = (centro_lon - fx * ancho, centro_lon + (1 - fx) * ancho,
+                 centro_lat - fy * alto, centro_lat + (1 - fy) * alto)
+        _aplicar(_recortar(nuevo))
+
+    def _desplazar(base, dx, dy):
+        """Mueve la vista 'dx'/'dy' fracciones de su ancho/alto."""
+        x0, x1, y0, y1 = base
+        ancho = x1 - x0
+        alto = y1 - y0
+        nuevo = (x0 - dx * ancho, x1 - dx * ancho,
+                 y0 - dy * alto, y1 - dy * alto)
+        _aplicar(_recortar(nuevo))
+
+    def _mover(dx, dy):
+        _desplazar(estado["extent"], dx, dy)
+
+    def _centrar():
+        if estado["centro"] is None:
+            return
+        lon, lat = estado["centro"]
+        x0, x1, y0, y1 = estado["extent"]
+        ancho = x1 - x0
+        alto = y1 - y0
+        nuevo = (lon - ancho / 2.0, lon + ancho / 2.0,
+                 lat - alto / 2.0, lat + alto / 2.0)
+        _aplicar(_recortar(nuevo))
+
+    def _foco_centro():
+        if estado["centro"] is None:
+            return (0.5, 0.5)
+        lon, lat = estado["centro"]
+        x0, x1, y0, y1 = estado["extent"]
+        if x1 == x0 or y1 == y0:
+            return (0.5, 0.5)
+        return ((lon - x0) / (x1 - x0), (lat - y0) / (y1 - y0))
+
+    def _reset():
+        arrastre["activo"] = False
+        ax = _ax()
+        if ax is not None:
+            try:
+                ax.set_cursor("")
+            except Exception:
+                pass
+        _aplicar(estado["inicial"])
+
+    def _rueda(evento):
+        ax = _ax()
+        if ax is None or evento.inaxes is not ax:
+            return
+        if evento.button == "up":
+            factor = ZOOM_MINI_MAPA_FACTOR
+        elif evento.button == "down":
+            factor = 1.0 / ZOOM_MINI_MAPA_FACTOR
+        else:
+            return
+        fx, fy = ax.transAxes.inverted().transform((evento.x, evento.y))
+        _zoom(factor, (fx, fy))
+
+    def _presionar(evento):
+        ax = _ax()
+        if ax is None or evento.inaxes is not ax:
+            return
+        if evento.dblclick:
+            _reset()
+            return
+        if evento.button != 1:
+            return
+        arrastre.update(activo=True, x=evento.x, y=evento.y,
+                        extent=estado["extent"])
+        try:
+            ax.set_cursor("fleur")
+        except Exception:
+            pass
+
+    def _arrastrar(evento):
+        if not arrastre["activo"]:
+            return
+        ax = _ax()
+        if ax is None or evento.x is None or evento.y is None:
+            return
+        fx0, fy0 = ax.transAxes.inverted().transform(
+            (arrastre["x"], arrastre["y"]))
+        fx1, fy1 = ax.transAxes.inverted().transform(
+            (evento.x, evento.y))
+        _desplazar(arrastre["extent"], fx1 - fx0, fy1 - fy0)
+
+    def _soltar(_evento=None):
+        arrastre["activo"] = False
+        ax = _ax()
+        if ax is not None:
+            try:
+                ax.set_cursor("")
+            except Exception:
+                pass
+
+    def _actualizar(extent, centro=None):
+        arrastre["activo"] = False
+        estado["inicial"] = tuple(extent)
+        estado["extent"] = tuple(extent)
+        estado["centro"] = centro
+        ax = _ax()
+        if ax is not None:
+            try:
+                ax.set_cursor("")
+            except Exception:
+                pass
+        _aplicar(estado["inicial"])
+
+    fig.canvas.mpl_connect("scroll_event", _rueda)
+    fig.canvas.mpl_connect("button_press_event", _presionar)
+    fig.canvas.mpl_connect("motion_notify_event", _arrastrar)
+    fig.canvas.mpl_connect("button_release_event", _soltar)
+    return {"zoom_in": lambda: _zoom(ZOOM_MINI_MAPA_FACTOR,
+                                     _foco_centro()),
+            "zoom_out": lambda: _zoom(1.0 / ZOOM_MINI_MAPA_FACTOR,
+                                      _foco_centro()),
+            "mover": _mover, "centrar": _centrar,
+            "reset": _reset, "actualizar": _actualizar}
+
+
+def dibujar_mini_mapa_evento(fig, evento, fuente,
+                             margen=MARGEN_MINI_MAPA_NACIONAL):
+    """
+    Dibuja en 'fig' una vista nacional con un único evento.
+
+    Se usa en el listado de «No publicados» para ubicar rápidamente el evento
+    seleccionado respecto del país. La vista no hace zoom al evento: cubre todo
+    el territorio nacional y agrega 'margen' grados en latitud y longitud. Si el
+    evento queda fuera del recuadro, la extensión se amplía para incluirlo.
+    Devuelve True si dibujó el mapa.
+    """
+    if evento is None or fig is None:
+        return False
+
+    lat = _a_numero_o_none(evento.get("latitud"))
+    lon = _a_numero_o_none(evento.get("longitud"))
+    fig.clear()
+    ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
+    if lat is None or lon is None:
+        ax.text(0.5, 0.5, "El evento no tiene coordenadas",
+                ha="center", va="center", fontsize=8, color="#555555",
+                transform=ax.transAxes)
+        ax.set_axis_off()
+        fig.canvas.draw_idle()
+        return False
+
+    try:
+        dibujado = _mini_mapa_territorio(
+            ax, "Nacional", [evento], fuente, margen_adicional=margen)
+    except Exception as e:
+        print("[Aviso] mini mapa nacional: %s" % e)
+        dibujado = False
+    if not dibujado:
+        ax.text(0.5, 0.5, "No se pudo dibujar el mapa",
+                ha="center", va="center", fontsize=8, color="#555555",
+                transform=ax.transAxes)
+        ax.set_axis_off()
+    fig.canvas.draw_idle()
+    return bool(dibujado)
+
+
 def dibujar_mini_evento(fig, evento, fuente, mostrar_hist=False):
     """
     Dibuja en 'fig' la miniatura del perfil de un evento suelto.
@@ -3174,7 +3438,8 @@ def abrir_comparacion(evento, fuente="eventquery", perfiles=None):
 def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
                     conteo_por_perfil, conteo_total, total_eventos,
                     n_sospechosos, total_percibidos=None, contenedor=None,
-                    etiqueta_fuente=None, n_huerfanos=0):
+                    etiqueta_fuente=None, n_huerfanos=0,
+                    con_prioridad=False, n_altas=0):
     """
     Panel de análisis: tabla resumen de todos los perfiles con su mini-perfil,
     y acciones para abrir cada uno en detalle (en paralelo), abrir los mapas de
@@ -3188,6 +3453,9 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
 
     Se apoya en la raíz Tk compartida (_asegurar_raiz). Devuelve True si el
     panel quedó operativo; False si no hay backend interactivo.
+
+    'con_prioridad' activa lo propio de «No actualizados»: columna Alta,
+    filtro «Solo alta prioridad» y botón de ayuda de la clasificación.
     """
     global _panel_activo
     import tkinter as tk
@@ -3200,8 +3468,8 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
     _panel_activo = True
     embebido = contenedor is not None
 
-    estado = {'percibidos': 0, 'filtro_sospechosos': False, 'activo': True,
-              'mostrar_hist': False}
+    estado = {'percibidos': 0, 'filtro_sospechosos': False,
+              'filtro_alta': False, 'activo': True, 'mostrar_hist': False}
     # Referencia al sub-panel de territorios (para poder cerrarlo al salir).
     terr_state = {'panel': None, 'cerrar': None}
     con_perfil = sum(len(v) for v in grupos.values())
@@ -3287,11 +3555,13 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
                       % etiqueta_fuente,
                       font=('', 10, 'bold'),
                       bootstyle='primary').pack(anchor='w')
-        ttk.Label(marco_cab, justify='left', text=(
-            "%d eventos · %d con perfil · %d sospechosos · doble clic en una "
-            "fila para abrir el detalle" % (total_eventos, con_perfil,
-                                            n_sospechosos)),
-            font=('', 10, 'bold')).pack(anchor='w')
+        resumen = ("%d eventos · %d con perfil · %d sospechosos"
+                   % (total_eventos, con_perfil, n_sospechosos))
+        if con_prioridad:
+            resumen += " · %d alta prioridad" % n_altas
+        resumen += " · doble clic en una fila para abrir el detalle"
+        ttk.Label(marco_cab, justify='left', text=resumen,
+                  font=('', 10, 'bold')).pack(anchor='w')
         if fuente == "eventquery" and total_percibidos:
             etiqueta_resumen = ttk.Label(marco_cab, justify='left', text="",
                                          font=('', 9))
@@ -3307,12 +3577,17 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
 
     marco_tabla = ttk.Frame(marco_principal)
     marco_tabla.pack(side='left', fill='both', expand=True)
-    columnas = ('n', 'perfil', 'eventos', 'sosp', 'perc', 'along')
-    arbol = ttk.Treeview(marco_tabla, columns=columnas, show='headings',
-                         height=20)
+    columnas = ['n', 'perfil', 'eventos', 'sosp']
     encabezados = [('n', '#', 38), ('perfil', 'Perfil', 60),
-                   ('eventos', 'Ev', 55), ('sosp', 'Sospechosos', 90),
-                   ('perc', 'Percibidos', 80), ('along', 'Along (km)', 120)]
+                   ('eventos', 'Ev', 55), ('sosp', 'Sospechosos', 90)]
+    if con_prioridad:
+        columnas.append('altas')
+        encabezados.append(('altas', 'Alta', 55))
+    columnas.extend(('perc', 'along'))
+    encabezados.extend([('perc', 'Percibidos', 80),
+                        ('along', 'Along (km)', 120)])
+    arbol = ttk.Treeview(marco_tabla, columns=tuple(columnas),
+                         show='headings', height=20)
     for clave, texto, ancho in encabezados:
         arbol.heading(clave, text=texto)
         arbol.column(clave, width=ancho, minwidth=40, stretch=False)
@@ -3337,17 +3612,21 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         arbol.delete(*arbol.get_children())
         del filas[:]
         for pid in sorted(grupos):
-            total, sosp, perc, a_min, a_max = _resumen_perfil(grupos[pid],
-                                                              fuente)
+            total, sosp, perc, altas, a_min, a_max = _resumen_perfil(
+                grupos[pid], fuente)
             if estado['filtro_sospechosos'] and not sosp:
+                continue
+            if con_prioridad and estado['filtro_alta'] and not altas:
                 continue
             if a_min is not None:
                 along = "%.1f-%.1f" % (a_min, a_max)
             else:
                 along = "-"
-            iid = arbol.insert(
-                '', 'end',
-                values=(len(filas) + 1, pid, total, sosp, perc, along))
+            valores = [len(filas) + 1, pid, total, sosp]
+            if con_prioridad:
+                valores.append(altas)
+            valores.extend((perc, along))
+            iid = arbol.insert('', 'end', values=tuple(valores))
             if sosp:
                 arbol.item(iid, tags=('sosp',))
             filas.append(pid)
@@ -3401,16 +3680,21 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
 
     def _eventos_descarga(evs):
         """
-        Los eventos a descargar, con el filtro de sospechosos aplicado.
+        Los eventos a descargar, con los filtros activos aplicados.
 
         Se filtra evento por evento igual que hace el detalle: el filtro «Solo
         sospechosos» saca del árbol los perfiles que no tienen ninguno, pero no
         saca los eventos normales de un perfil que sí tiene, y una descarga
-        que se llevara todos esos eventos no sería lo que se está viendo.
+        que se llevara todos esos eventos no sería lo que se está viendo. Con
+        «Solo alta prioridad» pasa lo mismo.
         """
+        resultado = list(evs)
         if estado['filtro_sospechosos']:
-            return [ev for ev in evs if ev.get('sospechoso')]
-        return list(evs)
+            resultado = [ev for ev in resultado if ev.get('sospechoso')]
+        if con_prioridad and estado['filtro_alta']:
+            resultado = [ev for ev in resultado
+                         if ev.get('revision') == "Alta"]
+        return resultado
 
     def _elegir_ambito_descarga():
         """
@@ -3468,11 +3752,17 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             # El foco se sube antes de abrir el aviso: messagebox es bloqueante,
             # así que pasarlo a encima_de solo lo enfocaría al cerrarse.
             descargas.encima_de(raiz)
+            activos = []
+            if estado['filtro_sospechosos']:
+                activos.append("«Solo sospechosos»")
+            if con_prioridad and estado['filtro_alta']:
+                activos.append("«Solo alta prioridad»")
+            detalle = ("Filtros activos: %s.\n\n" % " y ".join(activos)
+                       if activos else "")
             messagebox.showwarning(
                 "No hay eventos que descargar.",
                 "Con el filtro actual no queda ningún evento en el panel.\n\n"
-                "Si está prendido «Solo sospechosos», ningún perfil visible "
-                "tiene eventos sospechosos.",
+                + detalle + "Quite el filtro o elija otro ámbito.",
                 parent=raiz)
             return None
 
@@ -3493,11 +3783,16 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         for clave, texto, _evs, _etiqueta in opciones:
             ttk.Radiobutton(marco_op, text=texto, value=clave,
                             variable=var).pack(anchor='w')
+        activos = []
         if estado['filtro_sospechosos']:
+            activos.append("sospechosos")
+        if con_prioridad and estado['filtro_alta']:
+            activos.append("alta prioridad")
+        if activos:
             descargas._etiqueta_secundaria(
                 ttk, marco,
-                "Solo sospechosos: se exportarán únicamente los eventos "
-                "sospechosos, porque el filtro está prendido.",
+                "Filtros activos: se exportarán únicamente los eventos %s, "
+                "porque los filtros están prendidos." % " y ".join(activos),
                 wraplength=380, justify='left').pack(anchor='w', pady=(4, 0))
 
         def _aceptar(_evento=None):
@@ -3536,8 +3831,10 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         if elegido is None:
             return
         evs, etiqueta = elegido
-        encabezados = [titulo for _, titulo, _ in COLUMNAS_DESCARGA_EVENTO]
-        filas_csv = [_fila_descarga(ev) for ev in evs]
+        columnas = (COLUMNAS_DESCARGA_NOACT if con_prioridad
+                    else COLUMNAS_DESCARGA_EVENTO)
+        encabezados = [titulo for _, titulo, _ in columnas]
+        filas_csv = [_fila_descarga(ev, columnas) for ev in evs]
         descargas.descargar_tabla(raiz, encabezados, filas_csv, etiqueta,
                                   aviso=True)
 
@@ -3718,15 +4015,29 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
             arbol.selection_set(arbol.get_children()[0])
         _actualizar_mini()
 
+    def _alternar_filtro_alta():
+        if not estado['activo'] or not con_prioridad:
+            return
+        estado['filtro_alta'] = not estado['filtro_alta']
+        btn_filtro_alta.config(
+            text=("Todos los perfiles" if estado['filtro_alta']
+                  else "Solo alta prioridad"))
+        _poblar_arbol()
+        if arbol.get_children():
+            arbol.selection_set(arbol.get_children()[0])
+        _actualizar_mini()
+
     def _ir_inicio():
-        # Restaura el estado inicial: filtro a todos, tabla repoblada y
-        # primera fila seleccionada con su mini-perfil.
+        # Restaura el estado inicial: los dos filtros apagados, tabla repoblada
+        # y primera fila seleccionada con su mini-perfil.
         if not estado['activo']:
             return
-        if estado['filtro_sospechosos']:
-            _alternar_filtro()
-        else:
-            _poblar_arbol()
+        estado['filtro_sospechosos'] = False
+        estado['filtro_alta'] = False
+        btn_filtro.config(text="Solo sospechosos")
+        if con_prioridad:
+            btn_filtro_alta.config(text="Solo alta prioridad")
+        _poblar_arbol()
         if arbol.get_children():
             arbol.selection_set(arbol.get_children()[0])
         _actualizar_mini()
@@ -3757,6 +4068,21 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
     btn_filtro = ttk.Button(marco_botones, text="Solo sospechosos",
                             command=_alternar_filtro, **estilo_btn)
     btn_filtro.pack(side='left', padx=4)
+    btn_filtro_alta = None
+    if con_prioridad:
+        btn_filtro_alta = ttk.Button(
+            marco_botones, text="Solo alta prioridad",
+            command=_alternar_filtro_alta, **estilo_btn)
+        btn_filtro_alta.pack(side='left', padx=4)
+
+        def _mostrar_ayuda_clasificacion():
+            descargas.mostrar_texto_mono(
+                raiz, "Clasificación de No actualizados",
+                cruce_noact.AYUDA_REVISION_NO_ACTUALIZADOS)
+
+        ttk.Button(marco_botones, text="Criterios de clasificación",
+                   command=_mostrar_ayuda_clasificacion,
+                   **estilo_btn).pack(side='left', padx=4)
     _boton(marco_botones, "Inicio", _ir_inicio)
     chk_hist = ttk.Checkbutton(marco_botones, text="Sismicidad histórica",
                                variable=var_hist, command=_alternar_hist)
@@ -3839,9 +4165,8 @@ def _agrupar_por_perfil(eventos, perfiles_por_id):
             huerfanos.setdefault(pid, []).append(ev)
     if huerfanos:
         n = sum(len(v) for v in huerfanos.values())
-        print("[Aviso] El JSON se generó con otro conjunto de grillas: %d "
-              "eventos usan perfiles que ya no existen (%s). No se dibujan "
-              "contra otra sección; re-corra 'Generar JSON' para actualizarlos."
+        print("[Aviso] JSON de otro conjunto de grillas: %d eventos usan "
+              "perfiles que ya no existen (%s). Re-corra «Generar JSON»."
               % (n, ", ".join(sorted(huerfanos))))
     return grupos, sin_perfil, huerfanos
 
@@ -3869,6 +4194,8 @@ def abrir_panel(contenedor, archivo_json, fuente, etiqueta_fuente=None,
     n_huerfanos = sum(len(v) for v in huerfanos.values())
     n_eventos = len(eventos)
     n_sospechosos = sum(1 for ev in eventos if ev.get('sospechoso'))
+    n_altas = sum(1 for ev in eventos if ev.get('revision') == "Alta")
+    con_prioridad = any("revision" in ev for ev in eventos)
     total_percibidos = sum(1 for ev in eventos if ev.get('percibido') == "S")
     conteo_por_perfil, conteo_total = _cargar_conteo(vista or fuente)
     return _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
@@ -3876,7 +4203,8 @@ def abrir_panel(contenedor, archivo_json, fuente, etiqueta_fuente=None,
                            n_sospechosos, total_percibidos,
                            contenedor=contenedor,
                            etiqueta_fuente=etiqueta_fuente,
-                           n_huerfanos=n_huerfanos)
+                           n_huerfanos=n_huerfanos,
+                           con_prioridad=con_prioridad, n_altas=n_altas)
 
 
 def _despliegue_secuencial(grupos, perfiles_por_id, sin_perfil, fuente,

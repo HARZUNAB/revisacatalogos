@@ -132,3 +132,41 @@ def test_traer_eventquery_forzar_rebaja(tmp_path):
     t.traer_eventquery(ini, fin, conexion, cwd=str(tmp_path), forzar=True)
 
     assert ("resolver", "eventquery2") in conexion.llamadas
+
+
+# --------------------------------------------------------------------------
+# catálogos vacíos
+# --------------------------------------------------------------------------
+def test_select_tiene_eventos_distingue_encabezado(tmp_path):
+    vacio = tmp_path / "vacio.out"
+    vacio.write_text(" Welcome to select\n STAT SP IPHASW D HRMM SECON\n")
+    assert t.select_tiene_eventos(str(vacio)) is False
+
+    con_evento = tmp_path / "evento.out"
+    con_evento.write_text(
+        " 2025  2 1 0041 28.5QL -28.121 -70.037109.0  GUC 10 0.3\n")
+    assert t.select_tiene_eventos(str(con_evento)) is True
+    assert t.select_tiene_eventos(str(tmp_path / "no_existe.out")) is False
+
+
+def test_traer_seisan_no_reusa_un_select_sin_eventos(monkeypatch, tmp_path):
+    _plantilla(monkeypatch, tmp_path)
+    ini, fin = "20260301000000", "20260302000000"
+    (tmp_path / ("select_%s_%s.out" % (ini, fin))).write_text(
+        " Welcome to select\n STAT SP IPHASW D HRMM SECON\n")
+    conexion = ConexionFalsa()
+
+    t.traer_seisan(ini, fin, conexion, cwd=str(tmp_path))
+
+    assert ("resolver", "select") in conexion.llamadas
+
+
+def test_traer_eventquery_no_reusa_un_csv_vacio(tmp_path):
+    ini, fin = "20260301000000", "20260302000000"
+    (tmp_path / ("eventquery_%s_%s.csv" % (ini, fin))).write_text(
+        ",Fecha_Hora,Latitud,Longitud\n")
+    conexion = ConexionFalsa()
+
+    t.traer_eventquery(ini, fin, conexion, cwd=str(tmp_path))
+
+    assert ("resolver", "eventquery2") in conexion.llamadas

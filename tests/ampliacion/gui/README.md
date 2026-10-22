@@ -60,10 +60,10 @@ El resto sí necesita pantalla (`raiz_tk`/`app_factory`).
 | `app.py` | Diálogos (contraseña, radio) | `test_app_dialogos.py` | real | cubierto |
 | `plotear.py` | Helpers puros (agrupado por perfil, huérfanos) | `test_plotear_helpers.py` | real | cubierto |
 | `plotear.py` | Figuras (backend Agg) | `test_plotear_figuras.py` | real | cubierto |
-| `plotear.py` | Panel de análisis + aviso "Sin datos" | `test_plotear_panel.py` | sintético | cubierto |
+| `plotear.py` | Panel de análisis, filtros y aviso "Sin datos" | `test_plotear_panel.py` | sintético | cubierto |
 | `plotear.py` | `abrir_eventos`/`abrir_evento`/`abrir_comparacion`/`dibujar_mini_evento` | `test_plotear_abrir.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Panel y catálogo (miniatura del perfil, casilla «Sismicidad histórica» y divisor) | `test_rs_panel.py` | sintético | cubierto |
-| `revisa_seiscomp.py` | No actualizados | `test_rs_no_actualizados.py` | sintético | cubierto |
+| `revisa_seiscomp.py` | No actualizados (clasificación, columnas y ayuda) | `test_rs_no_actualizados.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Ventana detalle (botones «Estaciones» y «Planta y perfil») | `test_rs_detalle.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Estaciones + sin arribos ampliada (tooltip por fila, consulta de formas de onda con progreso) | `test_rs_estaciones.py` | sintético | cubierto |
 | `revisa_seiscomp.py` | Análisis rápido (tres contadores de evidencia) | `test_rs_analisis.py` | sintético | cubierto |

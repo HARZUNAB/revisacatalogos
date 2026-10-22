@@ -40,6 +40,8 @@ import subprocess
 import tempfile
 from datetime import datetime
 
+import rutas
+
 USUARIO_REMOTO = "sysopr"
 IP_REMOTA = "10.54.217.9"
 DIR_TMP = "tmp"
@@ -67,6 +69,28 @@ OPCIONES_SSH = [
 def a_iso(marca14):
     """AAAAMMDDHHMMSS -> AAAA-MM-DDTHH:MM:SS (lo que espera eventquery2)."""
     return datetime.strptime(marca14, FORMATO_14).strftime(FORMATO_ISO)
+
+
+def select_tiene_eventos(ruta):
+    """
+    True si el select de Seisan trae al menos una línea de evento.
+
+    No se valida el evento completo, solo que exista una cabecera de evento:
+    las líneas de evento empiezan con el año (cuatro dígitos) y las de
+    encabezado, fases o ACTION no. Alcanza para distinguir un catálogo con
+    datos de uno que solo trae el encabezado del select.
+    """
+    try:
+        with open(ruta, encoding="latin-1") as archivo:
+            for linea in archivo:
+                comienzo = linea[:5]
+                limpio = comienzo.strip()
+                if (len(limpio) == 4 and limpio.isdigit()
+                        and not any(c.isalpha() for c in comienzo)):
+                    return True
+    except OSError:
+        return False
+    return False
 
 
 def generar_select_inp(inicio14, fin14, destino):
@@ -238,10 +262,13 @@ def traer_seisan(inicio14, fin14, conexion, cwd=".", log=None, progreso=None,
     log = log or (lambda _t: None)
     nombre_salida = "select_%s_%s.out" % (inicio14, fin14)
     destino = os.path.join(cwd, nombre_salida)
-    if not forzar and os.path.isfile(destino) and os.path.getsize(destino) > 0:
-        log("[reuso] Seisan ya estaba en disco: %s" % nombre_salida)
-        _emitir(progreso, 1.0)
-        return destino
+    if (not forzar and os.path.isfile(destino)
+            and os.path.getsize(destino) > 0):
+        if select_tiene_eventos(destino):
+            log("[reuso] Seisan ya estaba en disco: %s" % nombre_salida)
+            _emitir(progreso, 1.0)
+            return destino
+        log("[Aviso] El select en disco no tiene eventos; se vuelve a bajar.")
 
     select_inp_local = os.path.join(cwd, "trabajo", SELECT_INP)
     generar_select_inp(inicio14, fin14, select_inp_local)
@@ -276,6 +303,8 @@ def traer_seisan(inicio14, fin14, conexion, cwd=".", log=None, progreso=None,
     _emitir(progreso, 0.85)
     conexion.bajar(_ruta_tmp(nombre_salida), destino)
     log("[OK] Seisan: %s" % nombre_salida)
+    if not select_tiene_eventos(destino):
+        log("[Aviso] El select de Seisan no trajo eventos en la ventana.")
     _emitir(progreso, 1.0)
     return destino
 
@@ -291,10 +320,13 @@ def traer_eventquery(inicio14, fin14, conexion, cwd=".", log=None,
     log = log or (lambda _t: None)
     nombre_salida = "eventquery_%s_%s.csv" % (inicio14, fin14)
     destino = os.path.join(cwd, nombre_salida)
-    if not forzar and os.path.isfile(destino) and os.path.getsize(destino) > 0:
-        log("[reuso] eventquery ya estaba en disco: %s" % nombre_salida)
-        _emitir(progreso, 1.0)
-        return destino
+    if (not forzar and os.path.isfile(destino)
+            and os.path.getsize(destino) > 0):
+        if rutas.csv_tiene_filas(destino):
+            log("[reuso] eventquery ya estaba en disco: %s" % nombre_salida)
+            _emitir(progreso, 1.0)
+            return destino
+        log("[Aviso] El eventquery en disco no tiene eventos; se vuelve a bajar.")
 
     ruta_eventquery = conexion.resolver("eventquery2")
     log("[+] eventquery2 remoto: %s" % ruta_eventquery)
@@ -311,5 +343,7 @@ def traer_eventquery(inicio14, fin14, conexion, cwd=".", log=None,
     _emitir(progreso, 0.85)
     conexion.bajar(_ruta_tmp(nombre_salida), destino)
     log("[OK] eventquery: %s" % nombre_salida)
+    if not rutas.csv_tiene_filas(destino):
+        log("[Aviso] eventquery no trajo eventos en la ventana.")
     _emitir(progreso, 1.0)
     return destino

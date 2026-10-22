@@ -7,8 +7,9 @@ el flujo de análisis y revisión. La ventana principal gira alrededor de un sol
 botón, «Procesar catálogos», que con los catálogos ya descargados:
 
   - Corre el análisis (proc_query -> revisaselect -> revisacollect ->
-    compara -> [atribución a SeisComp] -> [revisaexcluidos/repetidosexclu] ->
-    repetidos) mostrando el registro (log) en vivo.
+    compara -> [atribución a SeisComp] -> cruce de no publicados ->
+    [revisaexcluidos/repetidosexclu] -> repetidos) mostrando el registro (log)
+    en vivo.
   - Genera el JSON de todas las fuentes (Seisan / eventquery / SeisComp / No
     publicados de seisan / No publicados de SeisComp) y arma las pestañas de
     catálogo. Las fuentes que ya están al día se omiten.
@@ -55,6 +56,7 @@ import queue
 import threading
 import traceback
 import subprocess
+import webbrowser
 
 import rutas
 
@@ -71,6 +73,7 @@ except Exception:  # sin dateutil se cae al formato estricto
 
 import ajuste
 import descargas
+import traer_catalogos as tc
 
 import matplotlib
 matplotlib.use("TkAgg")  # las figuras de detalle comparten la raíz Tk de la app
@@ -315,10 +318,12 @@ ANALISIS_PLAN = [
     {"nombre": "Atribuyendo publicados a SeisComp",
      "scripts": ("compara.py",), "peso": 0.10,
      "discriminador": "seiscomp_parametros.csv"},
+    {"nombre": "Cruzando no publicados con la otra fuente",
+     "scripts": ("cruza_nopub.py",), "peso": 0.01},
     {"nombre": "Revisando excluidos",
      "scripts": ("revisaexcluidos.py", "repetidosexclu.py"), "peso": 0.10},
     {"nombre": "Revisando repetidos",
-     "scripts": ("repetidos.py",), "peso": 0.20},
+     "scripts": ("repetidos.py",), "peso": 0.19},
 ]
 
 FUENTE_PLAN = {
@@ -371,10 +376,12 @@ PROCESAR_PLAN = [
     {"nombre": "Atribuyendo publicados a SeisComp",
      "scripts": ("compara.py",), "peso": 0.075,
      "discriminador": "seiscomp_parametros.csv"},
+    {"nombre": "Cruzando no publicados con la otra fuente",
+     "scripts": ("cruza_nopub.py",), "peso": 0.01},
     {"nombre": "Revisando excluidos",
      "scripts": ("revisaexcluidos.py", "repetidosexclu.py"), "peso": 0.075},
     {"nombre": "Revisando repetidos",
-     "scripts": ("repetidos.py",), "peso": 0.115},
+     "scripts": ("repetidos.py",), "peso": 0.105},
     {"nombre": "Generando panel de Seisan",
      "scripts": ("generajson.py",), "peso": 0.045,
      "discriminador": "salida_collect.csv"},
@@ -429,7 +436,98 @@ ESTADOS_CATALOGO = {
     "fallo": ("✗ falló", "danger"),
     "falta": ("✗ falta", "danger"),
     "cambio": ("⚠ cambió", "warning"),
+    "sin_datos": ("⚠ sin datos", "warning"),
 }
+
+# Ayuda de la columna «Estado» del listado de No publicados. Va aquí, y no en
+# el manual, para que la explicación esté disponible desde la propia ventana.
+def _linea_ayuda_estados(estado, texto):
+    """Fila de la tabla de ayuda con la primera columna alineada."""
+    return "%-24s | %s\n" % (estado, texto)
+
+
+AYUDA_ESTADOS_NO_PUBLICADOS = (
+    "Estados de No publicados\n\n"
+    + _linea_ayuda_estados("Estado", "Significado")
+    + "-" * 24 + "-+-" + "-" * 45 + "\n"
+    + _linea_ayuda_estados(
+        "Publicado en ...",
+        "Coincidencia única: ≤6 s y ≤0,5°.")
+    + _linea_ayuda_estados("", "Confiable.")
+    + _linea_ayuda_estados(
+        "Candidato en ...",
+        "Solución cercana: ≤120 s y ≤2°, fuera de la")
+    + _linea_ayuda_estados("", "confirmación. Revisar.")
+    + _linea_ayuda_estados(
+        "Ambiguo: N ...",
+        "Varias soluciones cercanas; no se sabe cuál.")
+    + _linea_ayuda_estados(
+        "", "Se muestra la mejor por Δt y distancia.")
+    + _linea_ayuda_estados(
+        "Sin coincidencia",
+        "Ninguna solución de la otra fuente en 120 s / 2°.")
+    + _linea_ayuda_estados(
+        "No evaluable",
+        "No se pudo comparar: falta eventquery, datos de")
+    + _linea_ayuda_estados(
+        "", "la otra fuente, atribución vencida, comparación")
+    + _linea_ayuda_estados("", "ausente o vencida.")
+    + "\n«Publicado en» solo se completa con una confirmación única.\n"
+    "Δt, Dist. y Analista otra fuente describen el candidato mostrado."
+)
+
+URL_CATALOGO_SISMOLOGIA = (
+    "https://www.sismologia.cl/sismicidad/catalogo/%s/%s.html")
+
+
+def _url_dia_sismologia(fecha):
+    """
+    URL del catálogo diario de sismologia.cl para la fecha de un evento.
+
+    La fecha viene como 'AAAA-MM-DD HH:MM:SS' o ISO; se usa solo el día local
+    del evento. Devuelve None si no se puede interpretar.
+    """
+    texto = str(fecha or "").strip()
+    if not texto:
+        return None
+    parte = texto.replace("T", " ").split(" ", 1)[0]
+    for formato in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            dia = datetime.datetime.strptime(parte, formato)
+        except ValueError:
+            continue
+        return URL_CATALOGO_SISMOLOGIA % (
+            dia.strftime("%Y/%m"), dia.strftime("%Y%m%d"))
+    return None
+
+
+def _anchos_columnas_por_contenido(columnas, filas, valores,
+                                   minimo=50, maximo=420, holgura=18):
+    """
+    Ajusta el ancho de cada columna al máximo entre su encabezado y sus datos.
+
+    Se usa en listados con columnas de texto muy dispares (por ejemplo Estado
+    en No publicados), donde un ancho fijo grande deja la tabla más ancha que
+    la ventana. Devuelve las mismas columnas con el ancho recalculado.
+    """
+    try:
+        import tkinter.font as tkfont
+        fuente_datos = tkfont.nametofont("TkDefaultFont")
+        fuente_titulo = tkfont.nametofont("TkHeadingFont")
+    except Exception:
+        return columnas
+
+    filas_valores = [valores(fila) for fila in filas]
+    ajustadas = []
+    for indice, columna in enumerate(columnas):
+        clave, titulo, _ancho = columna[:3]
+        medido = fuente_titulo.measure(str(titulo))
+        for valores_fila in filas_valores:
+            medido = max(medido, fuente_datos.measure(
+                str(valores_fila[indice])))
+        ancho = max(minimo, min(maximo, medido + holgura))
+        ajustadas.append((clave, titulo, ancho) + tuple(columna[3:]))
+    return ajustadas
 
 
 class App:
@@ -445,6 +543,9 @@ class App:
         self.periodo = (estado.get("inicio"), estado.get("fin"))
         self.catalogos_faltantes = set(estado.get("faltantes", []))
         self.detalles_faltantes = estado.get("detalles", {}) or {}
+        self.avisos_catalogos = estado.get("avisos", []) or []
+        self._avisos_sin_datos_mostrados = set()
+        self._seiscomp_sin_eventos = False
         self.cola = queue.Queue()
         # Trazabilidad de plotear.py: sus mensajes (avisos, mapa sin perfil)
         # quedan en informes/app.log con hora, igual que el resto de la app.
@@ -658,6 +759,17 @@ class App:
         self.seisan_frame = None
         self.eventquery_frame = None
 
+        # Ventana de «No actualizados» y sus pestañas. Se crea una sola vez y
+        # se oculta al cerrar; cada pestaña guarda su firma para rehacerse solo
+        # cuando cambian los archivos de entrada.
+        self.no_actualizados = {}
+        for clave, titulo in (("seiscomp", "SeisComp"), ("seisan", "Seisan")):
+            self.no_actualizados[clave] = {
+                "frame": None, "titulo": titulo, "construido": False,
+                "firma": None}
+        self.marco_no_actualizados = None
+        self.cuaderno_no_actualizados = None
+
         # Ahora que ya existen todas las páginas, se arma la barra de pestañas
         # agrupadas y solo después se empaqueta el cuaderno: la barra va
         # primero (side=TOP) para quedar arriba, y el cuaderno ocupa el resto.
@@ -676,7 +788,8 @@ class App:
         # --- Barra de progreso (inferior, persistente) ---
         barra_marco = ttk.Frame(self.raiz, padding=(12, 4, 12, 8))
         barra_marco.pack(side=TOP, fill=X)
-        self.barra = ttk.Progressbar(barra_marco, maximum=1000, value=0)
+        self.barra = ttk.Progressbar(barra_marco, maximum=1000, value=0,
+                                     bootstyle="info")
         self.barra.pack(side=LEFT, fill=X, expand=YES)
         self.barra_texto = ttk.Label(barra_marco, text="Esperando tarea…",
                                      bootstyle="secondary", width=46)
@@ -765,6 +878,23 @@ class App:
             ajuste.ajustar(self.marco_catalogos, minimo=minimo)
         except Exception:
             pass
+
+    def _ajustar_popup(self, top, minimo):
+        """
+        Agranda una ventana secundaria a su contenido, sin achicarla.
+
+        'minimo' es el tamaño con el que abrió. Se combina con el tamaño
+        actual para que un cambio de pestaña o de informe solo pueda hacerla
+        crecer; si la pantalla no alcanza, ajuste.py la acota y las tablas
+        conservan su barra horizontal.
+        """
+        try:
+            top.update_idletasks()
+            ancho = max(int(minimo[0]), top.winfo_width())
+            alto = max(int(minimo[1]), top.winfo_height())
+            ajuste.ajustar(top, minimo=(ancho, alto))
+        except Exception:
+            self._log("[error ajuste] " + traceback.format_exc())
 
     def _alinear_pestanas(self, _evento=None):
         """Baja la barra de pestañas hasta la altura del botón de procesar.
@@ -997,28 +1127,36 @@ class App:
         return None, None
 
     def _estado_catalogo(self, catalogo):
-        """'ok', 'fallo', 'falta' o 'cambio' para el catálogo pedido."""
+        """Estado del catálogo pedido para los chips y el botón de re-exportar."""
         if catalogo == "Seisan":
             insumo = "select.out"
             derivado = os.path.join("datos", "salida_collect.csv")
+            tiene_datos = (os.path.isfile(insumo)
+                           and tc.select_tiene_eventos(insumo))
         elif catalogo == "eventquery":
             insumo = self.archivo
             derivado = os.path.join("datos", "new_2_" + self.base)
+            tiene_datos = bool(insumo) and rutas.csv_tiene_filas(insumo)
         elif catalogo == "SeisComp":
             par = self._par_seiscomp_para_catalogo(silencioso=True)
             insumo = par["eventos"] if par is not None else None
             derivado = os.path.join("datos", "seiscomp_parametros.csv")
+            tiene_datos = bool(insumo) and rutas.csv_tiene_filas(insumo)
         else:
             return "ok"
         if not insumo or not os.path.isfile(insumo):
             # No está: si la extracción de esta sesión lo reportó como fallante,
             # fue un fallo; si no, simplemente no está (se borró o similar).
             return "fallo" if catalogo in self.catalogos_faltantes else "falta"
+        if not tiene_datos:
+            return "sin_datos"
         # Sin derivado todavía, el análisis no corrió: el catálogo está, no hay
         # nada que re-exportar. Solo es "cambio" si el insumo es más nuevo que
         # un derivado que ya existía.
         if not os.path.isfile(derivado):
             return "ok"
+        if not rutas.csv_tiene_filas(derivado):
+            return "sin_datos"
         try:
             return ("cambio" if os.path.getmtime(insumo)
                     > os.path.getmtime(derivado) else "ok")
@@ -1042,6 +1180,10 @@ class App:
         if estado == "cambio":
             return ("%s cambió desde el último procesamiento. Re-expórtelo y "
                     "vuelva a procesar." % catalogo)
+        if estado == "sin_datos":
+            return ("El catálogo de %s no tiene eventos en la ventana; puede "
+                    "estar fuera de cobertura. Use este botón para "
+                    "re-exportarlo." % catalogo)
         return ("El catálogo de %s está al día; no hace falta re-exportarlo."
                 % catalogo)
 
@@ -1103,6 +1245,12 @@ class App:
 
         def al_terminar():
             self.catalogos_faltantes.discard(catalogo)
+            if self._seiscomp_sin_eventos:
+                # Al reprocesar, el panel de SeisComp quedará sin datos. Se
+                # vuelve a habilitar el aviso para que _al_terminar_procesar
+                # lo muestre.
+                self._seiscomp_sin_eventos = False
+                self._avisos_sin_datos_mostrados.discard("SeisComp")
             self._actualizar_gate()
             # El popup previo ya avisó que se reprocesa: se hace sin preguntar
             # de nuevo.
@@ -1146,6 +1294,17 @@ class App:
                         inicio, fin]):
             self._log("La exportación de SeisComp falló (ver el registro).")
             return
+        marca = os.path.join(
+            "datos", "seiscomp_%s_%s.csv.completo" % (inicio, fin))
+        try:
+            import exporta_ventana_seiscomp as ev
+            eventos = ev._eventos_de_la_marca(marca)
+        except Exception:
+            eventos = None
+        self._seiscomp_sin_eventos = (eventos == 0)
+        if self._seiscomp_sin_eventos:
+            self._log("[Aviso] SeisComp no tiene eventos en la ventana; "
+                      "puede estar fuera de la cobertura de las bases.")
         self._log("SeisComp re-exportado.")
 
     def _tarea_re_exportar_red(self, catalogo, contrasena):
@@ -1434,14 +1593,38 @@ class App:
         if self.analisis_hecho:
             self._log("Se detectaron resultados del análisis; fuentes "
                       "habilitadas.")
+        mensajes = []
         if self.catalogos_faltantes:
             faltan = ", ".join(sorted(self.catalogos_faltantes))
             self._log("***** Faltan catálogos: %s. Use «Re-exportar». *****"
                       % faltan)
-            self._after_msg = self.raiz.after(300, lambda: Messagebox.show_warning(
-                "No se pudieron obtener: %s.\n\nUse «Re-exportar» para "
-                "volver a intentarlo." % faltan,
-                "Catálogos faltantes", parent=self.raiz))
+            mensajes.append("No se pudieron obtener: %s." % faltan)
+        ya_avisados = {a.get("catalogo") for a in self.avisos_catalogos
+                       if isinstance(a, dict)}
+        sin_datos = []
+        for catalogo in ("Seisan", "eventquery", "SeisComp"):
+            if self._estado_catalogo(catalogo) != "sin_datos":
+                continue
+            sin_datos.append(catalogo)
+            self._avisos_sin_datos_mostrados.add(catalogo)
+            if catalogo not in ya_avisados:
+                mensajes.append("%s no tiene eventos en la ventana."
+                                % catalogo)
+        if sin_datos:
+            self._log("***** Catálogos sin datos: %s. *****"
+                      % ", ".join(sin_datos))
+        for aviso in self.avisos_catalogos:
+            if not isinstance(aviso, dict):
+                continue
+            texto_aviso = aviso.get("mensaje")
+            if texto_aviso and texto_aviso not in mensajes:
+                mensajes.append(texto_aviso)
+        if mensajes:
+            texto = ("\n\n".join(mensajes) + "\n\nUse «Re-exportar» si "
+                     "necesita volver a obtenerlos.")
+            self._after_msg = self.raiz.after(
+                300, lambda t=texto: Messagebox.show_warning(
+                    t, "Avisos de catálogos", parent=self.raiz))
         self._actualizar_estado()
         self._actualizar_gate()
 
@@ -1649,6 +1832,8 @@ class App:
                          parametros, "seiscomp_"])
         else:
             self._log("Sin datos de SeisComp: se omite la atribución.")
+        self._log("***** Cruzando no publicados con la otra fuente *****")
+        self._popen([_script("cruza_nopub.py")])
         excl = os.path.join("informes", "excluidos.txt")
         if os.path.isfile(excl) and os.path.getsize(excl) > 0:
             self._log("***** Revisando excluidos *****")
@@ -1746,6 +1931,24 @@ class App:
                       "revise el registro.")
         self._actualizar_estado()
         self._actualizar_gate()
+        self._avisar_sin_datos()
+
+    def _avisar_sin_datos(self):
+        """Avisa una sola vez por catálogo que quedó sin eventos."""
+        nuevos = []
+        for catalogo in ("Seisan", "eventquery", "SeisComp"):
+            if (self._estado_catalogo(catalogo) == "sin_datos"
+                    and catalogo not in self._avisos_sin_datos_mostrados):
+                self._avisos_sin_datos_mostrados.add(catalogo)
+                nuevos.append(catalogo)
+        if not nuevos:
+            return
+        self._log("***** Catálogos sin datos: %s. *****" % ", ".join(nuevos))
+        Messagebox.show_warning(
+            "Sin eventos en la ventana: %s.\n\nPuede que la ventana quede "
+            "fuera de la cobertura de la fuente. Use «Re-exportar» si "
+            "necesita volver a obtenerlos." % ", ".join(nuevos),
+            "Catálogos sin datos", parent=self.raiz)
 
     def _poblar_catalogos(self):
         """
@@ -2151,36 +2354,66 @@ class App:
         Ventana con el listado de no actualizados, una pestaña por fuente.
 
         SeisComp va primero y por defecto; Seisan después. Cada pestaña se
-        arma solo al seleccionarla, reutilizando _abrir_no_actualizados
-        sobre el marco de esa pestaña.
+        arma solo al seleccionarla y se reutiliza mientras su firma de archivos
+        no cambie. Al cerrar se oculta, no se destruye.
         """
-        top = ttk.Toplevel(title="No actualizados", master=self.raiz)
-        top.geometry("1000x560")
-        cuaderno = ttk.Notebook(top)
-        cuaderno.pack(fill=BOTH, expand=YES)
-        fuentes = (("seiscomp", "SeisComp"), ("seisan", "Seisan"))
-        marcos, construido = {}, {}
-        for clave, etiqueta in fuentes:
-            marco = ttk.Frame(cuaderno)
-            cuaderno.add(marco, text=etiqueta)
-            marcos[clave] = marco
-            construido[clave] = False
+        def _firma(clave):
+            rs = self._importar_revisor()
+            if rs is None:
+                return None
+            return rs.firma_no_actualizados(self.cwd, clave)
 
         def _construir(clave):
-            if construido[clave]:
+            panel = self.no_actualizados[clave]
+            firma = _firma(clave)
+            if panel["construido"] and panel["firma"] == firma:
                 return
-            construido[clave] = True
-            self._abrir_no_actualizados(clave, contenedor=marcos[clave])
+            panel["construido"] = False
+            self._abrir_no_actualizados(clave, contenedor=panel["frame"])
+            panel["firma"] = firma
+            # Si el builder no dejó contenido (por ejemplo, no pudo importar
+            # el revisor), la próxima visita vuelve a intentarlo.
+            panel["construido"] = bool(panel["frame"].winfo_children())
+            self._ajustar_popup(self.marco_no_actualizados, (1000, 560))
 
         def _al_cambiar(_evento=None):
-            actual = cuaderno.select()
-            for clave, marco in marcos.items():
-                if str(marco) == actual:
+            actual = self.cuaderno_no_actualizados.select()
+            for clave, panel in self.no_actualizados.items():
+                if str(panel["frame"]) == actual:
                     _construir(clave)
                     break
 
-        cuaderno.bind("<<NotebookTabChanged>>", _al_cambiar)
-        _construir("seiscomp")
+        if self.marco_no_actualizados is None:
+            top = ttk.Toplevel(title="No actualizados", master=self.raiz)
+            top.geometry("1000x560")
+            top.minsize(820, 480)
+            cuaderno = ttk.Notebook(top)
+            cuaderno.pack(fill=BOTH, expand=YES)
+            self.marco_no_actualizados = top
+            self.cuaderno_no_actualizados = cuaderno
+            for clave, _titulo in (("seiscomp", "SeisComp"),
+                                   ("seisan", "Seisan")):
+                marco = ttk.Frame(cuaderno)
+                cuaderno.add(marco,
+                             text=self.no_actualizados[clave]["titulo"])
+                ttk.Label(
+                    marco, justify=CENTER,
+                    text="Seleccione esta pestaña para ver el listado."
+                ).pack(expand=YES)
+                self.no_actualizados[clave]["frame"] = marco
+            cuaderno.bind("<<NotebookTabChanged>>", _al_cambiar)
+            top.protocol("WM_DELETE_WINDOW", top.withdraw)
+            _construir("seiscomp")
+        else:
+            top = self.marco_no_actualizados
+            top.deiconify()
+            top.lift()
+            actual = self.cuaderno_no_actualizados.select()
+            for clave, panel in self.no_actualizados.items():
+                if str(panel["frame"]) == actual:
+                    _construir(clave)
+                    break
+            self._ajustar_popup(top, (1000, 560))
 
     def _ver_catalogos(self):
         """
@@ -2783,9 +3016,8 @@ class App:
                       "catálogo de eventos publicados extraído (eventquery) "
                       "*****" % (ini_iso, fin_iso))
             if modo == "ahora" and actualizar:
-                self._log("Se actualiza el eventquery hasta el fin elegido; la "
-                          "referencia fresca es solo para esta comparación (el "
-                          "resto del análisis no cambia).")
+                self._log("Se actualiza el eventquery hasta el fin elegido; "
+                          "solo afecta esta comparación.")
                 if self._actualizar_eventquery(contrasena, ini14, fin14):
                     referencia = "eventquery_ahora"
                 else:
@@ -3369,12 +3601,59 @@ class App:
             self._log("No se pudo abrir el explorador de archivos; la carpeta "
                       "de descargas es %s" % carpeta)
 
+    def _agregar_boton_web(self, tabla, columna_fecha):
+        """
+        Agrega el acceso al catálogo diario de sismologia.cl a una tabla.
+
+        'tabla' es el diccionario que devuelve revisa_seiscomp.abrir_tabla y
+        'columna_fecha' la clave de la fila que contiene la fecha/hora local.
+        El botón se habilita solo cuando hay una fila seleccionada con fecha
+        válida; no modifica los datos ni las columnas de la tabla.
+        """
+        def _abrir_dia_web():
+            fila = tabla["fila_actual"]()
+            if fila is None:
+                return
+            url = _url_dia_sismologia(fila.get(columna_fecha))
+            if url is None:
+                tabla["etiqueta_estado"].config(
+                    text=("El evento no tiene una fecha válida para abrir "
+                          "la web."))
+                return
+            try:
+                if not webbrowser.open(url, new=2):
+                    self._log("No se pudo abrir el navegador: %s" % url)
+                    tabla["etiqueta_estado"].config(
+                        text="No se pudo abrir el navegador.")
+            except Exception as e:
+                self._log("[error] no se pudo abrir el navegador: %s" % e)
+                tabla["etiqueta_estado"].config(
+                    text="No se pudo abrir el navegador.")
+
+        boton = ttk.Button(
+            tabla["barra"], text="Abrir en sismologia.cl",
+            bootstyle="secondary-outline", command=_abrir_dia_web,
+            state="disabled")
+        boton.pack(side="right", padx=(6, 0))
+
+        def _actualizar_boton(_evento=None):
+            fila = tabla["fila_actual"]()
+            habilitado = (fila is not None
+                          and _url_dia_sismologia(fila.get(columna_fecha))
+                          is not None)
+            boton.configure(state="normal" if habilitado else "disabled")
+
+        tabla["arbol"].bind("<<TreeviewSelect>>", _actualizar_boton, add="+")
+        _actualizar_boton()
+        return boton
+
     def _ver_repetidos(self):
         rs = self._importar_revisor()
         if rs is None:
             return
         top = ttk.Toplevel(title="Eventos repetidos", master=self.raiz)
         top.geometry("920x580")
+        top.minsize(760, 480)
 
         marco = ttk.Frame(top, padding=10)
         marco.pack(fill=BOTH, expand=YES)
@@ -3394,17 +3673,31 @@ class App:
         marco_tabla.pack(fill=BOTH, expand=YES, pady=(8, 0))
 
         rutas = {}
-        for titulo, ruta in REP_FILES:
-            if os.path.isfile(ruta):
-                with open(ruta) as f:
+        titulos = {}
+        iids = {}
+        vistas = {}
+        actual = {"ruta": None}
+
+        def _contar_informe(ruta):
+            if not os.path.isfile(ruta):
+                return 0
+            try:
+                with open(ruta, encoding="utf-8", errors="replace") as f:
                     n = sum(1 for _ in f)
-                n = n - 1 if n > 0 else 0
+            except OSError:
+                return 0
+            return n - 1 if n > 0 else 0
+
+        for titulo, ruta in REP_FILES:
+            n = _contar_informe(ruta)
+            if os.path.isfile(ruta):
                 etiqueta = "%s  (%s)" % (titulo, os.path.basename(ruta))
             else:
-                n = 0
                 etiqueta = "%s  (no generado)" % titulo
             iid = arbol.insert("", END, values=(etiqueta, n))
             rutas[iid] = ruta
+            titulos[ruta] = titulo
+            iids[ruta] = iid
 
         # La atribución se carga una sola vez por ventana, y solo si se abre un
         # informe publicado (los otros ya traen su analista en el archivo).
@@ -3429,39 +3722,58 @@ class App:
                 return salida
             return valores
 
-        def _mostrar_crudo(lineas):
-            caja = ScrolledText(marco_tabla, padding=4, autohide=True,
+        def _firma(ruta):
+            try:
+                st = os.stat(ruta)
+            except OSError:
+                return None
+            return (getattr(st, "st_mtime_ns", st.st_mtime), st.st_size)
+
+        def _actualizar_fila(ruta, n):
+            iid = iids.get(ruta)
+            if iid is None:
+                return
+            titulo = titulos.get(ruta, os.path.basename(ruta))
+            if os.path.isfile(ruta):
+                etiqueta = "%s  (%s)" % (titulo, os.path.basename(ruta))
+            else:
+                etiqueta = "%s  (no generado)" % titulo
+                n = 0
+            arbol.item(iid, values=(etiqueta, n))
+
+        def _mostrar_crudo(contenedor, lineas):
+            caja = ScrolledText(contenedor, padding=4, autohide=True,
                                 height=14)
             caja.pack(fill=BOTH, expand=YES)
             caja.text.configure(state=NORMAL, font=("Consolas", 9))
             caja.text.insert(END, "\n".join(lineas))
             caja.text.configure(state=DISABLED)
 
-        def al_seleccionar(evento=None):
-            sel = arbol.selection()
-            if not sel:
-                return
-            for hijo in marco_tabla.winfo_children():
-                hijo.destroy()
-            ruta = rutas[sel[0]]
+        def _crear_vista(ruta):
+            frame = ttk.Frame(marco_tabla)
+            if not os.path.isfile(ruta):
+                ttk.Label(frame, bootstyle="secondary",
+                          text="El informe no está generado.").pack(
+                              anchor="w", pady=(0, 4))
+                return frame, 0
             filas, crudo = _leer_informe_repetidos(ruta)
             if filas is None:
                 ttk.Label(
-                    marco_tabla, bootstyle="secondary",
+                    frame, bootstyle="secondary",
                     text="El informe está en el formato viejo (separado por "
                          "espacios); vuelva a procesar los catálogos para "
                          "verlo como tabla.").pack(anchor="w", pady=(0, 4))
-                _mostrar_crudo(crudo)
-                return
+                _mostrar_crudo(frame, crudo)
+                return frame, _contar_informe(ruta)
             if not filas:
-                ttk.Label(marco_tabla, bootstyle="secondary",
+                ttk.Label(frame, bootstyle="secondary",
                           text="El informe no tiene eventos.").pack(anchor="w")
-                return
+                return frame, 0
             columnas = _repetidos_columnas(ruta)
             if os.path.basename(ruta).startswith("rep_publica"):
                 _analistas_probables_repetidos(filas, _indices())
-            rs.abrir_tabla(
-                marco_tabla, filas, columnas, _valores(columnas),
+            tabla = rs.abrir_tabla(
+                frame, filas, columnas, _valores(columnas),
                 cwd=self.cwd, log=self._log,
                 etiqueta=os.path.splitext(os.path.basename(ruta))[0],
                 descarga_texto="Descargar", descarga_todo=True,
@@ -3469,6 +3781,42 @@ class App:
                 texto_filtro="Filtrar",
                 texto_detalle="«Descargar»: lo filtrado. "
                               "«Descargar todo»: completo.")
+            self._agregar_boton_web(tabla, "fecha_hora")
+            return frame, len(filas)
+
+        def _mostrar_vista(frame):
+            for vista in vistas.values():
+                if vista["frame"] is frame:
+                    continue
+                if vista["frame"].winfo_manager():
+                    vista["frame"].pack_forget()
+            if not frame.winfo_manager():
+                frame.pack(fill=BOTH, expand=YES)
+            self._ajustar_popup(top, (920, 580))
+
+        def al_seleccionar(evento=None):
+            sel = arbol.selection()
+            if not sel:
+                return
+            ruta = rutas[sel[0]]
+            firma = _firma(ruta)
+            vista = vistas.get(ruta)
+            if (vista is not None and vista["firma"] == firma
+                    and vista["frame"].winfo_exists()):
+                if actual["ruta"] != ruta:
+                    _mostrar_vista(vista["frame"])
+                    actual["ruta"] = ruta
+                return
+            if vista is not None:
+                try:
+                    vista["frame"].destroy()
+                except TclError:
+                    pass
+            frame, n = _crear_vista(ruta)
+            vistas[ruta] = {"frame": frame, "firma": firma}
+            _actualizar_fila(ruta, n)
+            _mostrar_vista(frame)
+            actual["ruta"] = ruta
 
         arbol.bind("<<TreeviewSelect>>", al_seleccionar)
         hijos = arbol.get_children()
@@ -3486,7 +3834,8 @@ class App:
         directo en esa pestaña, para no romper al generador de capturas.
         """
         top = ttk.Toplevel(title="No publicados", master=self.raiz)
-        top.geometry("900x560")
+        top.geometry("1100x620")
+        top.minsize(900, 520)
         cuaderno = ttk.Notebook(top)
         cuaderno.pack(fill=BOTH, expand=YES)
         fuentes = (("seiscomp", "SeisComp"), ("seisan", "Seisan"))
@@ -3502,6 +3851,7 @@ class App:
                 return
             construido[clave] = True
             self._construir_tabla_no_publicados(marcos[clave], clave)
+            self._ajustar_popup(top, (1100, 620))
 
         def _al_cambiar(_evento=None):
             actual = cuaderno.select()
@@ -3550,11 +3900,18 @@ class App:
                     ("Prof.", "Prof. km", 80, True),
                     ("Mag.", "Mag.", 70, True),
                     ("Tipo_mag.", "Tipo mag.", 80, False),
-                    ("Analista", "Analista", 120, False)]
+                    ("Analista", "Analista", 120, False),
+                    ("Publicado_en", "Publicado en", 110, False),
+                    ("Estado", "Estado", 360, False),
+                    ("Dt_otra_seg", "Δt otra fuente (s)", 135, True),
+                    ("Dist_otra_km", "Dist. otra fuente (km)", 165, True),
+                    ("Analista_otra", "Analista otra fuente", 155, False)]
         claves = [c for c, _, _, _ in columnas]
 
         def _valores(fila):
             return [str(fila.get(c, "") or "") for c in claves]
+
+        columnas = _anchos_columnas_por_contenido(columnas, filas, _valores)
 
         def _ver_mapa(_evento=None):
             """Abre planta+perfil del evento elegido (ploteo de un evento suelto)."""
@@ -3587,6 +3944,35 @@ class App:
                 tabla["etiqueta_estado"].config(
                     text="No se pudo plotear el evento.")
 
+        ayuda_estados = ttk.Frame(contenedor, padding=(10, 6, 10, 0))
+        ayuda_estados.pack(fill=X)
+        leyenda_estados = ttk.Label(
+            ayuda_estados, bootstyle="secondary", justify="left",
+            text=("Publicado en = confirmado · Candidato = revisar · "
+                  "Ambiguo = varias soluciones · Sin coincidencia = no está · "
+                  "No evaluable = faltan datos"))
+
+        def _mostrar_ayuda_estados():
+            try:
+                descargas.mostrar_texto_mono(
+                    contenedor.winfo_toplevel(),
+                    "Criterios de clasificación de No publicados",
+                    AYUDA_ESTADOS_NO_PUBLICADOS)
+            except Exception as e:
+                self._log("[error] no se pudo abrir la ayuda: %s" % e)
+
+        boton_ayuda = ttk.Button(
+            ayuda_estados, text="Criterios de clasificación",
+            bootstyle="secondary-outline", command=_mostrar_ayuda_estados)
+        boton_ayuda.pack(side="right", padx=(8, 0))
+        leyenda_estados.pack(side="left", fill=X, expand=True)
+
+        def _acomodar_leyenda(evento):
+            leyenda_estados.configure(
+                wraplength=max(260, evento.width - 260))
+
+        ayuda_estados.bind("<Configure>", _acomodar_leyenda, add="+")
+
         marco = ttk.Frame(contenedor, padding=10)
         marco.pack(fill=BOTH, expand=YES)
         tabla = rs.abrir_tabla(
@@ -3595,9 +3981,117 @@ class App:
             etiqueta="no publicados %s" % fuente,
             descarga_texto="Descargar",
             descarga_bootstyle="primary-outline", descarga_todo=True,
-            texto_filtro="Filtrar:", texto_detalle="Doble clic plotea")
+            texto_filtro="Filtrar:", texto_detalle="Doble clic plotea",
+            con_miniatura=True, ancho_lista=780, ancho_mini=300)
 
+        self._agregar_boton_web(tabla, "Fecha_Hora")
         arbol = tabla["arbol"]
+
+        def _evento_mapa(fila):
+            def _num(clave):
+                try:
+                    return float(str(fila.get(clave, "")).strip())
+                except (TypeError, ValueError):
+                    return None
+            return {
+                "latitud": _num("Latitud"), "longitud": _num("Longitud"),
+                "prof": _num("Prof."), "magnitud": fila.get("Mag.", ""),
+                "tipo": fila.get("Tipo_mag.", ""),
+                "fecha hora": fila.get("Fecha_Hora", ""),
+                "analista": fila.get("Analista", ""),
+            }
+
+        zoom = {"control": None}
+
+        def _accion_zoom(nombre):
+            control = zoom["control"]
+            if control is not None:
+                control[nombre]()
+
+        try:
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            import plotear
+            mapa = {"fig": Figure(figsize=(3.6, 4.4), dpi=82)}
+            ttk.Label(tabla["marco_mini"], text="Vista nacional",
+                      bootstyle="secondary",
+                      font=("", 9, "bold")).pack(anchor="w", padx=8,
+                                                 pady=(4, 0))
+            controles = ttk.Frame(tabla["marco_mini"])
+            controles.pack(side="bottom", fill=X, padx=8, pady=(0, 4))
+            ttk.Label(controles, text="Rueda: zoom · arrastrar: mover",
+                      bootstyle="secondary",
+                      font=("", 8)).pack(anchor="w")
+            fila_controles = ttk.Frame(controles)
+            fila_controles.pack(fill=X)
+            for texto, accion, ancho in (
+                    ("+", "zoom_in", 2), ("−", "zoom_out", 2),
+                    ("Centrar", "centrar", None),
+                    ("Restablecer", "reset", None)):
+                opciones = {"bootstyle": "secondary-outline",
+                            "command": lambda a=accion: _accion_zoom(a)}
+                if ancho is not None:
+                    opciones["width"] = ancho
+                boton = ttk.Button(fila_controles, text=texto, **opciones)
+                boton.pack(side="right", padx=(4, 0))
+            lienzo = FigureCanvasTkAgg(mapa["fig"],
+                                       master=tabla["marco_mini"])
+            lienzo.get_tk_widget().pack(fill=BOTH, expand=YES,
+                                        padx=(8, 0), pady=2)
+        except Exception as e:
+            self._log("[error] no se pudo crear el mapa nacional: %s" % e)
+            ttk.Label(tabla["marco_mini"],
+                      text="No se pudo crear el mapa.",
+                      bootstyle="secondary").pack(expand=YES)
+        else:
+            def _dibujar_mapa(fila):
+                fig_mapa = mapa["fig"]
+                fig_mapa.clear()
+                if fila is None:
+                    ax = fig_mapa.add_subplot(111)
+                    ax.text(0.5, 0.5, "Seleccione un evento\npara ubicarlo",
+                            ha="center", va="center", fontsize=8,
+                            color="#555555", transform=ax.transAxes)
+                    ax.set_axis_off()
+                    fig_mapa.canvas.draw_idle()
+                    return
+                evento = _evento_mapa(fila)
+                if evento["latitud"] is None or evento["longitud"] is None:
+                    ax = fig_mapa.add_subplot(111)
+                    ax.text(0.5, 0.5, "El evento no tiene\ncoordenadas",
+                            ha="center", va="center", fontsize=8,
+                            color="#555555", transform=ax.transAxes)
+                    ax.set_axis_off()
+                    fig_mapa.canvas.draw_idle()
+                    return
+                try:
+                    dibujado = plotear.dibujar_mini_mapa_evento(
+                        fig_mapa, evento, fuente)
+                    if dibujado:
+                        extent = plotear.extent_mapa_nacional(evento)
+                        centro = (evento["longitud"], evento["latitud"])
+                        if zoom["control"] is None:
+                            zoom["control"] = plotear.conectar_zoom_mapa(
+                                fig_mapa, extent, centro=centro)
+                        else:
+                            zoom["control"]["actualizar"](extent, centro)
+                except Exception as e:
+                    self._log("[error] no se pudo dibujar el mapa nacional: "
+                              "%s" % e)
+                    fig_mapa.clear()
+                    ax = fig_mapa.add_subplot(111)
+                    ax.text(0.5, 0.5, "No se pudo dibujar\nel mapa",
+                            ha="center", va="center", fontsize=8,
+                            color="#555555", transform=ax.transAxes)
+                    ax.set_axis_off()
+                    fig_mapa.canvas.draw_idle()
+
+            def _actualizar_mapa(_evento=None):
+                _dibujar_mapa(tabla["fila_actual"]())
+
+            arbol.bind("<<TreeviewSelect>>", _actualizar_mapa, add="+")
+            _dibujar_mapa(None)
+
         arbol.bind("<Double-1>", _ver_mapa)
         arbol.bind("<Return>", _ver_mapa)
         self._log("No publicados de %s: %d eventos." % (fuente, len(filas)))

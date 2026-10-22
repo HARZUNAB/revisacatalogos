@@ -215,12 +215,19 @@ Arriba, la tabla con los informes de repeticiones por fuente y filtro (amplio y
 estricto). Al elegir uno, abajo se muestra **como tabla ordenable**: clic en el
 encabezado ordena, «Filtrar» acota por texto y **«Descargar»** baja lo filtrado
 mientras **«Descargar todo»** baja el informe completo (en CSV o TXT, con el
-nombre que se elija). En los repetidos publicados (eventquery), que no traen
-responsable, se agregan dos columnas **«Analista probable (Seisan)»** y
+nombre que se elija). Con una fila seleccionada, **«Abrir en sismologia.cl»**
+abre en el navegador el catálogo diario correspondiente a la fecha del evento.
+En los repetidos publicados (eventquery), que no traen responsable, se agregan
+dos columnas **«Analista probable (Seisan)»** y
 **«Analista probable (SeisComp)»**, deducidas cruzando cada evento con esas
 fuentes como en el catálogo:
 
 ![Ventana de eventos repetidos](img/11_repetidos.png)
+
+La ventana crece al abrirse y al cambiar de informe para mostrar las columnas
+del informe elegido. Si no entra en la pantalla, use la barra horizontal.
+Cada informe se lee una sola vez: al volver a uno ya abierto se reutiliza la
+tabla (con su filtro y orden) y solo se relee si el `.txt` cambió.
 
 ### No publicados
 
@@ -228,6 +235,51 @@ Listado de eventos que están en el catálogo público pero no en la solución
 de la fuente, con filtro por texto y descargas:
 
 ![Ventana de no publicados](img/10_no_publicados.png)
+
+La ventana crece al abrirse y al cambiar de fuente para mostrar todas sus
+columnas. Si no entra en la pantalla, use la barra horizontal.
+
+Sobre la tabla hay una leyenda con el resumen de los estados y el botón
+**«Criterios de clasificación»**, que abre el detalle de cada uno, los
+umbrales de confirmación/revisión y el significado de las columnas de cruce.
+
+Un evento puede no aparecer publicado según una fuente y, aun así, ser el mismo
+sismo que la otra fuente sí publicó: las dos entregan su localización, pero el
+catálogo público terminó usando una de las dos. Para no tener que adivinarlo,
+el listado agrega cinco columnas y **no elimina ni reclasifica ningún evento**:
+
+- **«Publicado en»**: `Seisan` o `SeisComp` solo cuando la otra fuente tiene una
+  solución publicada del mismo sismo y es la única candidata; vacío en el resto
+  de los casos.
+- **«Estado»**: explica qué ocurrió:
+  - `Publicado en Seisan` / `Publicado en SeisComp`: coincidencia confiable.
+  - `Ambiguo: N candidatos en ...`: hay varias soluciones publicadas cerca; no
+    se puede afirmar cuál corresponde. Es habitual en zonas con eventos
+    agrupados o fases superpuestas.
+  - `Candidato en ...`: hay una solución cercana, pero fuera de la ventana de
+    confirmación; requiere revisión manual.
+  - `Sin coincidencia`: la otra fuente tiene datos y la comparación está
+    vigente, pero no hay ninguna solución publicada cerca.
+  - `No evaluable: sin datos de Seisan/SeisComp en la ventana`: la otra fuente
+    no tiene eventos en ese período.
+  - `No evaluable: atribución o comparación ... desactualizada`: el análisis
+    cruzado no está al día.
+  - `No evaluable: no se comparó ...`: falta la comparación de esa fuente.
+- **«Δt otra fuente (s)»**: diferencia de hora con el candidato elegido.
+- **«Dist. otra fuente (km)»**: distancia con el candidato elegido.
+- **«Analista otra fuente»**: analista de esa solución.
+
+La confirmación usa **|Δt| ≤ 6 s** y **|Δlat|, |Δlon| ≤ 0,5°**, y exige una
+sola solución candidata. La revisión usa **120 s / 2°** y solo avisa: nunca
+marca un evento como publicado. Se descarta una atribución que sea más vieja que
+su catálogo local, para no usar datos de una corrida anterior. Las columnas
+también salen en las descargas y viajan al JSON del panel de «No publicados»,
+así que el listado y el panel muestran la misma información.
+
+Si **eventquery** no tiene eventos en la ventana, los listados de no publicados
+no se generan: sin catálogo publicado no hay contra qué comparar. La app muestra
+el catálogo como `⚠ sin datos` y avisa el motivo. Lo mismo ocurre con Seisan o
+SeisComp cuando su archivo de la ventana solo trae encabezado.
 
 - **«Filtrar»** + **«Aplicar»** (o Enter): filtra el listado por texto libre
   (busca en todas las columnas). No se aplica al escribir.
@@ -237,6 +289,19 @@ de la fuente, con filtro por texto y descargas:
   abre el evento en una figura con la vista en planta y el perfil de subducción,
   para ver su ubicación en contexto (contra el *slab* y la sismicidad histórica)
   y juzgar de inmediato si, por localización, debería estar publicado:
+- **«Abrir en sismologia.cl»**: con una fila seleccionada, abre en el navegador
+  el catálogo diario del evento
+  (`.../catalogo/AAAA/MM/AAAAMMDD.html`), usando la fecha local de
+  «Fecha y hora».
+- **Vista nacional**: al seleccionar una fila, el panel derecho ubica el evento
+  en un mapa de todo el país con un margen de 3° en latitud y longitud. No hace
+  zoom sobre el evento: sirve para ver de inmediato si está dentro del
+  territorio nacional. Solo se dibuja el evento seleccionado. La rueda del
+  mouse acerca o aleja alrededor del cursor; arrastrar mueve el mapa; «Centrar»
+  recupera el evento sin cambiar el zoom y «Restablecer» vuelve a la vista
+  nacional completa. También están los botones «+» y «−».
+- Las columnas del listado se ajustan al contenido de cada dato y conservan los
+  rótulos completos de los encabezados.
 
 ![Planta y perfil de un evento no publicado](img/14_plot_evento.png)
 
@@ -249,6 +314,24 @@ deltas, la **distancia (km)** entre ambas ubicaciones y una columna final con
 **«Aplicar»** (o Enter), no al escribir:
 
 ![Ventana de no actualizados](img/09_no_actualizados.png)
+
+Después de **Analista** hay dos columnas para priorizar la revisión:
+
+- **Publicación probable**: qué fuente parece haber publicado el evento.
+  `Esta fuente` (solo esta fuente tiene candidata o está claramente más cerca),
+  `Compartida` (ambas están igual de cerca), `Otra fuente` (la otra está
+  claramente más cerca), `Duplicado público` (el catálogo publicado repite el
+  sismo) o `No evaluable` (falta o venció la atribución de la otra fuente).
+- **Revisión**: prioridad para revisar: **Alta**, **Media**, **Baja** o **—**
+  cuando no se puede evaluar. Se ordena por esa prioridad, no alfabéticamente.
+
+El botón **«Criterios de clasificación»**, sobre la tabla, resume estas reglas. La
+clasificación es probabilística por cercanía y no reemplaza la comparación
+numérica de los parámetros: se calcula al abrir el listado con las atribuciones
+crudas de ambas fuentes y no se agrega a los CSV de `compara.py`.
+
+La ventana crece al abrirse y al cambiar de fuente para mostrar todas sus
+columnas. Si no entra en la pantalla, use la barra horizontal.
 
 La comparación es **numérica**. Como el catálogo publicado (el que arma
 «publica») guarda lat/lon con **2 decimales** y la solución de la fuente con 3,
@@ -272,7 +355,11 @@ Además del listado, el grupo **No actualizados** de la barra de pestañas abre 
 desactualizados. Su mini-mapa muestra la solución de la fuente; al abrir el
 detalle de un perfil se dibujan **las dos soluciones** (de la fuente y publicada)
 con una línea y el Δ por cada evento (el de ubicación, con su **dirección
-cardinal**).
+cardinal**). La viñeta y la descarga incluyen **Publicación probable** y
+**Revisión**. En este panel aparece además el filtro **«Solo alta prioridad»**:
+deja los perfiles con al menos un evento de revisión **Alta**. **«Inicio»** lo
+apaga junto con «Solo sospechosos», y **«Criterios de clasificación»** abre la misma
+ayuda del listado.
 
 ### Comparar agencias
 
@@ -489,8 +576,14 @@ mirando.
 
 **Solapa «Con arribos»**: las llegadas de la solución preferida, agrupadas por
 estación. Muestra, por cada *pick*, si fue **manual o automático**, con su autor,
-agencia y método. Los *picks* manuales se resaltan (fuerte si entraron a la
-solución, suave si quedaron afuera):
+agencia y método. Los *picks* manuales se resaltan:
+
+- **Rojo y negrita**: pick manual usado en la solución.
+- **Ámbar**: pick manual no usado.
+- **Sin resaltado**: pick automático.
+
+La leyenda sobre la tabla lo recuerda y aclara que el color indica la
+procedencia del *pick*, no su calidad:
 
 ![Estaciones — Con arribos](img/05_estaciones_con_arribos.png)
 

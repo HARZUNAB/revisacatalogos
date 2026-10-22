@@ -27,6 +27,13 @@ def test_construccion(app_factory):
     assert inst.boton_analisis.cget("text") == "Procesar catálogos"
 
 
+def test_barra_de_avance_celeste_solida(app_factory):
+    _, inst = app_factory()
+    estilo = str(inst.barra.cget("style")).lower()
+    assert "info" in estilo
+    assert "striped" not in estilo
+
+
 # --------------------------------------------------------------------------
 # Grupos de botones
 # --------------------------------------------------------------------------

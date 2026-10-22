@@ -117,6 +117,101 @@ def encima_de(padre, ventana=None, modal=True):
         pass
 
 
+def _centrar_sobre(ventana, padre, ancho, alto):
+    """
+    Centra 'ventana' sobre 'padre' y la acota a la pantalla.
+
+    Tk deja un Toplevel nuevo donde quiere el gestor de ventanas, y centrarlo
+    sobre el padre y no sobre el escritorio virtual lo mantiene en el mismo
+    monitor de la app (ver revisa_seiscomp._centrar_en_pantalla).
+    """
+    ancho = max(1, int(ancho))
+    alto = max(1, int(alto))
+    try:
+        pantalla_ancho = ventana.winfo_screenwidth()
+        pantalla_alto = ventana.winfo_screenheight()
+    except Exception:
+        ventana.geometry("%dx%d" % (ancho, alto))
+        return
+    ancho = min(ancho, pantalla_ancho)
+    alto = min(alto, pantalla_alto)
+    centro_x = pantalla_ancho // 2
+    centro_y = pantalla_alto // 2
+    if padre is not None:
+        try:
+            padre.update_idletasks()
+            centro_x = padre.winfo_rootx() + padre.winfo_width() // 2
+            centro_y = padre.winfo_rooty() + padre.winfo_height() // 2
+        except Exception:
+            pass
+    x = max(0, min(centro_x - ancho // 2, pantalla_ancho - ancho))
+    y = max(0, min(centro_y - alto // 2, pantalla_alto - alto))
+    ventana.geometry("%dx%d+%d+%d" % (ancho, alto, x, y))
+
+
+def mostrar_texto_mono(padre, titulo, texto, ancho=620, alto=320):
+    """
+    Muestra un texto de ancho fijo en un diálogo propio.
+
+    Los messagebox usan fuente proporcional, así que una tabla alineada con
+    espacios se ve corrida. Acá el texto va en un widget con fuente
+    monoespaciada y scroll horizontal, para que las columnas queden alineadas.
+    Se usa TkFixedFont y no un nombre de fuente, que en Linux puede no existir.
+
+    Devuelve el Toplevel, o None si no hay Tk disponible.
+    """
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+        from tkinter import font as tkfont
+    except ImportError:
+        return None
+    if padre is None:
+        return None
+    try:
+        top = tk.Toplevel(padre)
+        top.title(titulo)
+        try:
+            top.transient(padre)
+        except Exception:
+            pass
+
+        fuente = tkfont.nametofont("TkFixedFont").copy()
+        fuente.configure(size=10)
+
+        marco = ttk.Frame(top, padding=8)
+        marco.pack(fill="both", expand=True)
+        caja = tk.Text(marco, wrap="none", font=fuente, width=1, height=1,
+                       borderwidth=1, relief="solid")
+        barra_v = ttk.Scrollbar(marco, orient="vertical", command=caja.yview)
+        barra_h = ttk.Scrollbar(marco, orient="horizontal", command=caja.xview)
+        caja.configure(yscrollcommand=barra_v.set, xscrollcommand=barra_h.set)
+        caja.insert("1.0", texto)
+        caja.configure(state="disabled")
+        caja.grid(row=0, column=0, sticky="nsew")
+        barra_v.grid(row=0, column=1, sticky="ns")
+        barra_h.grid(row=1, column=0, sticky="ew")
+        marco.rowconfigure(0, weight=1)
+        marco.columnconfigure(0, weight=1)
+
+        botones = ttk.Frame(marco)
+        botones.grid(row=2, column=0, columnspan=2, sticky="e", pady=(6, 0))
+        ttk.Button(botones, text="Cerrar", command=top.destroy).pack()
+
+        def _cerrar(_evento=None):
+            top.destroy()
+
+        top.bind("<Escape>", _cerrar)
+        top.bind("<Return>", _cerrar)
+        top.protocol("WM_DELETE_WINDOW", _cerrar)
+        _centrar_sobre(top, padre, ancho, alto)
+        top.update_idletasks()
+        encima_de(padre, top, modal=True)
+        return top
+    except Exception:
+        return None
+
+
 def _carpeta(base):
     """Carpeta de descargas bajo base, creándola si hace falta."""
     destino = os.path.join(base, rutas.DIR_DESCARGAS)

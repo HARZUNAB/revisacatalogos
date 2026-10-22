@@ -231,8 +231,8 @@ def informe(resumen, ruta_origen, ruta_destino):
         print("   [Aviso] %d evento(s) sin magnitud preferida: se dibujan sin"
               " rótulo de magnitud." % resumen["sin_magnitud"])
     if resumen["sin_profundidad"]:
-        print("   [Aviso] %d evento(s) sin profundidad: no se les pueden"
-              " aplicar los criterios de profundidad." % resumen["sin_profundidad"])
+        print("   [Aviso] %d evento(s) sin profundidad; no se aplican los "
+              "criterios de profundidad." % resumen["sin_profundidad"])
     else:
         print("   Con profundidad: %d" % resumen["con_profundidad"])
     if resumen["por_operador"]:
