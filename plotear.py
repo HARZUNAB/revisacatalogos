@@ -3471,7 +3471,7 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
     estado = {'percibidos': 0, 'filtro_sospechosos': False,
               'filtro_alta': False, 'activo': True, 'mostrar_hist': False}
     # Referencia al sub-panel de territorios (para poder cerrarlo al salir).
-    terr_state = {'panel': None, 'cerrar': None}
+    terr_state = {'panel': None, 'cerrar': None, 'avisando': False}
     con_perfil = sum(len(v) for v in grupos.values())
 
     if embebido:
@@ -3838,43 +3838,22 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
         descargas.descargar_tabla(raiz, encabezados, filas_csv, etiqueta,
                                   aviso=True)
 
-    def _abrir_territorios():
-        if not estado['activo']:
+    def _abrir_territorios_impl():
+        # Categoriza una sola vez y, si no hay nada que mostrar en ningún
+        # territorio, avisa (una sola rama, un solo aviso).
+        items = []
+        if sin_perfil:
+            nacional, insular, antartico = _categorizar_por_territorio(
+                sin_perfil)
+            items = [(nombre, evs) for nombre, evs in [
+                ("Nacional", nacional), ("Insular", insular),
+                ("Antártico", antartico)] if evs]
+        if not items:
+            _log("Mapas sin perfil: nada para mostrar (sin_perfil=%d)."
+                 % len(sin_perfil))
+            _avisar_sin_datos("No hay eventos sin perfil para mostrar.",
+                              raiz)
             return
-        if terr_state.get('avisando'):
-            _log("Mapas sin perfil: clic ignorado (ya en curso).")
-            return
-        _log("Mapas sin perfil: apertura (sin_perfil=%d)." % len(sin_perfil))
-        terr_state['avisando'] = True
-        try:
-            try:
-                btn_mapas.config(state='disabled')
-            except Exception:
-                pass
-            # Categoriza una sola vez y, si no hay nada que mostrar en ningún
-            # territorio, avisa (una sola rama, un solo aviso).
-            items = []
-            if sin_perfil:
-                nacional, insular, antartico = _categorizar_por_territorio(
-                    sin_perfil)
-                items = [(nombre, evs) for nombre, evs in [
-                    ("Nacional", nacional), ("Insular", insular),
-                    ("Antártico", antartico)] if evs]
-            if not items:
-                _log("Mapas sin perfil: nada para mostrar (sin_perfil=%d)."
-                     % len(sin_perfil))
-                terr_state['avisando'] = False
-                _avisar_sin_datos("No hay eventos sin perfil para mostrar.",
-                                  raiz)
-                return
-        except Exception:
-            terr_state['avisando'] = False
-            raise
-        finally:
-            try:
-                btn_mapas.config(state='normal')
-            except Exception:
-                pass
         # Si ya está abierto, se trae al frente en vez de duplicarlo.
         if terr_state.get('panel') is not None:
             try:
@@ -4002,6 +3981,27 @@ def _panel_analisis(grupos, perfiles_por_id, sin_perfil, fuente,
 
         arbol_t.selection_set(arbol_t.get_children()[0])
         _redibujar_mini()
+
+    def _abrir_territorios():
+        if not estado['activo']:
+            return
+        if terr_state.get('avisando'):
+            _log("Mapas sin perfil: clic ignorado (ya en curso).")
+            return
+        _log("Mapas sin perfil: apertura (sin_perfil=%d)." % len(sin_perfil))
+        terr_state['avisando'] = True
+        try:
+            try:
+                btn_mapas.config(state='disabled')
+            except Exception:
+                pass
+            _abrir_territorios_impl()
+        finally:
+            terr_state['avisando'] = False
+            try:
+                btn_mapas.config(state='normal')
+            except Exception:
+                pass
 
     def _alternar_filtro():
         if not estado['activo']:

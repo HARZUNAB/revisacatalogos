@@ -92,6 +92,12 @@ def _top_sin_datos(raiz):
     return None
 
 
+def _tops_mapas(raiz):
+    return [widget for widget in raiz.winfo_children()
+            if isinstance(widget, tk.Toplevel)
+            and widget.title().startswith("Mapas sin perfil")]
+
+
 # --------------------------------------------------------------------------
 # abrir_panel
 # --------------------------------------------------------------------------
@@ -130,6 +136,44 @@ def test_abrir_panel_sin_perfiles(raiz_tk, cwd_tmp, monkeypatch):
     contenedor = _contenedor(raiz_tk)
 
     assert plotear.abrir_panel(contenedor, str(archivo), "seisan") is False
+
+
+def test_mapas_sin_perfil_se_pueden_reabrir(raiz_tk, cwd_tmp, monkeypatch):
+    import asigna_perfiles as ap
+    monkeypatch.setattr(ap, "detectar_perfiles", lambda *a, **k: [_perfil()])
+    monkeypatch.setattr(plotear, "_mini_mapa_territorio",
+                        lambda *a, **k: True)
+    eventos = [
+        _evento("P001"),
+        _evento(None, id=2, latitud="-33.0", longitud="-71.0"),
+    ]
+    archivo = cwd_tmp / "eventos_seisan.json"
+    archivo.write_text(json.dumps(eventos), encoding="utf-8")
+    contenedor = _contenedor(raiz_tk)
+
+    assert plotear.abrir_panel(contenedor, str(archivo), "seisan") is True
+    boton = _buscar(contenedor, ttk.Button,
+                    lambda w: w.cget("text") == "Mapas sin perfil")
+    assert boton is not None
+    raiz_mapa = plotear._raiz_tk()
+    assert raiz_mapa is not None
+
+    boton.invoke()
+    raiz_mapa.update()
+    primeros = _tops_mapas(raiz_mapa)
+    assert len(primeros) == 1
+
+    primeros[0]._cerrar()
+    raiz_mapa.update()
+    assert _tops_mapas(raiz_mapa) == []
+
+    boton.invoke()
+    raiz_mapa.update()
+    segundos = _tops_mapas(raiz_mapa)
+    assert len(segundos) == 1
+    assert segundos[0] is not primeros[0]
+
+    segundos[0]._cerrar()
 
 
 # --------------------------------------------------------------------------
