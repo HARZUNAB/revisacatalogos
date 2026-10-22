@@ -116,7 +116,10 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 > `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Cobertura por
 > agencia» y en la descarga. En modo «Desde/Hasta» el usuario fija el rango
 > (`desde`/`hasta`, 14 díg., en el diálogo; por defecto el inicio del análisis y
-> el instante de apertura). `_comparacion_al_dia()` compara `desde` y `hasta`:
+> el instante de apertura). `_abrir_catalogo_comparado()` abre el listado de `datos/agencias/consultaapi_<AG>.csv`
+o de `datos/todos_eventquery.csv` desde el botón «Catálogos» del popup de
+cobertura, usando `revisa_seiscomp.abrir_tabla`.
+`_comparacion_al_dia()` compara `desde` y `hasta`:
 > cambiar el `desde` rehace; cambiar solo el `hasta` rehace salvo que la
 > comparación siga dentro del TTL (atajo para el caso «hasta = ahora»). La misma
 > ventana se usa para las agencias y para re-extraer el eventquery de la
@@ -429,6 +432,12 @@ informe elegido como tabla ordenable (vía `revisa_seiscomp.abrir_tabla`, con
 el botón **«Abrir en sismologia.cl»** mediante `app._agregar_boton_web`, que
 usa `_url_dia_sismologia` con la columna `fecha_hora`; el mismo método se usa
 en No publicados.
+
+`revisa_seiscomp.SeleccionTabla` agrega casillas usando la columna `#0` del
+`Treeview`, sin agregar valores a `columns` ni a las descargas. Las marcas se
+guardan por `id(fila)`, así sobreviven al filtro, al orden y al repintado;
+`abrir_tabla(..., seleccionable=True)` expone «Descargar seleccionados». La
+misma clase se usa en Análisis rápido y en Comparación de agencias.
 
 Para los repetidos **publicados** (eventquery), que no traen responsable, la app
 agrega dos columnas «Analista probable (Seisan)» y «Analista probable

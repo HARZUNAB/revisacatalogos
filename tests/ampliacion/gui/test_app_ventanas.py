@@ -323,6 +323,7 @@ def test_repetidos_con_informe(app_factory, raiz_gui, cwd_tmp, monkeypatch):
     assert "analista_seisan" in tabla["columns"]
     assert "analista_seiscomp" in tabla["columns"]
     assert len(tabla.get_children()) == 2
+    assert _boton(top, "Descargar seleccionados") is not None
 
     # «Descargar» baja lo filtrado por el exportador común (CSV/TXT + nombre).
     _boton(top, "Descargar").invoke()
@@ -671,6 +672,7 @@ def test_no_publicados_tabla_y_descargar_todo(app_factory, raiz_gui, cwd_tmp,
     arbol = _buscar(top, ttk.Treeview)
     assert len(arbol.get_children()) == 2
     assert not _boton(top, "Descargar").instate(["disabled"])
+    assert _boton(top, "Descargar seleccionados") is not None
 
     _boton(top, "Descargar todo").invoke()
     assert len(descargado["filas"]) == 2

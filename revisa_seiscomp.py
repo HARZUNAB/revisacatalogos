@@ -2646,7 +2646,7 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
     texto_indicio = "#ffe6a3" if oscuro else "#7a4b00"
 
     datos = {"filas": [], "mostradas": []}
-    vista = {"arbol": None}
+    vista = {"arbol": None, "sel": None, "marcadas": set()}
     # Orden por clic: (columna, sentido). None = orden por defecto (severidad).
     orden = {"columna": None, "descendente": False}
 
@@ -2674,8 +2674,20 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
     boton_descargar = _t.Button(control, text="Descargar",
                                 bootstyle="secondary-outline")
     boton_descargar.pack(side="right")
+    boton_seleccion = _t.Button(
+        control, text="Descargar seleccionados", state="disabled",
+        bootstyle="secondary-outline")
+    boton_seleccion.pack(side="right", padx=(0, 6))
     estado = _t.Label(control, text="", bootstyle="secondary")
     estado.pack(side="right", padx=(0, 8))
+
+    def _actualizar_boton_seleccion():
+        sel = vista["sel"]
+        cantidad = sel.contar() if sel is not None else 0
+        boton_seleccion.configure(
+            state="normal" if cantidad else "disabled",
+            text=("Descargar seleccionados (%d)" % cantidad
+                  if cantidad else "Descargar seleccionados"))
 
     _t.Label(marco_resultados,
              text="Analiza TODO el catálogo (%d eventos), sin el filtro del"
@@ -2763,6 +2775,9 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         arbol.tag_configure("indicio", background=fondo_indicio,
                             foreground=texto_indicio, font=("", 9, "bold"))
         arbol.tag_configure("sin_evidencia", font=("", 9, "bold"))
+        sel = SeleccionTabla(arbol, marcadas=vista["marcadas"],
+                             al_cambiar=_actualizar_boton_seleccion)
+        vista["sel"] = sel
         datos["mostradas"] = _ordenar_analisis(
             datos["filas"], orden["columna"], orden["descendente"])
         for indice, resumen in enumerate(datos["mostradas"]):
@@ -2776,9 +2791,11 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
                 etiqueta = "normal"
             arbol.insert("", "end", iid=str(indice),
                          values=_valores_analisis(resumen), tags=(etiqueta,))
+            sel.registrar(str(indice), resumen)
         arbol.bind("<Double-1>", _abrir)
         arbol.bind("<Return>", _abrir)
         vista["arbol"] = arbol
+        _actualizar_boton_seleccion()
 
     def _recalcular(_evento=None):
         nuevo = _leer_umbral()
@@ -2788,6 +2805,7 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         estado.config(text="Analizando…")
         ventana.update_idletasks()
         datos["filas"] = analizar_sin_arribos(ruta_no_picadas, eventos, nuevo)
+        vista["marcadas"].clear()
         _pintar()
         estado.config(text="%d de %d eventos con cercanas ≤ %g km."
                       % (len(datos["filas"]), len(eventos), nuevo))
@@ -2808,8 +2826,31 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         if log:
             log(aviso)
 
+    def _descargar_seleccionados():
+        sel = vista["sel"]
+        if sel is None:
+            return
+        elegidas = sel.seleccionadas(datos["mostradas"])
+        if not elegidas:
+            estado.config(text="No hay eventos seleccionados.")
+            return
+        filas = filas_analisis_largo(elegidas)
+        ruta = _exportar_listado(
+            filas, _valores_analisis_largo, COLUMNAS_ANALISIS_LARGO, cwd,
+            "analisis_seleccion_%s" % (etiqueta_fuente or "seiscomp"),
+            padre=ventana)
+        if ruta is None:
+            estado.config(text="No se descargó el listado seleccionado.")
+            return
+        aviso = "Descargadas %d filas a %s" % (
+            len(filas), os.path.basename(ruta))
+        estado.config(text=aviso)
+        if log:
+            log(aviso)
+
     boton_recalcular.configure(command=_recalcular)
     boton_descargar.configure(command=_descargar)
+    boton_seleccion.configure(command=_descargar_seleccionados)
     ent_cerca.bind("<Return>", _recalcular)
 
     _recalcular()
@@ -3029,7 +3070,8 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
         cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
         clave_mag="magnitud", extra=CAMPOS_BUSQUEDA_EVENTO,
         claves_orden=CLAVES_ORDEN_EVENTO, max_filas=MAX_FILAS,
-        con_miniatura=True, etiqueta=etiqueta_fuente or "seiscomp",
+        con_miniatura=True, seleccionable=True,
+        etiqueta=etiqueta_fuente or "seiscomp",
         descarga_texto="Exportar lista", verbo_descarga="Exportados",
         extras_izquierda=_extras_izquierda, extras_derecha=_extras_derecha,
         formato_estado=_formato_estado)
@@ -3206,14 +3248,121 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
     return True
 
 
+class SeleccionTabla:
+    """
+    Casillas de selección para una tabla Treeview plana.
+
+    Usa la columna #0 del árbol, de modo que no agrega valores a 'columns' ni
+    desplaza los datos exportados. Las marcas se guardan por identidad de fila,
+    así se conservan al filtrar, ordenar o repintar la tabla.
+    """
+
+    def __init__(self, arbol, marcadas=None, al_cambiar=None, titulo="Sel"):
+        self.arbol = arbol
+        self.marcadas = set() if marcadas is None else marcadas
+        self._al_cambiar = al_cambiar
+        self._filas = {}
+        self._iid_por_clave = {}
+        self._clave_por_iid = {}
+        self._orden = []
+        self.arbol.configure(show="tree headings")
+        self.arbol.heading("#0", text=titulo,
+                           command=self.alternar_visibles)
+        self.arbol.column("#0", width=36, minwidth=36, stretch=False,
+                          anchor="center")
+        self.arbol.bind("<Button-1>", self._al_clic, add="+")
+
+    def _texto(self, clave):
+        return "☑" if clave in self.marcadas else "☐"
+
+    def _notificar(self):
+        if self._al_cambiar is not None:
+            self._al_cambiar()
+
+    def reiniciar(self, borrar_marcas=False):
+        """Olvida los iid actuales; conserva las marcas salvo que se pida."""
+        self._filas.clear()
+        self._iid_por_clave.clear()
+        self._clave_por_iid.clear()
+        self._orden.clear()
+        if borrar_marcas:
+            self.marcadas.clear()
+
+    def registrar(self, iid, fila):
+        """Asocia el iid insertado con su fila y pinta su casilla."""
+        clave = id(fila)
+        self._filas[clave] = fila
+        self._iid_por_clave[clave] = iid
+        self._clave_por_iid[iid] = clave
+        if clave not in self._orden:
+            self._orden.append(clave)
+        try:
+            self.arbol.item(iid, text=self._texto(clave))
+        except Exception:
+            pass
+
+    def alternar(self, iid):
+        clave = self._clave_por_iid.get(iid)
+        if clave is None:
+            return
+        if clave in self.marcadas:
+            self.marcadas.discard(clave)
+        else:
+            self.marcadas.add(clave)
+        try:
+            self.arbol.item(iid, text=self._texto(clave))
+        except Exception:
+            pass
+        self._notificar()
+
+    def alternar_visibles(self):
+        """Marca todas las visibles, o las desmarca si ya estaban todas."""
+        iids = list(self.arbol.get_children())
+        claves = [self._clave_por_iid.get(iid) for iid in iids]
+        claves = [clave for clave in claves if clave is not None]
+        if not claves:
+            return
+        if all(clave in self.marcadas for clave in claves):
+            for clave in claves:
+                self.marcadas.discard(clave)
+        else:
+            self.marcadas.update(claves)
+        for iid in iids:
+            clave = self._clave_por_iid.get(iid)
+            if clave is not None:
+                try:
+                    self.arbol.item(iid, text=self._texto(clave))
+                except Exception:
+                    pass
+        self._notificar()
+
+    def _al_clic(self, evento):
+        if self.arbol.identify_column(evento.x) != "#0":
+            return
+        iid = self.arbol.identify_row(evento.y)
+        if iid:
+            self.alternar(iid)
+
+    def seleccionadas(self, filas):
+        """Filas marcadas, conservando el orden de la lista recibida."""
+        return [fila for fila in filas if id(fila) in self.marcadas]
+
+    def hay_marcadas(self):
+        return bool(self.marcadas)
+
+    def contar(self):
+        return len(self.marcadas)
+
+
 def abrir_tabla(contenedor, filas, columnas, valores, *,
                 cwd=None, log=None,
                 filtros=("texto",), clave_mag="mag", extra=(),
                 claves_orden=None,
                 max_filas=None, iid_por_id=True,
-                con_miniatura=False,
+                con_miniatura=False, seleccionable=False,
                 ancho_lista=None, ancho_mini=None,
                 etiqueta=None, descarga_texto="Exportar lista",
+                descarga_seleccion_texto="Descargar seleccionados",
                 descarga_bootstyle="secondary-outline", descarga_ancho=None,
                 descarga_todo=False,
                 columnas_exportar=None, valores_exportar=None,
@@ -3240,6 +3389,8 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     - ancho_lista/ancho_mini: ancho solicitado de cada panel de la miniatura.
       Evita que una tabla con muchas columnas empuje el panel derecho fuera
       de la ventana; la tabla conserva su barra horizontal.
+    - seleccionable: agrega casillas en la columna #0 y un botón para
+      descargar solo las filas marcadas. La casilla no se exporta.
     - extras_izquierda(barra, marco_mini): widgets propios a la izquierda, antes
       de «Aplicar» (p. ej. la casilla de sismicidad histórica).
     - extras_derecha(barra): botones propios a la derecha (p. ej. Análisis
@@ -3309,8 +3460,10 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
             [t[0] for t in columnas if len(t) > 3 and t[3]])
 
     claves = [t[0] for t in columnas]
-    arbol = ttk.Treeview(marco_lista, columns=claves, show="headings",
-                         selectmode="browse")
+    arbol = ttk.Treeview(
+        marco_lista, columns=claves,
+        show=("tree headings" if seleccionable else "headings"),
+        selectmode="browse")
     for t in columnas:
         arbol.column(t[0], width=t[2], minwidth=45, stretch=False)
     barra_v = ttk.Scrollbar(marco_lista, orient="vertical",
@@ -3327,6 +3480,22 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     estado = {"filas": filas, "orden": None, "desc": False,
               "elegidas": list(filas), "mostradas": list(filas)}
     por_iid = {}
+    selector = None
+    boton_seleccion = None
+
+    def _actualizar_boton_seleccion():
+        if boton_seleccion is None:
+            return
+        cantidad = selector.contar() if selector is not None else 0
+        boton_seleccion.configure(state="normal" if cantidad else "disabled")
+        texto = descarga_seleccion_texto
+        if cantidad:
+            texto += " (%d)" % cantidad
+        boton_seleccion.configure(text=texto)
+
+    if seleccionable:
+        selector = SeleccionTabla(
+            arbol, al_cambiar=_actualizar_boton_seleccion)
 
     def _filtrar():
         texto = entradas["texto"].get() if "texto" in entradas else ""
@@ -3363,6 +3532,8 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
         estado["elegidas"] = elegidas
         estado["mostradas"] = mostradas
         por_iid.clear()
+        if selector is not None:
+            selector.reiniciar()
         if boton_descarga is not None:
             boton_descarga.configure(
                 state="normal" if elegidas else "disabled")
@@ -3380,12 +3551,19 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
             iid = str(id(fila)) if iid_por_id else str(indice)
             por_iid[iid] = fila
             arbol.insert("", "end", iid=iid, values=valores(fila))
+            if selector is not None:
+                selector.registrar(iid, fila)
+        _actualizar_boton_seleccion()
         if al_llenar is not None:
             al_llenar(elegidas, mostradas)
         return elegidas
 
-    def _exportar(todas=False):
-        elegidas = list(filas) if todas else estado["elegidas"]
+    def _exportar(todas=False, solo_marcadas=False):
+        if solo_marcadas:
+            elegidas = (selector.seleccionadas(filas)
+                        if selector is not None else [])
+        else:
+            elegidas = list(filas) if todas else estado["elegidas"]
         if not elegidas:
             return
         cols = columnas_exportar or columnas
@@ -3433,6 +3611,13 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
                    bootstyle=descarga_bootstyle,
                    command=lambda: _exportar(todas=True)).pack(
                        side="right", padx=(6, 0))
+    if seleccionable:
+        boton_seleccion = ttk.Button(
+            barra, text=descarga_seleccion_texto, state="disabled",
+            bootstyle=descarga_bootstyle,
+            command=lambda: _exportar(solo_marcadas=True))
+        boton_seleccion.pack(side="right", padx=(6, 0))
+        _actualizar_boton_seleccion()
     if extras_derecha is not None:
         extras_derecha(barra)
     if texto_detalle:
@@ -3460,7 +3645,8 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
             "fila_actual": _fila_actual, "marco_mini": marco_mini,
             "barra": barra, "entradas": entradas,
             "etiqueta_estado": etiqueta_estado,
-            "boton_descarga": boton_descarga}
+            "boton_descarga": boton_descarga, "seleccion": selector,
+            "boton_seleccion": boton_seleccion}
 
 
 def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
@@ -3560,7 +3746,7 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
     tabla = abrir_tabla(contenedor, eventos, columnas, _valores,
                         cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
                         clave_mag="mag", claves_orden=claves_orden,
-                        con_miniatura=True, etiqueta=fuente,
+                        con_miniatura=True, seleccionable=True, etiqueta=fuente,
                         descarga_texto="Exportar lista", descarga_ancho=17,
                         extras_izquierda=_extras_izquierda)
     arbol_ev = tabla["arbol"]
@@ -3605,7 +3791,9 @@ COLUMNAS_NO_ACTUALIZADO = [
     ("prof_local", "Prof. (%s)", 80),
     ("prof_eventquery", "Prof. publicada", 80),
     ("mag_local", "Mag. (%s)", 80),
+    ("tipo_mag_local", "Tipo mag. (%s)", 100),
     ("mag_eventquery", "Mag. publicada", 95),
+    ("tipo_mag_eventquery", "Tipo mag. publicada", 120),
     ("analista", "Analista", 90),
     ("publicacion_probable", "Publicación probable", 150),
     ("revision", "Revisión", 80),
@@ -3871,7 +4059,8 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
     tabla = abrir_tabla(marco, filas, columnas, _valores_no_actualizado,
                         cwd=cwd, log=log, filtros=("texto",),
                         claves_orden=claves_orden,
-                        iid_por_id=False, etiqueta="no actualizados %s" % fuente,
+                        iid_por_id=False, seleccionable=True,
+                        etiqueta="no actualizados %s" % fuente,
                         descarga_texto="Descargar",
                         descarga_bootstyle="primary-outline", descarga_todo=True,
                         texto_filtro="Filtrar:", texto_detalle="Doble clic plotea")

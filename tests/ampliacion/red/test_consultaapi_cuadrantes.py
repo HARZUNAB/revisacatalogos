@@ -146,6 +146,26 @@ def test_gfz_solo_comentarios(monkeypatch, consultaapi, cuadrante):
     assert consultaapi._gfz_cuadrante(cuadrante, "a", "b", 3.0) == []
 
 
+def test_gfz_prepara_csv_sin_perder_el_primer_evento(consultaapi):
+    texto = (
+        "#EventID|Time|Latitude|Longitude|Depth/km|Author|Catalog|"
+        "Contributor|ContributorID|MagType|Magnitude|MagAuthor|"
+        "EventLocationName|EventType\n"
+        "gfz1|2026-10-10T21:34:02.36|-37.071|-95.204|10.0|||GFZ|gfz1|"
+        "Mw|5.27||Southeast of Easter Island|earthquake\n"
+        "gfz2|2026-10-10T21:59:00.00|-24.4|-69.2|78.0|||GFZ|gfz2|"
+        "mb|4.0||Chile|earthquake\n")
+
+    preparado = consultaapi._texto_gfz_para_csv(texto)
+
+    assert preparado is not None
+    lineas = preparado.splitlines()
+    assert lineas[0].startswith("EventID|Time|")
+    assert lineas[1].startswith("gfz1|")
+    assert lineas[2].startswith("gfz2|")
+    assert len(lineas) == 3
+
+
 # --------------------------------------------------------------------------
 # _guardar sin filas
 # --------------------------------------------------------------------------
@@ -162,3 +182,20 @@ def test_cuadrantes_cubren_chile(consultaapi):
     assert len(consultaapi.CUADRANTES_CHILE) == 3
     for c in consultaapi.CUADRANTES_CHILE:
         assert {"name", "minlat", "maxlat", "minlon", "maxlon"} <= set(c)
+
+
+def test_cuadrantes_cubren_evento_y_franja_subantartica(consultaapi):
+    def nombres(lat, lon):
+        return [c["name"] for c in consultaapi.CUADRANTES_CHILE
+                if c["minlat"] <= lat <= c["maxlat"]
+                and c["minlon"] <= lon <= c["maxlon"]]
+
+    # Evento real del 2026-10-10, al sureste de Isla de Pascua.
+    assert "Pacífico Sur Oriental" in nombres(-37.21, -95.62)
+    # Rapa Nui queda dentro del mismo cuadrante.
+    assert "Pacífico Sur Oriental" in nombres(-27.1, -109.4)
+    # La franja -60..-56 queda cubierta por Pacífico y/o Antártico.
+    assert "Territorio Antártico Chileno" in nombres(-58.0, -70.0)
+    assert "Pacífico Sur Oriental" in nombres(-58.0, -95.0)
+    for lon in (-110.0, -100.0, -90.0, -80.0, -70.0, -60.0, -53.0):
+        assert nombres(-58.0, lon), lon

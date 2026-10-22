@@ -120,3 +120,42 @@ def test_ventana_analisis_rapido(raiz_tk, cwd_tmp):
     arbol = _buscar(win, ttk.Treeview)
     assert arbol is not None
     assert len(arbol.get_children()) == 1
+    assert _buscar(
+        win, ttk.Button,
+        lambda w: "Descargar seleccionados" in str(w.cget("text"))) is not None
+
+
+def test_analisis_rapido_descarga_seleccionados(
+        raiz_tk, cwd_tmp, monkeypatch):
+    ruta = _escribir(cwd_tmp, "datos/np.csv", NO_PICADAS)
+    win = rs._ventana_analisis_rapido(
+        _padre(raiz_tk), str(ruta), [EVENTO], str(cwd_tmp),
+        etiqueta_fuente="seiscomp")
+    win.deiconify()
+    win.update()
+    cuaderno = _buscar(win, ttk.Notebook)
+    cuaderno.select(cuaderno.tabs()[1])
+    win.update()
+    arbol = _buscar(win, ttk.Treeview)
+    caja = arbol.bbox(arbol.get_children()[0], "#0")
+    assert caja
+    if isinstance(caja, str):
+        caja = [int(v) for v in caja.split()]
+    arbol.event_generate("<Button-1>", x=caja[0] + 4, y=caja[1] + 4)
+    win.update()
+
+    exportadas = []
+
+    def exportar(filas, _valores, _columnas, _cwd, _etiqueta, **kwargs):
+        exportadas.append(list(filas))
+        return "datos/analisis.csv"
+
+    monkeypatch.setattr(rs, "_exportar_listado", exportar)
+    boton = _buscar(
+        win, ttk.Button,
+        lambda w: "Descargar seleccionados" in str(w.cget("text")))
+    assert boton is not None
+    boton.invoke()
+
+    assert len(exportadas) == 1
+    assert len(exportadas[0]) == 1

@@ -149,8 +149,9 @@ final.
   difieren de la solución de la fuente, en una pestaña por cada una (SeisComp,
   Seisan).
 - **«Comparar agencias»**: consulta los catálogos de **EMSC**, **USGS** y
-  **GFZ** (por API, para los cuadrantes continental/insular, Rapa Nui y
-  antártico) y los compara con **nuestro catálogo publicado**. Pide una
+  **GFZ** (por API, para los cuadrantes continental, Pacífico Sur Oriental
+  —incluida Rapa Nui— y antártico) y los compara con **nuestro catálogo
+  publicado**. Pide una
   **magnitud mínima** y qué agencias consultar; al terminar abre una ventana con
   la **Comparación** (nuestros eventos con las soluciones de las agencias
   superpuestas, color por fuente, y el Δ de ubicación/profundidad/magnitud al
@@ -310,8 +311,10 @@ SeisComp cuando su archivo de la ventana solo trae encabezado.
 Listado de eventos **sí publicados** pero cuyos parámetros difieren de los
 procesados. Muestra, por parámetro, el valor de la fuente y el publicado, los
 deltas, la **distancia (km)** entre ambas ubicaciones y una columna final con
-**qué parámetros discreparon**. Tiene un filtro por texto que se aplica con
-**«Aplicar»** (o Enter), no al escribir:
+**qué parámetros discreparon**. Para cada magnitud se muestra también su **tipo**
+(`ML`, `MLv`, etc.), tanto en la solución de la fuente como en la publicada.
+Tiene un filtro por texto que se aplica con **«Aplicar»** (o Enter), no al
+escribir:
 
 ![Ventana de no actualizados](img/09_no_actualizados.png)
 
@@ -364,8 +367,9 @@ ayuda del listado.
 ### Comparar agencias
 
 **«Comparar agencias»** (barra lateral) consulta por API los catálogos de
-**EMSC**, **USGS** y **GFZ** para los cuadrantes continental/insular, Rapa Nui y
-antártico, y los compara con **nuestro catálogo publicado**. El diálogo pide la
+**EMSC**, **USGS** y **GFZ** para los cuadrantes continental, Pacífico Sur
+Oriental —incluida Rapa Nui— y antártico, y los compara con **nuestro catálogo
+publicado**. El diálogo pide la
 **magnitud mínima** (que filtra nuestro catálogo y se usa como mínimo en la
 consulta a las agencias) y qué agencias consultar.
 
@@ -704,6 +708,12 @@ El diálogo recuerda el formato de la descarga anterior. En las vistas con tabla
 **«Descargar»** arma el archivo con el **filtro y el orden en pantalla**, y
 **«Descargar todo»** lo escribe entero.
 
+En los listados de eventos —catálogos, No publicados, No actualizados, Repetidos,
+Análisis rápido y Comparación de agencias— cada fila tiene una casilla. Las
+filas marcadas se conservan al filtrar u ordenar y **«Descargar seleccionados»**
+baja únicamente esas filas. Al hacer clic en el encabezado de la casilla se
+marcan o desmarcan todas las filas visibles.
+
 En **Comparar agencias → Comparación** se bajan varios archivos de una vez: el
 nombre que se elige es la base, y cada archivo agrega su sufijo (`_larga` para la
 comparación larga, `_cobertura` para la cobertura).
@@ -761,6 +771,10 @@ directa (fecha, hora, latitud, longitud, profundidad, magnitud, tipo, etc.).
 | Columna | Qué indica |
 |---|---|
 | **Rezago** | Cuánto antes del fin solicitado terminó el catálogo de esa agencia (p. ej. GFZ llega con ~1 día de atraso). |
+
+El botón **«Catálogos»** de esa ventana abre un menú con las agencias comparadas
+y con **eventquery (referencia)**. Al elegir una entrada se muestra el listado
+completo de eventos de ese catálogo, con filtro, orden, selección y descarga.
 
 ### Comparar agencias — descarga
 

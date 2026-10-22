@@ -6,8 +6,8 @@ Consulta los catálogos de agencias sismológicas externas por FDSN/API y los
 deja en CSV para compararlos con nuestras soluciones publicadas.
 
 Agencias: EMSC, USGS (NEIC) y GFZ. Se consultan tres cuadrantes que cubren el
-territorio continental e insular cercano, la Isla de Pascua (Rapa Nui) y el
-Territorio Antártico Chileno.
+territorio continental, el Pacífico Sur Oriental —incluida Rapa Nui y la franja
+subantártica— y el Territorio Antártico Chileno.
 
 Las 3 agencias × 3 cuadrantes se consultan EN PARALELO (hilos) para no encadenar
 hasta nueve requests secuenciales, y se emite progreso (`prog.avance`) para que
@@ -46,15 +46,17 @@ BASE_URL_EMSC = "http://www.seismicportal.eu/fdsnws/event/1/query?"
 BASE_URL_USGS = "https://earthquake.usgs.gov/fdsnws/event/1/query?"
 BASE_URL_GFZ = "http://geofon.gfz.de/fdsnws/event/1/query?"
 
-# Cuadrantes geográficos que cubren todo Chile: continental e insular cercano,
-# Rapa Nui y el Territorio Antártico Chileno.
+# Cuadrantes geográficos que cubren todo Chile. El Pacífico Sur Oriental
+# incluye Rapa Nui y el océano al oeste del continente; se solapa con el
+# Antártico entre -60 y -56 para no dejar esa franja sin consultar. Los
+# duplicados del solapamiento se descartan en _guardar().
 CUADRANTES_CHILE = [
-    {"name": "Continental e Insular Cercano",
+    {"name": "Continental",
      "minlat": -56.0, "maxlat": -17.5, "minlon": -76.0, "maxlon": -66.0},
-    {"name": "Chile Insular Oceánico (Rapa Nui)",
-     "minlat": -28.0, "maxlat": -26.0, "minlon": -110.0, "maxlon": -108.0},
+    {"name": "Pacífico Sur Oriental",
+     "minlat": -60.0, "maxlat": -17.5, "minlon": -110.0, "maxlon": -76.0},
     {"name": "Territorio Antártico Chileno",
-     "minlat": -90.0, "maxlat": -60.0, "minlon": -90.0, "maxlon": -53.0},
+     "minlat": -90.0, "maxlat": -56.0, "minlon": -90.0, "maxlon": -53.0},
 ]
 
 COLUMNAS = ['Fecha_Hora', 'Latitud', 'Longitud', 'Prof.', 'Mag.',
@@ -172,6 +174,26 @@ def _usgs_cuadrante(cuadrante, starttime, endtime, minmag):
     return filas
 
 
+def _texto_gfz_para_csv(datos):
+    """
+    Prepara la respuesta de texto de GFZ para pandas.
+
+    El encabezado de GFZ empieza con '#'. No se puede usar comment='#' en
+    read_csv porque descarta esa línea y toma el primer evento como
+    encabezado, perdiéndolo. Se quita solo el '#' de la cabecera y se dejan
+    las líneas de datos tal cual.
+    """
+    lineas = [linea for linea in datos.splitlines() if linea.strip()]
+    if not lineas:
+        return None
+    cabecera = lineas[0][1:] if lineas[0].startswith('#') else lineas[0]
+    cuerpo = [linea for linea in lineas[1:]
+              if not linea.startswith('#')]
+    if not cuerpo:
+        return None
+    return "\n".join([cabecera] + cuerpo)
+
+
 def _gfz_cuadrante(cuadrante, starttime, endtime, minmag):
     filas = []
     parametros = {
@@ -185,10 +207,10 @@ def _gfz_cuadrante(cuadrante, starttime, endtime, minmag):
         respuesta = requests.get(BASE_URL_GFZ, params=parametros, timeout=30)
         respuesta.raise_for_status()
         datos = respuesta.text
-        if not datos.strip() or all(
-                linea.startswith('#') for linea in datos.strip().split('\n')):
+        texto_csv = _texto_gfz_para_csv(datos)
+        if texto_csv is None:
             return filas
-        df = pd.read_csv(StringIO(datos), sep='|', comment='#')
+        df = pd.read_csv(StringIO(texto_csv), sep='|')
         if df.empty or df.shape[1] < 14:
             return filas
         for r in df.itertuples(index=False, name=None):

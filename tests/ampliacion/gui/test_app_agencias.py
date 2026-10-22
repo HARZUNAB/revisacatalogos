@@ -7,10 +7,13 @@ y el diálogo `_pedir_parametros_agencias`. **Interfaz real** con datos
 sintéticos en el formato real. Necesita `DISPLAY`.
 """
 
+import json
 import tkinter as tk
 from tkinter import ttk
 
 import pytest
+
+import app as appmod
 
 pytestmark = pytest.mark.gui
 
@@ -126,6 +129,56 @@ def test_detalles_cobertura(app_factory, raiz_gui):
     assert valores2[0] == "USGS" and valores2[2] == "—"
 
 
+def test_detalles_cobertura_tiene_menu_de_catalogos(app_factory, raiz_gui):
+    _, inst = app_factory()
+    padre = tk.Toplevel(raiz_gui)
+    padre.withdraw()
+
+    inst._detalles_cobertura(padre, _cobertura_fija())
+
+    top = _toplevel(raiz_gui, "Cobertura por agencia")
+    boton = _buscar(top, ttk.Menubutton,
+                    lambda w: w.cget("text") == "Catálogos")
+    assert boton is not None
+    menu = boton.nametowidget(boton.cget("menu"))
+    etiquetas = []
+    for indice in range(menu.index("end") + 1):
+        try:
+            etiquetas.append(menu.entrycget(indice, "label"))
+        except tk.TclError:
+            pass
+    assert any("EMSC" in etiqueta for etiqueta in etiquetas)
+    assert any("USGS" in etiqueta for etiqueta in etiquetas)
+    assert "eventquery (referencia)" in etiquetas
+
+
+def test_abrir_catalogo_de_agencia_y_eventquery(
+        app_factory, raiz_gui, cwd_tmp):
+    _, inst = app_factory()
+    _escribir(
+        cwd_tmp, "datos/agencias/consultaapi_EMSC.csv",
+        "id,Fecha_Hora,Latitud,Longitud,Prof.,Mag.,Tipo Mag.,Referencia,Agencia\n"
+        "1,2026-09-05 00:00:00,-33.0,-71.0,30.0,4.5,mb,REF,EMSC\n")
+    _escribir(
+        cwd_tmp, "datos/todos_eventquery.csv",
+        ",Fecha_Hora,Latitud,Longitud,Prof.,Mag.,Tipo_mag.,Referencia,Percep.\n"
+        "0,2026-09-05 00:00:00,-33.0,-71.0,30.0,4.5,ML,REF,N\n")
+    padre = tk.Toplevel(raiz_gui)
+    padre.withdraw()
+
+    inst._abrir_catalogo_comparado(padre, "EMSC")
+    top = _toplevel(raiz_gui, "Catálogo EMSC")
+    assert top is not None
+    arbol = _buscar(top, ttk.Treeview)
+    assert len(arbol.get_children()) == 1
+
+    inst._abrir_catalogo_comparado(padre, "eventquery")
+    top = _toplevel(raiz_gui, "Catálogo eventquery")
+    assert top is not None
+    arbol = _buscar(top, ttk.Treeview)
+    assert len(arbol.get_children()) == 1
+
+
 # --------------------------------------------------------------------------
 # _ver_comparacion_agencias
 # --------------------------------------------------------------------------
@@ -201,3 +254,47 @@ def test_pedir_parametros_cancelar(app_factory, raiz_gui, cwd_tmp):
     raiz_gui.after(50, lambda: _boton(_top_dialogo(raiz_gui),
                                       "Cancelar").invoke())
     assert inst._pedir_parametros_agencias() is None
+
+
+def test_armar_listado_descarga_seleccionados(
+        app_factory, raiz_gui, cwd_tmp, monkeypatch):
+    _, inst = app_factory()
+    _escribir(
+        cwd_tmp, "datos/comparacion_agencias_listado.json",
+        json.dumps({
+            "encabezados": ["Fecha_Hora", "Agencias"],
+            "filas": [
+                {"cols": ["2026-09-05 00:00:00", "EMSC"], "evento": {}},
+                {"cols": ["2026-09-05 01:00:00", "USGS"], "evento": {}},
+            ],
+        }))
+    padre = tk.Toplevel(raiz_gui)
+    padre.deiconify()
+    llamado = {}
+
+    def descargar(padre_descarga, encabezados, filas, etiqueta, **kwargs):
+        llamado["encabezados"] = encabezados
+        llamado["filas"] = filas
+        llamado["etiqueta"] = etiqueta
+        return "datos/seleccion.csv"
+
+    monkeypatch.setattr(appmod.descargas, "descargar_tabla", descargar)
+    inst._armar_listado(padre, "comparacion_agencias_listado.json",
+                        lambda _fila: None)
+    padre.update()
+    arbol = _buscar(padre, ttk.Treeview)
+    caja = arbol.bbox(arbol.get_children()[0], "#0")
+    assert caja
+    if isinstance(caja, str):
+        caja = [int(v) for v in caja.split()]
+    arbol.event_generate("<Button-1>", x=caja[0] + 4, y=caja[1] + 4)
+    padre.update()
+
+    boton = _boton(padre, "Descargar seleccionados (1)")
+    assert boton is not None
+    boton.invoke()
+
+    assert llamado["encabezados"] == ["Fecha_Hora", "Agencias"]
+    assert len(llamado["filas"]) == 1
+    assert llamado["filas"][0][0] == "2026-09-05 00:00:00"
+    padre.destroy()

@@ -78,7 +78,7 @@ import traer_catalogos as tc
 import matplotlib
 matplotlib.use("TkAgg")  # las figuras de detalle comparten la raíz Tk de la app
 
-from tkinter import BooleanVar, TclError, Toplevel
+from tkinter import BooleanVar, Menu, TclError, Toplevel
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
@@ -3164,13 +3164,37 @@ class App:
             filas = filas[:TOPE]
 
         claves = ["c%d" % i for i in range(len(encab))]
+        rs = self._importar_revisor()
         anchos = {"Fecha_Hora": 150, "Latitud": 80, "Longitud": 80,
                   "Prof.": 70, "Mag.": 60, "Agencias": 220, "Δmáx (km)": 90}
+        barra_sel = ttk.Frame(padre)
+        barra_sel.pack(side=TOP, fill=X, padx=6, pady=(2, 0))
+        boton_sel = ttk.Button(
+            barra_sel, text="Descargar seleccionados", state="disabled",
+            bootstyle="secondary-outline")
+        boton_sel.pack(side="right")
+        estado_sel = ttk.Label(barra_sel, text="", bootstyle="secondary")
+        estado_sel.pack(side="right", padx=(0, 8))
         marco = ttk.Frame(padre)
         marco.pack(fill=BOTH, expand=YES, padx=6, pady=4)
         arbol = ttk.Treeview(marco, columns=claves, show="headings", height=8)
         mostradas = list(filas)
         estado_orden = {"col": None, "desc": False}
+        seleccion = {"sel": None}
+
+        def _actualizar_boton_seleccion():
+            sel = seleccion["sel"]
+            cantidad = sel.contar() if sel is not None else 0
+            boton_sel.configure(
+                state="normal" if cantidad else "disabled",
+                text=("Descargar seleccionados (%d)" % cantidad
+                      if cantidad else "Descargar seleccionados"))
+            estado_sel.config(text=("%d seleccionados" % cantidad
+                                    if cantidad else ""))
+
+        if rs is not None:
+            seleccion["sel"] = rs.SeleccionTabla(
+                arbol, al_cambiar=_actualizar_boton_seleccion)
 
         def _clave(fila, idx):
             cols = fila.get("cols") or []
@@ -3182,8 +3206,14 @@ class App:
 
         def _llenar():
             arbol.delete(*arbol.get_children())
+            sel = seleccion["sel"]
+            if sel is not None:
+                sel.reiniciar()
             for i, fila in enumerate(mostradas):
                 arbol.insert("", END, iid=str(i), values=fila.get("cols", []))
+                if sel is not None:
+                    sel.registrar(str(i), fila)
+            _actualizar_boton_seleccion()
 
         def _ordenar(idx):
             if estado_orden["col"] == idx:
@@ -3216,6 +3246,21 @@ class App:
         barra_v.pack(side=RIGHT, fill=Y)
         barra_h.pack(side=BOTTOM, fill=X)
         arbol.pack(side=LEFT, fill=BOTH, expand=YES)
+        def _descargar_seleccionados():
+            sel = seleccion["sel"]
+            if sel is None:
+                return
+            elegidas = sel.seleccionadas(filas)
+            if not elegidas:
+                estado_sel.config(text="No hay eventos seleccionados.")
+                return
+            encabezados = list(encab)
+            filas_csv = [fila.get("cols") or [] for fila in elegidas]
+            etiqueta = "seleccion_%s" % os.path.splitext(nombre_json)[0]
+            descargas.descargar_tabla(
+                padre.winfo_toplevel(), encabezados, filas_csv, etiqueta)
+
+        boton_sel.configure(command=_descargar_seleccionados)
         arbol.bind("<Double-1>", _plotear_sel)
         _llenar()
 
@@ -3338,6 +3383,84 @@ class App:
             self._log("[error ajuste] " + traceback.format_exc())
         self._log("Ventana «Comparar agencias» lista.")
 
+    def _abrir_catalogo_comparado(self, padre, nombre):
+        """Abre el listado de eventos de una agencia o de eventquery."""
+        if nombre == "eventquery":
+            ruta = os.path.join("datos", "todos_eventquery.csv")
+            columnas = [
+                ("Fecha_Hora", "Fecha y hora", 150, False),
+                ("Latitud", "Latitud", 90, True),
+                ("Longitud", "Longitud", 90, True),
+                ("Prof.", "Prof. km", 80, True),
+                ("Mag.", "Mag.", 70, True),
+                ("Tipo_mag.", "Tipo mag.", 85, False),
+                ("Referencia", "Referencia", 300, False),
+                ("Percep.", "Percib.", 70, False),
+            ]
+            etiqueta = "eventquery"
+        else:
+            sufijo = AGENCIAS_EXTERNAS.get(nombre)
+            ruta = (os.path.join("datos", "agencias",
+                                 "consultaapi_%s.csv" % sufijo)
+                    if sufijo else "")
+            columnas = [
+                ("Fecha_Hora", "Fecha y hora", 150, False),
+                ("Latitud", "Latitud", 90, True),
+                ("Longitud", "Longitud", 90, True),
+                ("Prof.", "Prof. km", 80, True),
+                ("Mag.", "Mag.", 70, True),
+                ("Tipo Mag.", "Tipo mag.", 85, False),
+                ("Referencia", "Referencia", 300, False),
+                ("Agencia", "Agencia", 90, False),
+            ]
+            etiqueta = "catalogo_%s" % str(nombre).lower()
+
+        if not ruta or not os.path.isfile(ruta):
+            Messagebox.show_info(
+                "No está el catálogo de %s.\n\n%s" % (nombre, ruta),
+                "Catálogo %s" % nombre, parent=padre)
+            return
+        try:
+            with open(ruta, encoding="utf-8-sig", newline="") as f:
+                filas = list(csv.DictReader(f))
+        except OSError as e:
+            Messagebox.show_info("No se pudo leer el catálogo de %s:\n%s"
+                                 % (nombre, e), "Catálogo %s" % nombre,
+                                 parent=padre)
+            return
+        if not filas:
+            Messagebox.show_info("El catálogo de %s no tiene eventos."
+                                 % nombre, "Catálogo %s" % nombre,
+                                 parent=padre)
+            return
+
+        rs = self._importar_revisor()
+        if rs is None:
+            return
+        claves = [c[0] for c in columnas]
+
+        def _valores(fila):
+            return [str(fila.get(c, "") or "") for c in claves]
+
+        top = ttk.Toplevel(title="Catálogo %s" % nombre, master=padre)
+        top.withdraw()
+        top.geometry("1100x560")
+        top.minsize(820, 440)
+        marco = ttk.Frame(top, padding=10)
+        marco.pack(fill=BOTH, expand=YES)
+        rs.abrir_tabla(
+            marco, filas, columnas, _valores, cwd=self.cwd, log=self._log,
+            filtros=("texto",), seleccionable=True,
+            etiqueta=etiqueta, descarga_texto="Descargar", descarga_todo=True,
+            descarga_bootstyle="primary-outline",
+            texto_filtro="Filtrar:")
+        self._ajustar_popup(top, (1100, 560))
+        top.deiconify()
+        try:
+            descargas.encima_de(padre, top, modal=False)
+        except Exception:
+            pass
+
     def _detalles_cobertura(self, padre, cobertura):
         """
         Ventana de consulta (NO modal) con la ventana solicitada y la real por
@@ -3380,8 +3503,30 @@ class App:
                        "reportado entre los devueltos (no la cobertura total "
                        "del catálogo). El rezago compara el último evento con "
                        "el fin solicitado.").pack(anchor=W)
-        ttk.Button(marco, text="Cerrar", command=top.destroy,
-                   bootstyle="secondary").pack(anchor=E, pady=(8, 0))
+        botones = ttk.Frame(marco)
+        botones.pack(fill=X, pady=(8, 0))
+        menu = Menu(top, tearoff=False)
+        for fila in cobertura["agencias"]:
+            agencia = fila["agencia"]
+            sufijo = AGENCIAS_EXTERNAS.get(agencia)
+            ruta = (os.path.join("datos", "agencias",
+                                 "consultaapi_%s.csv" % sufijo)
+                    if sufijo else "")
+            menu.add_command(
+                label="%s (%d eventos)" % (agencia, fila["eventos"]),
+                command=lambda a=agencia: self._abrir_catalogo_comparado(top, a),
+                state="normal" if ruta and os.path.isfile(ruta) else "disabled")
+        menu.add_separator()
+        ruta_eventquery = os.path.join("datos", "todos_eventquery.csv")
+        menu.add_command(
+            label="eventquery (referencia)",
+            command=lambda: self._abrir_catalogo_comparado(top, "eventquery"),
+            state="normal" if os.path.isfile(ruta_eventquery) else "disabled")
+        ttk.Menubutton(
+            botones, text="Catálogos", menu=menu,
+            bootstyle="secondary-outline").pack(side=LEFT)
+        ttk.Button(botones, text="Cerrar", command=top.destroy,
+                   bootstyle="secondary").pack(side=RIGHT)
         top.deiconify()
         try:
             descargas.encima_de(padre, top, modal=False)
@@ -3774,7 +3919,7 @@ class App:
                 _analistas_probables_repetidos(filas, _indices())
             tabla = rs.abrir_tabla(
                 frame, filas, columnas, _valores(columnas),
-                cwd=self.cwd, log=self._log,
+                cwd=self.cwd, log=self._log, seleccionable=True,
                 etiqueta=os.path.splitext(os.path.basename(ruta))[0],
                 descarga_texto="Descargar", descarga_todo=True,
                 descarga_bootstyle="primary-outline",
@@ -3977,7 +4122,7 @@ class App:
         marco.pack(fill=BOTH, expand=YES)
         tabla = rs.abrir_tabla(
             marco, filas, columnas, _valores, cwd=self.cwd, log=self._log,
-            filtros=("texto",), iid_por_id=False,
+            filtros=("texto",), iid_por_id=False, seleccionable=True,
             etiqueta="no publicados %s" % fuente,
             descarga_texto="Descargar",
             descarga_bootstyle="primary-outline", descarga_todo=True,

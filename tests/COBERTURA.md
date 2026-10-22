@@ -53,7 +53,7 @@ sin marcador) y otra no (`gui`/`db`).
 | `repetidos.py` | scripts | `scripts/test_repetidos_helpers.py` | sí |
 | `revisacollect.py` | scripts | `scripts/test_revisacollect_helpers.py` | sí |
 | `revisaexcluidos.py` | scripts | `scripts/test_revisaexcluidos_helpers.py` | sí |
-| `revisa_seiscomp.py` | base, bordes, gui | `base/test_revisa_seiscomp.py`, `bordes/test_revisa_seiscomp_bordes.py`, `gui/test_rs_panel.py`, `gui/test_rs_no_actualizados.py`, `gui/test_rs_detalle.py`, `gui/test_rs_estaciones.py`, `gui/test_rs_analisis.py`, `gui/test_rs_main.py` | parcial |
+| `revisa_seiscomp.py` | base, bordes, gui | `base/test_revisa_seiscomp.py`, `bordes/test_revisa_seiscomp_bordes.py`, `gui/test_rs_panel.py`, `gui/test_rs_no_actualizados.py`, `gui/test_rs_seleccion.py`, `gui/test_rs_detalle.py`, `gui/test_rs_estaciones.py`, `gui/test_rs_analisis.py`, `gui/test_rs_main.py` | parcial |
 | `revisaselect.py` | scripts | `scripts/test_revisaselect_helpers.py` | sí |
 | `rutas.py` | base, bordes | `base/test_rutas.py`, `bordes/test_rutas_bordes.py` | sí |
 | `seiscomp_a_parametros.py` | base, bordes | `base/test_seiscomp_a_parametros.py`, `bordes/test_seiscomp_a_parametros_bordes.py` | sí |

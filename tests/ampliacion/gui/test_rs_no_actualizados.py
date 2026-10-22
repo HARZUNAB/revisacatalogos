@@ -121,6 +121,42 @@ def test_abrir_no_actualizados_real(raiz_tk, cwd_tmp):
     assert len(arbol.get_children()) == 1
 
 
+def test_abrir_no_actualizados_muestra_tipos_de_magnitud(
+        raiz_tk, cwd_tmp, monkeypatch):
+    _escribir(cwd_tmp, "datos/atribucion_seiscomp.csv", _ATRIBUCION)
+    contenedor = _contenedor(raiz_tk)
+    assert rs.abrir_no_actualizados(contenedor, "seiscomp") is True
+    arbol = _buscar(contenedor, ttk.Treeview)
+    claves = list(arbol["columns"])
+    valores = arbol.item(arbol.get_children()[0], "values")
+
+    assert arbol.heading("tipo_mag_local", "text") == \
+        "Tipo mag. (SeisComp)"
+    assert arbol.heading("tipo_mag_eventquery", "text") == \
+        "Tipo mag. publicada"
+    assert valores[claves.index("tipo_mag_local")] == "ML"
+    assert valores[claves.index("tipo_mag_eventquery")] == "ML"
+
+    exportado = {}
+
+    def exportar(filas, valores, columnas, cwd, etiqueta, **kwargs):
+        exportado["columnas"] = [c[0] for c in columnas]
+        exportado["filas"] = [valores(f) for f in filas]
+        return "datos/no_actualizados.csv"
+
+    monkeypatch.setattr(rs, "_exportar_listado", exportar)
+    boton = _buscar(contenedor, ttk.Button,
+                    lambda w: w.cget("text") == "Descargar")
+    boton.invoke()
+
+    assert "tipo_mag_local" in exportado["columnas"]
+    assert "tipo_mag_eventquery" in exportado["columnas"]
+    pos_local = exportado["columnas"].index("tipo_mag_local")
+    pos_publicada = exportado["columnas"].index("tipo_mag_eventquery")
+    assert exportado["filas"][0][pos_local] == "ML"
+    assert exportado["filas"][0][pos_publicada] == "ML"
+
+
 def test_abrir_no_actualizados_sin_csv(raiz_tk, cwd_tmp):
     contenedor = _contenedor(raiz_tk)
     assert rs.abrir_no_actualizados(contenedor, "seiscomp") is False

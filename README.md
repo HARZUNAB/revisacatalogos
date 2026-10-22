@@ -445,7 +445,9 @@ probable (SeisComp)», deducidos por cruce con esas fuentes. En «Comparar agenc
 y cada archivo agrega su sufijo (`_larga`, `_cobertura`).
 
 En las vistas con tabla, «Descargar» arma el archivo con el filtro y el orden que
-se ven en pantalla, y «Descargar todo» lo escribe entero. En el panel de análisis,
+se ven en pantalla, y «Descargar todo» lo escribe entero. Los listados de eventos
+tienen casillas por fila y «Descargar seleccionados» baja solo las marcadas; la
+selección se conserva al filtrar u ordenar. En el panel de análisis,
 «Descargar» pregunta el ámbito: el perfil de la fila seleccionada, todos los
 perfiles visibles o los eventos sin perfil, con la cantidad de cada uno. Si el
 filtro «Solo sospechosos» está prendido, solo entran los eventos sospechosos; en
