@@ -12,9 +12,11 @@ ya traen asignado el perfil más cercano) contra nuestro catálogo publicado
         contraparte en nuestro publicado.
 
 Criterio de asociación (se considera el mismo evento si coincide en espacio y
-tiempo): |Δt| <= 6 s, |Δlat| <= 0.25° y |Δlon| <= 0.25°. El Δ de magnitud se
-registra y se marca cuando supera 0.2. No se exige el mismo día: la ventana de
-6 s ya acota, y exigirlo perdía el cruce de la medianoche.
+tiempo): |Δt| <= 6 s y distancia horizontal <= 75 km. Se usa distancia en km,
+no una caja de grados, para que el margen sea el mismo en el territorio
+continental, insular y antártico. El Δ de magnitud se registra y se marca
+cuando supera 0.2. No se exige el mismo día: la ventana de 6 s ya acota, y
+exigirlo perdía el cruce de la medianoche.
 
 Uso:
     python3 agencias.py <minmag> <agencia1> [<agencia2> ...]
@@ -32,9 +34,12 @@ import rutas
 
 # Tolerancias de asociación (mismo evento en espacio y tiempo).
 VENTANA_SEG = 6.0
-TOL_LAT = 0.25
-TOL_LON = 0.25
+TOL_KM = 75.0
 TOL_MAG = 0.2
+
+# Cambiar cuando cambie el criterio de asociación: la app lo usa para no
+# reutilizar una comparación calculada con una versión anterior.
+VERSION_ASOCIACION = 2
 
 
 def _instante(texto):
@@ -62,12 +67,14 @@ def _mejor_publicado(publicados, agencia_ev):
     mejor_dt = None
     for p in publicados:
         tp = p['_dt']
-        if tp is None:
+        if tp is None or p['_lat'] is None or p['_lon'] is None:
             continue
         dt = abs((tp - t).total_seconds())
         if dt > VENTANA_SEG:
             continue
-        if abs(p['_lat'] - lat) > TOL_LAT or abs(p['_lon'] - lon) > TOL_LON:
+        distancia = comparacion.distancia_km(
+            p['_lat'], p['_lon'], lat, lon)
+        if distancia is None or distancia > TOL_KM:
             continue
         if mejor_dt is None or dt < mejor_dt:
             mejor_dt = dt
@@ -119,7 +126,7 @@ def _escribir_csv(nombre, encabezados, filas):
 
 
 def _mismo_evento(ref, ev):
-    """True si 'ev' es el mismo evento que 'ref': ≤6 s y Δlat/Δlon ≤0.25°."""
+    """True si 'ev' es el mismo evento que 'ref': ≤6 s y ≤75 km."""
     tr = _instante(ref.get('fecha hora'))
     t = _instante(ev.get('fecha hora'))
     if tr is None or t is None:
@@ -130,13 +137,14 @@ def _mismo_evento(ref, ev):
     lat, lon = _numero(ev.get('latitud')), _numero(ev.get('longitud'))
     if rlat is None or rlon is None or lat is None or lon is None:
         return False
-    return abs(rlat - lat) <= TOL_LAT and abs(rlon - lon) <= TOL_LON
+    distancia = comparacion.distancia_km(rlat, rlon, lat, lon)
+    return distancia is not None and distancia <= TOL_KM
 
 
 def _asociar_entre_agencias(eventos):
     """
-    Agrupa eventos de agencias DISTINTAS que son el mismo (≤6 s y Δlat/Δlon
-    ≤0.25°). Devuelve una lista de grupos (listas de eventos).
+    Agrupa eventos de agencias DISTINTAS que son el mismo (≤6 s y ≤75 km).
+    Devuelve una lista de grupos (listas de eventos).
 
     Un evento se suma a un grupo si coincide con CUALQUIER miembro (no solo con
     el primero): así una cadena A-B-C se une entera en vez de partirse cuando C

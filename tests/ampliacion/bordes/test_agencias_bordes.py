@@ -46,10 +46,22 @@ def test_mejor_publicado_ventana_exacta():
     assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:06", -33.0, -71.0)) is pub
 
 
-def test_mejor_publicado_tolerancia_espacial_exacta():
-    # Δlat = 0.25° entra (el corte es > 0.25).
-    pub = _pub("2026-01-01 00:00:00", -33.0, -71.0)
-    assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -33.25, -71.0)) is pub
+def test_mejor_publicado_tolerancia_espacial_en_km():
+    # En el ecuador, 0.67° de longitud son ~74.5 km (entra) y 0.68° ~75.6 km
+    # (queda fuera); el límite es un radio, no una caja de grados.
+    pub = _pub("2026-01-01 00:00:00", 0.0, 0.0)
+    assert a._mejor_publicado(
+        [pub], _ag("2026-01-01 00:00:00", 0.0, 0.67)) is pub
+    assert a._mejor_publicado(
+        [pub], _ag("2026-01-01 00:00:00", 0.0, 0.68)) is None
+
+
+def test_mejor_publicado_en_alta_latitud_usa_km():
+    # A -80°, 2° de longitud son ~38.6 km: una caja de 0.5° lo rechazaría.
+    pub = _pub("2026-01-01 00:00:00", -80.0, -70.0)
+    ev = _ag("2026-01-01 00:00:00", -80.0, -72.0)
+    assert a._mejor_publicado([pub], ev) is pub
+    assert a._mismo_evento(pub, ev) is True
 
 
 def test_mejor_publicado_cruce_de_medianoche_asocia():
@@ -176,4 +188,28 @@ def test_main_todas_las_agencias_faltantes(cwd_tmp, monkeypatch):
     a.main()
     comparacion = _leer_json(cwd_tmp, "comparacion_agencias.json")
     assert len(comparacion) == 1 and comparacion[0]["agencias"] == []
+    assert _leer_json(cwd_tmp, "agencias_sin_par.json") == []
+
+
+def test_main_asocia_las_tres_agencias_del_evento_pacifico(
+        cwd_tmp, monkeypatch):
+    _escribir_json(cwd_tmp, "eventos_eventquery.json", [{
+        "fecha hora": "2026-10-10 21:33:58", "latitud": "-37.21",
+        "longitud": "-95.62", "prof": "10.0", "magnitud": "5.1"}])
+    for agencia, fecha, lat, lon in [
+            ("EMSC", "2026-10-10 21:34:01", "-37.079", "-95.381"),
+            ("USGS", "2026-10-10 21:34:02", "-37.117", "-95.267"),
+            ("GFZ", "2026-10-10 21:34:02", "-37.071", "-95.204")]:
+        _escribir_json(cwd_tmp, "eventos_agencia_%s.json" % agencia, [{
+            "fecha hora": fecha, "latitud": lat, "longitud": lon,
+            "prof": "10.0", "magnitud": "5.3", "agencia": agencia}])
+
+    monkeypatch.setattr(sys, "argv",
+                        ["agencias.py", "2.5", "EMSC", "USGS", "GFZ"])
+    a.main()
+
+    comparacion = _leer_json(cwd_tmp, "comparacion_agencias.json")
+    assert len(comparacion) == 1
+    assert [x["agencia"] for x in comparacion[0]["agencias"]] == [
+        "EMSC", "USGS", "GFZ"]
     assert _leer_json(cwd_tmp, "agencias_sin_par.json") == []

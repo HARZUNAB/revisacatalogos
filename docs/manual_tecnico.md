@@ -110,7 +110,11 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 > infiere inicio/fin del nombre de los archivos cuando no vino `estado.json`) y
 > `_comparacion_al_dia()`/`_consulta_agencias_al_dia()` comparan contra el
 > `mtime` de `datos/comparacion_agencias.json` y de `eventos_<referencia>.json`
-> / `eventos_agencia_*.json`. La cabecera de la ventana muestra «Reutilizada» o
+> / `eventos_agencia_*.json`. Además, `_comparacion_al_dia()` exige que
+> `version_asociacion` de `estado.json` coincida con
+> `agencias.VERSION_ASOCIACION`: un cambio en el criterio de asociación invalida
+> la comparación cacheada sin volver a descargar los catálogos. La cabecera de la
+> ventana muestra «Reutilizada» o
 > «Ejecutada» con el `timestamp` (UTC) y `_cobertura_agencias()` resume la
 > ventana solicitada y la real por agencia (min/max de
 > `datos/agencias/consultaapi_<AG>.csv`, con rezago), en un popup «Cobertura por
@@ -621,7 +625,7 @@ en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 | **Δt (s)** | Diferencia de tiempo, en segundos, respecto de la solución de referencia. | `agencias` |
 | **Dist (km)** | Distancia horizontal, en km, entre dos soluciones. | `agencias` |
 | **Δprof (km)** / **Δmag** | Diferencia de profundidad (km) / de magnitud respecto de la referencia. | `agencias` |
-| **Fuera de rango** | La solución excede la tolerancia de asociación (≤ 6 s y Δlat/Δlon ≤ 0.25°): se lista pero no se asocia. | `agencias._mismo_evento` |
+| **Fuera de rango** | La solución asociada supera Δt > 3 s o \|Δmag\| > 0.2. La asociación exige ≤ 6 s y ≤ 75 km de distancia horizontal. | `agencias._flags` / `agencias._mismo_evento` |
 | **Referencia** / **Asociado** / **Fuente** | Evento publicado de referencia del cruce / agencia asociada (formato largo) / origen de la fila. | `agencias` |
 | **Agencias** / **Rezago** | Fuentes que reportaron el evento (unidas con `≡` si caen en la misma ubicación) / cuánto antes del fin solicitado terminó el catálogo de la agencia. | `agencias` / `app._cobertura_agencias` |
 | **Loc** / **Cha** | Localización (2 dígitos) y canal del stream (código SEED). | `revisa_seiscomp` |

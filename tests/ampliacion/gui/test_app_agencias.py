@@ -95,6 +95,28 @@ def test_cobertura_agencias_sin_csv(app_factory, cwd_tmp):
     assert fila["desde"] == "" and fila["hasta"] == "" and fila["rezago"] == ""
 
 
+def test_comparacion_al_dia_exige_version_de_asociacion(
+        app_factory, cwd_tmp, monkeypatch):
+    _, inst = app_factory()
+    periodo = ("20260901000000", "20260930235959")
+    monkeypatch.setattr(inst, "_periodo", lambda: periodo)
+    _escribir(cwd_tmp, "datos/eventos_eventquery.json", "[]")
+    _escribir(cwd_tmp, "datos/eventos_agencia_EMSC.json", "[]")
+    _escribir(cwd_tmp, "datos/comparacion_agencias.json", "[]")
+    inst._escribir_estado_agencias(4.0, ["EMSC"], "ventana", periodo)
+
+    assert inst._comparacion_al_dia(
+        4.0, ["EMSC"], "ventana", "eventquery") is True
+
+    ruta = cwd_tmp / "datos/agencias/estado.json"
+    estado = json.loads(ruta.read_text(encoding="utf-8"))
+    estado["comparacion"].pop("version_asociacion")
+    ruta.write_text(json.dumps(estado), encoding="utf-8")
+
+    assert inst._comparacion_al_dia(
+        4.0, ["EMSC"], "ventana", "eventquery") is False
+
+
 # --------------------------------------------------------------------------
 # _detalles_cobertura
 # --------------------------------------------------------------------------

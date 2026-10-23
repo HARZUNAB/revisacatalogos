@@ -784,7 +784,7 @@ completo de eventos de ese catálogo, con filtro, orden, selección y descarga.
 | **Dist (km)** | Distancia, en km, entre la solución de la agencia y la nuestra. |
 | **Δprof (km)** | Diferencia de profundidad, en km. |
 | **Δmag** | Diferencia de magnitud. |
-| **Fuera de rango** | Marca la solución que excede la tolerancia de asociación (más de 6 s o más de 0.25° de separación): se lista, pero no se considera el mismo evento. |
+| **Fuera de rango** | Marca la solución que supera Δt > 3 s o \|Δmag\| > 0.2. La asociación exige ≤ 6 s y ≤ 75 km de distancia horizontal; fuera de eso la agencia se muestra en «Agencias sin contraparte con CSN». |
 | **Referencia** | Nuestro evento publicado que se toma como referencia del cruce. |
 | **Asociado** | En el formato largo, la agencia cuya solución se asoció a la referencia. |
 | **Fuente** | Origen de la fila (nuestra solución o una agencia). |

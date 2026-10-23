@@ -71,6 +71,7 @@ try:
 except Exception:  # sin dateutil se cae al formato estricto
     _dateparser = None
 
+import agencias as agencias_mod
 import ajuste
 import descargas
 import traer_catalogos as tc
@@ -2508,7 +2509,9 @@ class App:
                     "%Y-%m-%d %H:%M:%S"),
             },
             "comparacion": {"minmag": minmag, "agencias": list(agencias),
-                            "referencia": referencia},
+                            "referencia": referencia,
+                            "version_asociacion":
+                                agencias_mod.VERSION_ASOCIACION},
         }
         ruta = self._ruta_estado_agencias()
         try:
@@ -2578,6 +2581,8 @@ class App:
         estado = self._leer_estado_agencias()
         comp = (estado.get("comparacion") or {})
         consulta = (estado.get("consulta") or {})
+        if comp.get("version_asociacion") != agencias_mod.VERSION_ASOCIACION:
+            return False
         if comp.get("minmag") != minmag:
             return False
         if sorted(comp.get("agencias") or []) != sorted(agencias):

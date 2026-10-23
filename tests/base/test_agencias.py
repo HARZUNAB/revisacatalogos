@@ -72,8 +72,20 @@ def test_mejor_publicado_fuera_de_ventana_temporal():
 
 def test_mejor_publicado_fuera_de_tolerancia_espacial():
     pub = _pub("2026-01-01 00:00:00", -33.0, -71.0)
-    assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -33.3, -71.0)) is None
-    assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -33.0, -71.3)) is None
+    assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -34.0, -71.0)) is None
+    assert a._mejor_publicado([pub], _ag("2026-01-01 00:00:00", -33.0, -72.0)) is None
+
+
+def test_mejor_publicado_asocia_dispersion_evento_pacifico_sur():
+    pub = _pub("2026-10-10 21:33:58", -37.21, -95.62, mag="5.1")
+    agencias = [
+        ("EMSC", "2026-10-10 21:34:01", -37.079, -95.381),
+        ("USGS", "2026-10-10 21:34:02", -37.117, -95.267),
+        ("GFZ", "2026-10-10 21:34:02", -37.071, -95.204),
+    ]
+    for agencia, fecha, lat, lon in agencias:
+        assert a._mejor_publicado(
+            [pub], _ag(fecha, lat, lon, agencia=agencia)) is pub
 
 
 def test_mejor_publicado_elige_menor_dt():
