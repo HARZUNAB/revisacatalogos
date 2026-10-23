@@ -315,26 +315,97 @@ def test_terminar_error_sale(app_solicita, monkeypatch, capsys):
     assert "boom" in capsys.readouterr().err
 
 
-def test_terminar_ok_lanza_app(app_solicita, monkeypatch):
+def test_progreso_revision_actualiza_barra_y_texto(app_solicita):
     a = app_solicita
-    monkeypatch.setattr(a, "_cancelar_after", lambda: None)
-    monkeypatch.setattr(a, "raiz", _RaizFalsa())
+
+    class _Barra:
+        def __init__(self):
+            self.valor = None
+
+        def configure(self, **kwargs):
+            self.valor = kwargs.get("value")
+
+    class _Etiqueta:
+        def __init__(self):
+            self.texto = None
+
+        def configure(self, **kwargs):
+            self.texto = kwargs.get("text")
+
+    barra, etiqueta = _Barra(), _Etiqueta()
+    a._barra_revision = barra
+    a._etiqueta_revision = etiqueta
+
+    a._progreso_revision(0.42, "Armando la interfaz…")
+
+    assert barra.valor == 420
+    assert etiqueta.texto == "Armando la interfaz…"
+
+
+def test_terminar_ok_construye_la_revision_en_la_misma_raiz(
+        app_solicita, monkeypatch):
+    a = app_solicita
     llamado = {}
-    monkeypatch.setattr(sc.os, "execv",
-                        lambda py, args: llamado.setdefault("args", args))
+    nueva = object()
 
-    a._terminar_ok(("eventquery_x.csv",
-                    {"inicio": _INI, "fin": _FIN, "faltantes": []}))
+    def _panel():
+        a._overlay_revision = object()
+        llamado["panel"] = True
 
-    args = llamado["args"]
-    assert args[1].endswith("app.py")
-    assert args[2] == "eventquery_x.csv"
+    def _abrir(ruta, estado):
+        llamado["revision"] = (ruta, estado)
+        return nueva
+
+    monkeypatch.setattr(a, "_cancelar_after", lambda: None)
+    monkeypatch.setattr(a, "_preparar_overlay_revision", _panel)
+    monkeypatch.setattr(a, "_poner_estado_revision",
+                        lambda *args, **kwargs: None)
+    monkeypatch.setattr(a, "_abrir_revision_en_raiz", _abrir)
+    monkeypatch.setattr(a, "_cerrar_overlay_revision",
+                        lambda: llamado.setdefault("cerrar", True))
+
+    estado = {"inicio": _INI, "fin": _FIN, "faltantes": []}
+    a._terminar_ok(("eventquery_x.csv", estado))
+
+    assert llamado["panel"] is True
+    assert llamado["revision"] == ("eventquery_x.csv", estado)
+    assert llamado["cerrar"] is True
+    assert a._nueva_app is nueva
+    assert a._transicion is False
+
+
+def test_terminar_ok_muestra_error_si_falla_la_construccion(
+        app_solicita, monkeypatch):
+    a = app_solicita
+    llamado = {}
+    monkeypatch.setattr(a, "_cancelar_after", lambda: None)
+    monkeypatch.setattr(a, "_preparar_overlay_revision", lambda: None)
+    monkeypatch.setattr(a, "_poner_estado_revision",
+                        lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        a, "_abrir_revision_en_raiz",
+        lambda ruta, estado: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        a, "_error_transicion",
+        lambda mensaje, detalle="": llamado.setdefault("error",
+                                                       (mensaje, detalle)))
+
+    a._terminar_ok(("eventquery_x.csv", {"inicio": _INI, "fin": _FIN}))
+
+    assert llamado["error"][0] == "No se pudo abrir la revisión."
+    assert "boom" in llamado["error"][1]
 
 
 def test_main_arranca(monkeypatch):
     llamado = {}
 
     class _Raiz:
+        def deiconify(self):
+            llamado["deiconify"] = True
+
+        def update(self):
+            llamado["update"] = True
+
         def mainloop(self):
             llamado["mainloop"] = True
 
@@ -346,6 +417,8 @@ def test_main_arranca(monkeypatch):
 
     sc.main()
 
+    assert llamado.get("deiconify") is True
+    assert llamado.get("update") is True
     assert llamado.get("mainloop") is True
 
 

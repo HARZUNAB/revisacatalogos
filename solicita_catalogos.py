@@ -31,7 +31,6 @@ escrita.
 Si algo falla se avisa por la salida de errores (la consola desde donde se
 lanzó supervisor.sh) y no se abre la ventana principal.
 """
-import json
 import os
 import queue
 import shutil
@@ -54,6 +53,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 FORMATO_14 = "%Y%m%d%H%M%S"
 MARCA_PROGRESO = "@@PROGRESO@@"
+
+# Tamaño con el que se muestra la pantalla de transición. Coincide con el
+# tamaño inicial de la ventana de revisión para no dar un salto visual.
+TAMANIO_REVISION = (980, 820)
 
 # Etapas del avance. 'peso' reparte la barra (0..1) y 'texto' es el verbo corto
 # que muestra la línea de actividad; los scripts y las funciones de red
@@ -107,7 +110,10 @@ def _hay_archivo(ruta):
 
 class App:
     def __init__(self):
-        self.raiz = ttk.Window(themename="flatly")
+        # alpha=None + withdraw: construir y dimensionar antes del primer
+        # mapeo, para no mostrar el cuadro 200x200 por defecto de Tk.
+        self.raiz = ttk.Window(themename="flatly", alpha=None)
+        self.raiz.withdraw()
         self.raiz.title("Solicitud de catálogos")
         self._dimensionar()
         self.cola = queue.Queue()
@@ -132,6 +138,14 @@ class App:
         # Id del after de _drenar, para cancelarlo al cerrar y que Tk no lo
         # ejecute con la raíz ya destruida (bgerror en la consola).
         self._after_drenar = None
+        # Transición a la revisión: se construye app.App sobre esta misma raíz,
+        # con un overlay de carga encima para no mostrar la interfaz a medias.
+        self._transicion = False
+        self._overlay_revision = None
+        self._centro_revision = None
+        self._barra_revision = None
+        self._etiqueta_revision = None
+        self._nueva_app = None
         self._construir()
         self._precargar_ventana()
         self.raiz.protocol("WM_DELETE_WINDOW", self._cancelar)
@@ -754,18 +768,169 @@ class App:
                 pass
             self._after_drenar = None
 
-    def _terminar_ok(self, dato):
-        # 'dato' es (ruta_evento, estado): el estado viaja como JSON en el
-        # tercer argumento para que app.py sepa el período y qué faltó.
-        ruta_evento, estado = dato
-        salida = os.path.join("trabajo", "salida.dat")
-        self._cancelar_after()
+    def _preparar_overlay_revision(self):
+        """Muestra la pantalla de carga encima de esta misma raíz."""
+        self.raiz.title("Preparando revisión de eventos")
+        ancho, alto = TAMANIO_REVISION
+        sw, sh = self.raiz.winfo_screenwidth(), self.raiz.winfo_screenheight()
+        ancho = min(ancho, max(640, sw - 80))
+        alto = min(alto, max(480, sh - 80))
+        self.raiz.minsize(640, 480)
+        self.raiz.geometry("%dx%d" % (ancho, alto))
+        self.raiz.geometry("+%d+%d" % (max(0, (sw - ancho) // 2),
+                                       max(0, (sh - alto) // 2)))
+        self.raiz.update_idletasks()
+
+        overlay = ttk.Toplevel(alpha=None, master=self.raiz)
+        overlay.withdraw()
+        overlay.overrideredirect(True)
+        overlay.geometry("%dx%d+%d+%d" % (
+            self.raiz.winfo_width(), self.raiz.winfo_height(),
+            self.raiz.winfo_rootx(), self.raiz.winfo_rooty()))
         try:
-            self.raiz.destroy()
+            overlay.configure(background=self.raiz.style.colors.bg)
         except Exception:
             pass
-        os.execv(PY, [PY, os.path.join(SCRIPT_DIR, "app.py"),
-                      ruta_evento, salida, json.dumps(estado)])
+        try:
+            overlay.attributes("-topmost", True)
+        except Exception:
+            pass
+
+        marco = ttk.Frame(overlay, padding=24)
+        marco.pack(fill=BOTH, expand=YES)
+        centro = ttk.Frame(marco)
+        centro.place(relx=0.5, rely=0.5, anchor="center")
+        self._centro_revision = centro
+        ttk.Label(centro, text="Revisión de eventos sísmicos",
+                  font=("", 16, "bold"), bootstyle="primary").pack()
+        ttk.Label(centro, text="Abriendo la revisión…",
+                  bootstyle="secondary", font=("", 10)).pack(pady=(8, 0))
+        self._barra_revision = ttk.Progressbar(
+            centro, maximum=1000, value=0, mode="determinate", length=360,
+            bootstyle="info")
+        self._barra_revision.pack(pady=(18, 10))
+        self._etiqueta_revision = ttk.Label(
+            centro, text="Cargando la aplicación…", bootstyle="secondary",
+            wraplength=420, justify=CENTER)
+        self._etiqueta_revision.pack()
+        ttk.Label(centro, text="Esto puede tardar unos segundos.",
+                  bootstyle="secondary", font=("", 9)).pack(pady=(8, 0))
+
+        self._overlay_revision = overlay
+        overlay.deiconify()
+        overlay.lift()
+        self.raiz.update()
+
+    def _poner_estado_revision(self, texto, bootstyle="secondary"):
+        if self._etiqueta_revision is not None:
+            try:
+                self._etiqueta_revision.configure(text=texto,
+                                                  bootstyle=bootstyle)
+            except Exception:
+                pass
+        try:
+            self.raiz.update()
+        except Exception:
+            pass
+
+    def _progreso_revision(self, fraccion, texto):
+        """Actualiza la barra determinada y el texto de la etapa actual."""
+        try:
+            valor = int(round(max(0.0, min(1.0, float(fraccion))) * 1000))
+        except (TypeError, ValueError):
+            valor = 0
+        if self._barra_revision is not None:
+            try:
+                self._barra_revision.configure(value=valor)
+            except Exception:
+                pass
+        self._poner_estado_revision(texto)
+
+    def _abrir_revision_en_raiz(self, ruta_evento, estado):
+        """Importa app y la construye sobre la raíz ya existente."""
+        import app as appmod
+        self._progreso_revision(0.15, "Preparando la ventana…")
+        salida = os.path.join("trabajo", "salida.dat")
+        return appmod.App(self.raiz, ruta_evento, salida, estado=estado,
+                          progreso=self._progreso_revision)
+
+    def _cerrar_overlay_revision(self):
+        if self._barra_revision is not None:
+            try:
+                self._barra_revision.stop()
+            except Exception:
+                pass
+        overlay = self._overlay_revision
+        self._overlay_revision = None
+        self._centro_revision = None
+        self._barra_revision = None
+        self._etiqueta_revision = None
+        if overlay is not None:
+            try:
+                overlay.destroy()
+            except Exception:
+                pass
+
+    def _error_transicion(self, mensaje, detalle=""):
+        if self._barra_revision is not None:
+            try:
+                self._barra_revision.stop()
+            except Exception:
+                pass
+        texto = mensaje + (("\n\n" + detalle) if detalle else "")
+        try:
+            self.raiz.title("No se pudo abrir la revisión")
+        except Exception:
+            pass
+        self._poner_estado_revision(texto, bootstyle="danger")
+        overlay = self._overlay_revision
+        if overlay is not None:
+            def _cerrar_error():
+                try:
+                    overlay.destroy()
+                except Exception:
+                    pass
+                try:
+                    self.raiz.destroy()
+                except Exception:
+                    pass
+            try:
+                destino = self._centro_revision or overlay
+                ttk.Button(destino, text="Cerrar",
+                           command=_cerrar_error).pack(pady=(16, 0))
+            except Exception:
+                pass
+
+    def _terminar_ok(self, dato):
+        # 'dato' es (ruta_evento, estado): el estado se pasa directo a app.App
+        # para que sepa el período y qué catálogos faltaron.
+        if self._transicion:
+            return
+        self._transicion = True
+        ruta_evento, estado = dato
+        self._cancelar_after()
+        self.trabajando = False
+        self._pass = ""
+        try:
+            self._preparar_overlay_revision()
+            self._progreso_revision(0.05, "Importando la aplicación…")
+            overlay = self._overlay_revision
+            for hijo in list(self.raiz.winfo_children()):
+                if hijo is overlay:
+                    continue
+                hijo.destroy()
+            self.raiz.update_idletasks()
+            self._nueva_app = self._abrir_revision_en_raiz(ruta_evento, estado)
+            self._progreso_revision(1.0, "Mostrando la revisión…")
+            self._cerrar_overlay_revision()
+            self._transicion = False
+            try:
+                self.raiz.lift()
+            except Exception:
+                pass
+            self.raiz.update()
+        except Exception as e:
+            self._error_transicion("No se pudo abrir la revisión.", str(e))
 
     def _terminar_error(self, mensaje):
         print("[solicitud] %s" % mensaje, file=sys.stderr)
@@ -787,7 +952,11 @@ class App:
 
 
 def main():
-    App().raiz.mainloop()
+    app = App()
+    app.raiz.deiconify()
+    # Pintar el primer fotograma antes de entrar al mainloop.
+    app.raiz.update()
+    app.raiz.mainloop()
 
 
 if __name__ == "__main__":

@@ -101,6 +101,10 @@ REP_FILES = [
 # sin pasar nunca de lo que admite la pantalla.
 TAMANIO_INICIAL = (980, 820)
 
+# El diagnóstico del entorno gráfico se hace una sola vez por proceso y en
+# segundo plano: no debe retrasar el primer mapeo de la ventana.
+_ENTORNO_AVISADO = False
+
 # De qué archivo se arma cada pestaña de «Catálogo». El de eventquery es el
 # concatenado de los new_2_*.csv, que arma _concatenar_eventquery; el de Seisan
 # es el collect del análisis; el de SeisComp no entra aquí porque lo elige
@@ -532,10 +536,11 @@ def _anchos_columnas_por_contenido(columnas, filas, valores,
 
 
 class App:
-    def __init__(self, raiz, archivo, salida, estado=None):
+    def __init__(self, raiz, archivo, salida, estado=None, progreso=None):
         self.raiz = raiz
         self.archivo = archivo
         self.salida = salida
+        self._progreso = progreso
         self.base = os.path.basename(archivo) if archivo else ""
         self.cwd = os.getcwd()
         # Estado que dejó solicita_catalogos.py: período y catálogos que no se
@@ -585,11 +590,21 @@ class App:
         self._after_msg = None
         self._construir()
         self._autodetectar_estado()
+        self._informar_progreso(0.97, "Finalizando…")
         self.raiz.protocol("WM_DELETE_WINDOW", self._salir_app)
         self._after_drenar = self.raiz.after(100, self._drenar)
         # La exportación de SeisComp la deja la solicitud de catálogos antes
         # de llegar aquí, y su pestaña se llena al procesar los catálogos,
         # igual que las de Seisan y eventquery.
+
+    def _informar_progreso(self, fraccion, texto):
+        """Avisa un hito de construcción al llamador (pantalla de transición)."""
+        if self._progreso is None:
+            return
+        try:
+            self._progreso(fraccion, texto)
+        except Exception:
+            pass
 
     def _salir_app(self):
         """Cierra las figuras de matplotlib y luego la ventana principal."""
@@ -619,6 +634,7 @@ class App:
         self.raiz.title("Revisión de eventos · supervisor")
         self.raiz.geometry("%dx%d" % TAMANIO_INICIAL)
         self.raiz.minsize(860, 600)
+        self._informar_progreso(0.25, "Preparando la ventana…")
 
         cab = ttk.Frame(self.raiz, padding=(12, 10, 12, 4))
         cab.pack(side=TOP, fill=X)
@@ -707,6 +723,7 @@ class App:
 
         self._separador(barra)
         self._boton(barra, "Salir", self._salir_app, bootstyle="danger")
+        self._informar_progreso(0.35, "Creando cabecera y barra lateral…")
 
         # --- Contenido (pestañas) ---
         # La barra lateral va a la izquierda; a su derecha, un frame con la
@@ -785,6 +802,7 @@ class App:
         # el de la ventana de Estaciones, que sí necesita mostrar las suyas.
         self.raiz.style.layout("Principal.TNotebook.Tab", [])
         self.cuaderno.configure(style="Principal.TNotebook")
+        self._informar_progreso(0.50, "Creando pestañas y paneles…")
 
         # --- Barra de progreso (inferior, persistente) ---
         barra_marco = ttk.Frame(self.raiz, padding=(12, 4, 12, 8))
@@ -796,6 +814,7 @@ class App:
                                      bootstyle="secondary", width=46)
         self.barra_texto.pack(side=LEFT, padx=(10, 0))
         self.barra_valor = 0
+        self._informar_progreso(0.65, "Armando barra de estado y registro…")
 
         # Al abrir una pestaña de panel se construye/reusa el panel de esa
         # vista (ver _al_cambiar_pestana).
@@ -811,8 +830,21 @@ class App:
         # Con el contenido del registro el tamaño inicial alcanza y la ventana
         # no se toca; el ajuste importa cuando aparece algo más ancho, como el
         # panel de análisis o un catálogo.
+        self._informar_progreso(0.80, "Ajustando la ventana…")
         self._ajustar_ventana()
-        self._avisar_entorno_grafico()
+        self._avisar_entorno_grafico_una_vez()
+
+    def _avisar_entorno_grafico_una_vez(self):
+        """Lanza el diagnóstico gráfico una sola vez y sin bloquear el arranque."""
+        global _ENTORNO_AVISADO
+        if _ENTORNO_AVISADO:
+            return
+        _ENTORNO_AVISADO = True
+        try:
+            threading.Thread(target=self._avisar_entorno_grafico,
+                             daemon=True).start()
+        except Exception:
+            pass
 
     def _avisar_entorno_grafico(self):
         """
@@ -1556,6 +1588,7 @@ class App:
         de los pendientes es perezosa, al abrir su pestaña (ver
         _abrir_panel_si_puede).
         """
+        self._informar_progreso(0.88, "Detectando catálogos…")
         obsoleto = self._analisis_obsoleto()
         self.analisis_hecho = (
             os.path.isfile(os.path.join("datos", "salida_collect.csv"))
@@ -1626,6 +1659,7 @@ class App:
             self._after_msg = self.raiz.after(
                 300, lambda t=texto: Messagebox.show_warning(
                     t, "Avisos de catálogos", parent=self.raiz))
+        self._informar_progreso(0.95, "Preparando la vista…")
         self._actualizar_estado()
         self._actualizar_gate()
 
@@ -2385,7 +2419,8 @@ class App:
                     break
 
         if self.marco_no_actualizados is None:
-            top = ttk.Toplevel(title="No actualizados", master=self.raiz)
+            top = ttk.Toplevel(alpha=None, title="No actualizados", master=self.raiz)
+            top.withdraw()
             top.geometry("1000x560")
             top.minsize(820, 480)
             cuaderno = ttk.Notebook(top)
@@ -2405,6 +2440,7 @@ class App:
             cuaderno.bind("<<NotebookTabChanged>>", _al_cambiar)
             top.protocol("WM_DELETE_WINDOW", top.withdraw)
             _construir("seiscomp")
+            top.deiconify()
         else:
             top = self.marco_no_actualizados
             top.deiconify()
@@ -2426,8 +2462,10 @@ class App:
         (withdraw) en vez de destruirse, para conservar los frames y que
         _poblar_catalogos pueda rehacerlos tras un análisis nuevo.
         """
-        if self.marco_catalogos is None:
-            top = ttk.Toplevel(title="Catálogos", master=self.raiz)
+        nuevo = self.marco_catalogos is None
+        if nuevo:
+            top = ttk.Toplevel(alpha=None, title="Catálogos", master=self.raiz)
+            top.withdraw()
             top.geometry("1300x650")
             top.minsize(900, 520)
             self.marco_catalogos = top
@@ -2462,8 +2500,9 @@ class App:
             top.protocol("WM_DELETE_WINDOW", top.withdraw)
             self._construir_catalogo("seiscomp")
         else:
-            self.marco_catalogos.deiconify()
-            self.marco_catalogos.lift()
+            top = self.marco_catalogos
+            top.deiconify()
+            top.lift()
             # Los datos pueden haber cambiado desde la última visita; la caché
             # por firma decide si hay que rehacer la pestaña activa.
             actual = self.cuaderno_catalogos.select()
@@ -2472,6 +2511,8 @@ class App:
                     self._construir_catalogo(clave)
                     break
         self._ajustar_catalogos()
+        if nuevo:
+            top.deiconify()
 
     # ------------------------------------------------ comparar agencias
     def _periodo_iso(self, valor14):
@@ -2694,7 +2735,7 @@ class App:
         mag_prev = comp.get("minmag")
         ags_prev = comp.get("agencias") or list(AGENCIAS_EXTERNAS)
 
-        top = ttk.Toplevel(title="Comparar agencias", master=self.raiz)
+        top = ttk.Toplevel(alpha=None, title="Comparar agencias", master=self.raiz)
         marco = ttk.Frame(top, padding=12)
         marco.pack(fill=BOTH, expand=YES)
         ttk.Label(marco, bootstyle="primary",
@@ -3296,7 +3337,8 @@ class App:
             return
         self._log("Abriendo ventana «Comparar agencias»…")
         import plotear
-        top = ttk.Toplevel(title="Comparar agencias", master=self.raiz)
+        top = ttk.Toplevel(alpha=None, title="Comparar agencias", master=self.raiz)
+        top.withdraw()
         top.geometry("1040x700")
 
         # Cabecera: de dónde salió el resultado (reutilizado/ejecutado) y qué
@@ -3386,6 +3428,7 @@ class App:
             ajuste.ajustar(top, minimo=(1040, 700))
         except Exception:
             self._log("[error ajuste] " + traceback.format_exc())
+        top.deiconify()
         self._log("Ventana «Comparar agencias» lista.")
 
     def _abrir_catalogo_comparado(self, padre, nombre):
@@ -3447,7 +3490,7 @@ class App:
         def _valores(fila):
             return [str(fila.get(c, "") or "") for c in claves]
 
-        top = ttk.Toplevel(title="Catálogo %s" % nombre, master=padre)
+        top = ttk.Toplevel(alpha=None, title="Catálogo %s" % nombre, master=padre)
         top.withdraw()
         top.geometry("1100x560")
         top.minsize(820, 440)
@@ -3472,7 +3515,7 @@ class App:
         agencia. Se abre oculta, se arma entera y solo entonces se muestra (un
         solo mapeo, para no dejar un destello de caja fantasma).
         """
-        top = ttk.Toplevel(title="Cobertura por agencia", master=padre)
+        top = ttk.Toplevel(alpha=None, title="Cobertura por agencia", master=padre)
         top.withdraw()
         top.geometry("780x340")
         marco = ttk.Frame(top, padding=12)
@@ -3801,7 +3844,8 @@ class App:
         rs = self._importar_revisor()
         if rs is None:
             return
-        top = ttk.Toplevel(title="Eventos repetidos", master=self.raiz)
+        top = ttk.Toplevel(alpha=None, title="Eventos repetidos", master=self.raiz)
+        top.withdraw()
         top.geometry("920x580")
         top.minsize(760, 480)
 
@@ -3973,6 +4017,7 @@ class App:
         if hijos:
             arbol.selection_set(hijos[0])
             al_seleccionar()
+        top.deiconify()
 
     def _ver_no_publicados(self, fuente=None):
         """
@@ -3983,7 +4028,8 @@ class App:
         listado de Seisan se pide a demanda). Si se pasa 'fuente' se abre
         directo en esa pestaña, para no romper al generador de capturas.
         """
-        top = ttk.Toplevel(title="No publicados", master=self.raiz)
+        top = ttk.Toplevel(alpha=None, title="No publicados", master=self.raiz)
+        top.withdraw()
         top.geometry("1100x620")
         top.minsize(900, 520)
         cuaderno = ttk.Notebook(top)
@@ -4015,6 +4061,7 @@ class App:
         if inicial != "seiscomp":
             cuaderno.select(marcos[inicial])
         _construir(inicial)
+        top.deiconify()
 
     def _construir_tabla_no_publicados(self, contenedor, fuente):
         """
@@ -4395,8 +4442,16 @@ def main():
             estado = json.loads(sys.argv[3])
         except (TypeError, ValueError):
             estado = None
-    raiz = ttk.Window(themename="flatly")
+    # alpha=None evita que ttkbootstrap fuerce wait_visibility(): sin eso, Tk
+    # mapea la raíz a 200x200 antes de que App construya la interfaz.
+    raiz = ttk.Window(themename="flatly", alpha=None)
+    raiz.withdraw()
     App(raiz, archivo, salida, estado=estado)
+    raiz.deiconify()
+    # update() procesa el Expose y pinta el primer fotograma antes de ceder el
+    # control; con update_idletasks() la ventana podía quedar un instante con
+    # píxeles viejos del escritorio.
+    raiz.update()
     raiz.mainloop()
 
 

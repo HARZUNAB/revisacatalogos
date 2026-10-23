@@ -8,13 +8,55 @@ estado inicial. **Ventana real + estado dummy**: no corre el pipeline ni usa
 mocks. Necesita `DISPLAY`.
 """
 
+import sys
+
 import pytest
+
+import app as appmod
 
 pytestmark = pytest.mark.gui
 
 
 def _textos(botones):
     return {b.cget("text") for b in botones}
+
+
+# --------------------------------------------------------------------------
+# Arranque
+# --------------------------------------------------------------------------
+def test_main_muestra_la_raiz_despues_de_construir(monkeypatch):
+    llamado = []
+
+    class _Raiz:
+        def __init__(self, *args, **kwargs):
+            llamado.append(("window", kwargs))
+
+        def withdraw(self):
+            llamado.append(("withdraw", None))
+
+        def deiconify(self):
+            llamado.append(("deiconify", None))
+
+        def update(self):
+            llamado.append(("update", None))
+
+        def mainloop(self):
+            llamado.append(("mainloop", None))
+
+    class _AppFalsa:
+        def __init__(self, *args, **kwargs):
+            llamado.append(("app", None))
+
+    monkeypatch.setattr(appmod.ttk, "Window", _Raiz)
+    monkeypatch.setattr(appmod, "App", _AppFalsa)
+    monkeypatch.setattr(sys, "argv", ["app.py", "entrada.csv", "salida.dat"])
+
+    appmod.main()
+
+    assert llamado[0][0] == "window"
+    assert llamado[0][1].get("alpha") is None
+    assert [x[0] for x in llamado] == [
+        "window", "withdraw", "app", "deiconify", "update", "mainloop"]
 
 
 # --------------------------------------------------------------------------
@@ -25,6 +67,17 @@ def test_construccion(app_factory):
     assert raiz.title() == "Revisión de eventos · supervisor"
     assert tuple(raiz.minsize()) == (860, 600)
     assert inst.boton_analisis.cget("text") == "Procesar catálogos"
+
+
+def test_construccion_informa_hitos_de_progreso(app_factory):
+    hitos = []
+    app_factory(progreso=lambda fraccion, texto: hitos.append((fraccion, texto)))
+
+    assert hitos
+    assert hitos[0][0] == 0.25
+    assert hitos[-1][0] == 0.97
+    assert all(a[0] <= b[0] for a, b in zip(hitos, hitos[1:]))
+    assert any(texto == "Detectando catálogos…" for _, texto in hitos)
 
 
 def test_barra_de_avance_celeste_solida(app_factory):

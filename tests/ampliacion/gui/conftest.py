@@ -66,13 +66,13 @@ def app_factory(raiz_gui, cwd_tmp):
 
     creadas = []
 
-    def crear(estado=None, archivo=None, salida=None):
+    def crear(estado=None, archivo=None, salida=None, progreso=None):
         _limpiar(raiz_gui)
         inst = appmod.App(
             raiz_gui,
             archivo or str(cwd_tmp / "entrada.csv"),
             salida or str(cwd_tmp / "salida.dat"),
-            estado=estado)
+            estado=estado, progreso=progreso)
         creadas.append(inst)
         return raiz_gui, inst
 

@@ -2115,7 +2115,7 @@ def _ventana_detalle(padre, evento, filas_fases, etiqueta_fuente=None,
         ventana = ventana_previa
         nueva = False
     else:
-        ventana = _t.Toplevel(padre)
+        ventana = _t.Toplevel(padre, alpha=None)
         # Se arma oculta y se muestra ya con la geometría final: si no, el
         # gestor de ventanas la enseña un instante en su posición por defecto
         # (arriba a la izquierda) y después salta al lugar y tamaño definitivos.
@@ -2199,7 +2199,7 @@ def _ventana_estaciones(padre, evento, filas_fases, filas_no_picadas, cwd,
         ventana = ventana_previa
         nueva = False
     else:
-        ventana = _t.Toplevel(padre)
+        ventana = _t.Toplevel(padre, alpha=None)
         # Ver _ventana_detalle: oculta hasta tener la geometría final, para que
         # no se vea el salto desde la esquina superior izquierda.
         ventana.withdraw()
@@ -2568,7 +2568,7 @@ def _ventana_sin_arribos_ampliada(padre, evento, filas, radio, base, cwd,
         ventana = ventana_previa
         nueva = False
     else:
-        ventana = _t.Toplevel(padre)
+        ventana = _t.Toplevel(padre, alpha=None)
         ventana.withdraw()
         nueva = True
 
@@ -2625,7 +2625,7 @@ def _ventana_analisis_rapido(padre, ruta_no_picadas, eventos, cwd,
         ventana = ventana_previa
         nueva = False
     else:
-        ventana = _t.Toplevel(padre)
+        ventana = _t.Toplevel(padre, alpha=None)
         ventana.withdraw()
         nueva = True
 
@@ -4365,7 +4365,10 @@ def main():
         return 1
     ruta_fases = argumentos[1] if len(argumentos) > 1 else None
 
-    ventana = ttk.Window(themename="flatly")
+    # Construir el panel con la ventana oculta y mostrarla una sola vez, ya
+    # dimensionada: alpha=None evita el mapeo 200x200 de ttkbootstrap.
+    ventana = ttk.Window(themename="flatly", alpha=None)
+    ventana.withdraw()
     ventana.title("Revisión de eventos de SeisComp")
     ventana.geometry("1500x800")
     marco = ttk.Frame(ventana, padding=8)
@@ -4382,6 +4385,12 @@ def main():
     barra.pack(fill="x")
     ttk.Button(barra, text="Elegir otros archivos…", bootstyle="secondary",
                command=lambda: _cambiar(ventana, marco)).pack(side="left")
+    try:
+        ajuste.ajustar(ventana, minimo=(1500, 800))
+    except Exception:
+        pass
+    ventana.deiconify()
+    ventana.update()
     ventana.mainloop()
     return 0
 
