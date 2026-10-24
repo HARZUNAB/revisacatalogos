@@ -138,6 +138,33 @@ def test_mostrar_todo_limpia_los_filtros(raiz_tk):
     assert all(not caja.get() for caja in tabla["entradas"].values())
 
 
+def test_abrir_tabla_muestra_columna_frontera(raiz_tk, monkeypatch):
+    filas = [
+        {"a": "uno", "latitud": "-30.0", "longitud": "-70.0"},
+        {"a": "dos", "latitud": "-40.0", "longitud": "-72.0"},
+    ]
+    columnas = [("a", "A", 80), ("latitud", "Lat", 60),
+                ("longitud", "Lon", 60)]
+    valores = lambda fila: [fila["a"], fila["latitud"], fila["longitud"]]
+
+    def falso(lat, lon):
+        return ("Perú", 34.9) if str(lat).startswith("-30") else None
+
+    monkeypatch.setattr(rs.fronteras, "frontera_mas_cercana", falso)
+    marco = ttk.Frame(raiz_tk)
+    marco.pack()
+
+    tabla = rs.abrir_tabla(
+        marco, filas, columnas, valores, columna_frontera=True,
+        iid_por_id=False)
+    arbol = tabla["arbol"]
+
+    assert arbol.heading("Frontera_km", "text") == "Frontera"
+    valores_filas = [arbol.item(iid, "values")[-1]
+                     for iid in arbol.get_children()]
+    assert valores_filas == ["Perú — 34.9 km", "—"]
+
+
 def test_abrir_tabla_descarga_solo_las_marcadas(raiz_tk, monkeypatch):
     filas = [{"a": "uno", "b": "1"}, {"a": "dos", "b": "2"}]
     columnas = [("a", "A", 80, False), ("b", "B", 80, False)]

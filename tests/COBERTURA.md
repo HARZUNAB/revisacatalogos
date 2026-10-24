@@ -35,6 +35,7 @@ sin marcador) y otra no (`gui`/`db`).
 |---|---|---|---|
 | `agencias.py` | base, bordes | `base/test_agencias.py`, `bordes/test_agencias_bordes.py` | sí |
 | `ajuste.py` | base, bordes | `base/test_ajuste.py`, `bordes/test_ajuste_bordes.py` | sí |
+| `fronteras.py` | módulos | `modulos/test_fronteras.py` | sí |
 | `app.py` | gui | `gui/test_app_principal.py`, `gui/test_app_ventanas.py`, `gui/test_app_dialogos.py`, `gui/test_app_agencias.py` | no |
 | `asigna_perfiles.py` | base, bordes | `base/test_asigna_perfiles.py`, `bordes/test_asigna_perfiles_bordes.py` | sí |
 | `comparacion.py` | base, bordes | `base/test_comparacion.py`, `bordes/test_comparacion_bordes.py` | sí |

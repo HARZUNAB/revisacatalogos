@@ -74,6 +74,7 @@ except Exception:  # sin dateutil se cae al formato estricto
 import agencias as agencias_mod
 import ajuste
 import descargas
+import fronteras
 import traer_catalogos as tc
 
 import matplotlib
@@ -3499,6 +3500,8 @@ class App:
         rs.abrir_tabla(
             marco, filas, columnas, _valores, cwd=self.cwd, log=self._log,
             filtros=("texto",), seleccionable=True,
+            columna_frontera=True, frontera_lat="Latitud",
+            frontera_lon="Longitud",
             etiqueta=etiqueta, descarga_texto="Descargar", descarga_todo=True,
             descarga_bootstyle="primary-outline",
             texto_filtro="Filtrar:")
@@ -3969,6 +3972,7 @@ class App:
             tabla = rs.abrir_tabla(
                 frame, filas, columnas, _valores(columnas),
                 cwd=self.cwd, log=self._log, seleccionable=True,
+                columna_frontera=any(c[0] == "latitud" for c in columnas),
                 etiqueta=os.path.splitext(os.path.basename(ruta))[0],
                 descarga_texto="Descargar", descarga_todo=True,
                 descarga_bootstyle="primary-outline",
@@ -4175,6 +4179,8 @@ class App:
         tabla = rs.abrir_tabla(
             marco, filas, columnas, _valores, cwd=self.cwd, log=self._log,
             filtros=("texto",), iid_por_id=False, seleccionable=True,
+            columna_frontera=True, frontera_lat="Latitud",
+            frontera_lon="Longitud",
             etiqueta="no publicados %s" % fuente,
             descarga_texto="Descargar",
             descarga_bootstyle="primary-outline", descarga_todo=True,
@@ -4214,6 +4220,11 @@ class App:
                       bootstyle="secondary",
                       font=("", 9, "bold")).pack(anchor="w", padx=8,
                                                  pady=(4, 0))
+            etiqueta_frontera = ttk.Label(
+                tabla["marco_mini"], text="Frontera más cercana: —",
+                bootstyle="secondary", font=("", 9), wraplength=260,
+                justify="left")
+            etiqueta_frontera.pack(anchor="w", padx=8, pady=(2, 0))
             controles = ttk.Frame(tabla["marco_mini"])
             controles.pack(side="bottom", fill=X, padx=8, pady=(0, 4))
             ttk.Label(controles, text="Rueda: zoom · arrastrar: mover",
@@ -4244,6 +4255,10 @@ class App:
             def _dibujar_mapa(fila):
                 fig_mapa = mapa["fig"]
                 fig_mapa.clear()
+                etiqueta_frontera.configure(
+                    text="Frontera más cercana: %s"
+                         % (fronteras.texto_frontera(fila)
+                            if fila is not None else "—"))
                 if fila is None:
                     ax = fig_mapa.add_subplot(111)
                     ax.text(0.5, 0.5, "Seleccione un evento\npara ubicarlo",

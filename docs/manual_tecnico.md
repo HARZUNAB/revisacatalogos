@@ -99,6 +99,7 @@ unificar y mejorar esos códigos base hasta convertirlos en el sistema actual.
 | `seiscomp_a_parametros.py` | Convierte la exportación cruda al CSV de 8 columnas. | export CSV | `datos/seiscomp_parametros.csv` | — |
 | `verifica_entorno.py` | Diagnóstico de entorno (venv, paquetes, base). | `requirements.txt` | stdout | — |
 | `ajuste.py` | Ajuste de tamaño de ventanas (solo crecen). | — | — | — |
+| `fronteras.py` | Distancia de un evento a la frontera terrestre chilena más cercana. | Natural Earth 10m | País y km en tablas, mapas y viñetas | — |
 | `traequery.py` | Bajada interactiva de eventquery (legado). | input() | CSV | — |
 | `supervisor.sh` | Lanzador con entorno virtual. | `requirements.txt` | — | — |
 | `agencias.py` | Consulta APIs de EMSC/USGS/GFZ y normaliza respuestas. | Nuestro catálogo publicado | Listado de eventos por agencia | — |
@@ -621,6 +622,7 @@ en la descarga y en el rango «Along (km)» de la tabla de perfiles del panel.
 | **Residuo (km)** (`residuo_km`) | `abs(prof_evento - profundidad_slab(along))`; vacío si el *slab* no cubre esa posición. | `asigna_perfiles.profundidad_slab_en` |
 | **Dist. asoc. (km)** (`dist_asoc`) | Distancia de asociación para elegir el perfil: combina `perp` y `residuo` con `K_PESO_PROFUNDIDAD`, con tope `UMBRAL_DIST_KM` (y `UMBRAL_PERP_KM` opcional). | `asigna_perfiles.asignar_perfil_evento` |
 | **Motivo** (`motivo`) | Causa de «sin perfil»: `fuera_cobertura_norte`, `fuera_cobertura_sur`, `fuera_cobertura_extremo`, `fuera_cobertura`, `fuera_umbral` o `sin_perfiles`. | `asigna_perfiles` |
+| **Frontera** (`Frontera_km`) | País y distancia a la frontera terrestre chilena más cercana (`Perú — 34.9 km`); `—` dentro de Chile, en mar chileno (aprox. 200 mn de la costa) o sin coordenadas. Se anota una sola vez por fila y se ordena por el km numérico. | `fronteras` |
 | **Δmáx (km)** | Distancia máxima entre las soluciones agrupadas de un mismo evento (comparación de agencias). | `agencias._max_distancia` |
 | **Δt (s)** | Diferencia de tiempo, en segundos, respecto de la solución de referencia. | `agencias` |
 | **Dist (km)** | Distancia horizontal, en km, entre dos soluciones. | `agencias` |

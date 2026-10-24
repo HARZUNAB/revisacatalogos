@@ -58,6 +58,7 @@ import comparacion
 import cruce_noact
 import descargas
 import disponibilidad
+import fronteras
 import rutas
 
 # Con el histórico completo son casi 70.000 eventos y el árbol se vuelve lento
@@ -1504,6 +1505,17 @@ def _construir_detalle(ttk, marco, evento, filas_fases, etiqueta_fuente,
                                             padx=(6, 0))
     cajas.columnconfigure(0, weight=1)
     cajas.columnconfigure(1, weight=1)
+
+    try:
+        fr = fronteras.frontera_mas_cercana(
+            evento.get("latitud"), evento.get("longitud"))
+    except Exception:
+        fr = None
+    if fr:
+        _t.Label(marco, bootstyle="secondary",
+                 text="Frontera más cercana: %s"
+                      % fronteras.formatear_frontera(fr)
+                 ).pack(anchor="w", pady=(8, 0))
 
 
 def _colores_pick(oscuro):
@@ -3063,6 +3075,7 @@ def abrir_panel(contenedor, ruta_eventos, ruta_fases=None,
         contenedor, eventos, COLUMNAS_EVENTO, _valores_evento,
         cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
         clave_mag="magnitud", extra=CAMPOS_BUSQUEDA_EVENTO,
+        columna_frontera=True,
         claves_orden=CLAVES_ORDEN_EVENTO, max_filas=MAX_FILAS,
         con_miniatura=True, seleccionable=True,
         etiqueta=etiqueta_fuente or "seiscomp",
@@ -3351,6 +3364,8 @@ class SeleccionTabla:
 def abrir_tabla(contenedor, filas, columnas, valores, *,
                 cwd=None, log=None,
                 filtros=("texto",), clave_mag="mag", extra=(),
+                columna_frontera=False, frontera_lat="latitud",
+                frontera_lon="longitud",
                 claves_orden=None,
                 max_filas=None, iid_por_id=True,
                 con_miniatura=False, seleccionable=False,
@@ -3375,6 +3390,8 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     - columnas: (clave, título, ancho) o (clave, título, ancho, es_num).
     - valores(fila): los textos de la fila, en el orden de las columnas.
     - filtros: combinación de "texto", "mag" y "latlon".
+    - columna_frontera: agrega la columna «Frontera» con la distancia a la
+      frontera terrestre chilena más cercana. Las filas se anotan una sola vez.
     - claves_orden: mapa de orden (ver _ordenar_eventos); por defecto, las
       columnas marcadas con es_num.
     - max_filas: tope de filas que se muestran; la descarga usa todas.
@@ -3400,6 +3417,19 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     import ttkbootstrap as ttk
     if cwd is None:
         cwd = os.getcwd()
+    if columna_frontera:
+        fronteras.anotar_filas(filas, clave_lat=frontera_lat,
+                               clave_lon=frontera_lon)
+        columnas = list(columnas) + [
+            ("Frontera_km", "Frontera", 150, True)]
+        if claves_orden is not None:
+            claves_orden = dict(claves_orden)
+            claves_orden["Frontera_km"] = ("num", "Frontera_km")
+        _valores_base = valores
+
+        def valores(fila):
+            return list(_valores_base(fila)) + [
+                fronteras.texto_frontera(fila)]
     for hijo in contenedor.winfo_children():
         hijo.destroy()
 
@@ -3755,7 +3785,8 @@ def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,
 
     tabla = abrir_tabla(contenedor, eventos, columnas, _valores,
                         cwd=cwd, log=log, filtros=("texto", "mag", "latlon"),
-                        clave_mag="mag", claves_orden=claves_orden,
+                        clave_mag="mag", columna_frontera=True,
+                        claves_orden=claves_orden,
                         con_miniatura=True, seleccionable=True, etiqueta=fuente,
                         descarga_texto="Exportar lista", descarga_ancho=17,
                         extras_izquierda=_extras_izquierda)
@@ -4061,6 +4092,11 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
 
     ayuda.bind("<Configure>", _acomodar_leyenda, add="+")
 
+    frontera_sel = ttk.Label(
+        contenedor, text="Frontera local: — · Frontera publicada: —",
+        bootstyle="secondary", justify="left")
+    frontera_sel.pack(anchor="w", padx=10, pady=(2, 0))
+
     # La tabla lleva el padding del marco, como antes del refactor.
     marco = ttk.Frame(contenedor)
     marco.pack(fill="both", expand=True, padx=8, pady=6)
@@ -4076,6 +4112,22 @@ def abrir_no_actualizados(contenedor, fuente, log=None, cwd=None):
                         texto_filtro="Filtrar:", texto_detalle="Doble clic plotea")
 
     arbol = tabla["arbol"]
+
+    def _actualizar_frontera_sel(_evento=None):
+        fila = tabla["fila_actual"]()
+        if fila is None:
+            local = publicada = "—"
+        else:
+            local = fronteras.texto_frontera_coords(
+                fila.get("lat_local"), fila.get("lon_local"))
+            publicada = fronteras.texto_frontera_coords(
+                fila.get("lat_eventquery"), fila.get("lon_eventquery"))
+        frontera_sel.configure(
+            text="Frontera local: %s · Frontera publicada: %s"
+                 % (local, publicada))
+
+    arbol.bind("<<TreeviewSelect>>", _actualizar_frontera_sel, add="+")
+    _actualizar_frontera_sel()
     arbol.bind("<Double-1>", _ver_mapa)
     arbol.bind("<Return>", _ver_mapa)
 

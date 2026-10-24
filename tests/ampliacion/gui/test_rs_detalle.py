@@ -106,3 +106,13 @@ def test_detalle_reusa_ventana(raiz_tk):
                              ventana_previa=w1)
     assert w2 is w1
     assert w1.title() == "Parámetros del evento E2"
+
+
+def test_detalle_muestra_frontera_mas_cercana(raiz_tk, monkeypatch):
+    monkeypatch.setattr(
+        rs.fronteras, "frontera_mas_cercana",
+        lambda lat, lon: ("Perú", 34.9))
+
+    win = rs._ventana_detalle(_padre(raiz_tk), EVENTO, FASES)
+
+    assert _label(win, "Frontera más cercana: Perú — 34.9 km") is not None

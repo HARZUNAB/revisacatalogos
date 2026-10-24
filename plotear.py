@@ -43,6 +43,7 @@ from adjustText import adjust_text
 
 import asigna_perfiles as ap
 import cruce_noact
+import fronteras
 import rutas
 import descargas
 
@@ -1746,6 +1747,14 @@ def _texto_parametros_evento(ev):
         "magnitud: %s   tipo: %s" % (_numero_evento(ev.get('magnitud'), 1),
                                      ev.get('tipo', '')),
     ])
+    try:
+        fr = fronteras.frontera_mas_cercana(
+            ev.get('latitud'), ev.get('longitud'))
+    except Exception:
+        fr = None
+    if fr:
+        lineas.append("frontera más cercana: %s"
+                      % fronteras.formatear_frontera(fr))
     if 'percibido' in ev:
         lineas.append("percibido: %s" % ev['percibido'])
     lineas.extend(_lineas_posible_analista(ev))

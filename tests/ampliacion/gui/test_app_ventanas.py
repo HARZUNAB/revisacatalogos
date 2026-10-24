@@ -731,6 +731,31 @@ def test_no_publicados_tiene_aplicar(app_factory, raiz_gui, cwd_tmp):
     raiz_gui.update()
 
 
+def test_no_publicados_muestra_frontera_en_tabla_y_mapa(
+        app_factory, raiz_gui, cwd_tmp, monkeypatch):
+    _, inst = app_factory()
+    _escribir(cwd_tmp, "datos/no_pub_desde_2_5_seiscomp_estricto.csv",
+              _CSV_NO_PUB)
+    monkeypatch.setattr(
+        appmod.fronteras, "frontera_mas_cercana",
+        lambda lat, lon: ("Perú", 34.9))
+
+    inst._ver_no_publicados()
+    top = _toplevel(raiz_gui, "No publicados")
+    arbol = _buscar(top, ttk.Treeview)
+    assert "Frontera_km" in arbol["columns"]
+    primera = arbol.get_children()[0]
+    assert arbol.item(primera, "values")[-1] == "Perú — 34.9 km"
+
+    arbol.selection_set(primera)
+    arbol.event_generate("<<TreeviewSelect>>")
+    raiz_gui.update()
+    assert _buscar(
+        top, ttk.Label,
+        lambda w: "Frontera más cercana: Perú — 34.9 km"
+                  in str(w.cget("text"))) is not None
+
+
 def test_no_publicados_explica_estados(app_factory, raiz_gui, cwd_tmp,
                                        monkeypatch):
     _, inst = app_factory()
@@ -805,14 +830,14 @@ def test_no_publicados_muestra_y_descarga_columnas_de_cruce(
     assert "Estado" in arbol["columns"]
     valores = arbol.item(arbol.get_children()[0], "values")
     assert valores[7:] == ("Seisan", "Publicado en Seisan", "1.2", "8.5",
-                           "beto")
+                           "beto", "—")
 
     _boton(top, "Descargar todo").invoke()
-    assert descargado["columnas"][-5:] == [
+    assert descargado["columnas"][-6:] == [
         "Publicado_en", "Estado", "Dt_otra_seg", "Dist_otra_km",
-        "Analista_otra"]
-    assert descargado["filas"][0][-5:] == [
-        "Seisan", "Publicado en Seisan", "1.2", "8.5", "beto"]
+        "Analista_otra", "Frontera_km"]
+    assert descargado["filas"][0][-6:] == [
+        "Seisan", "Publicado en Seisan", "1.2", "8.5", "beto", "—"]
 
 
 def test_no_publicados_columnas_ajustadas_al_contenido(
@@ -829,7 +854,7 @@ def test_no_publicados_columnas_ajustadas_al_contenido(
                       for c in arbol["columns"])
 
     assert 100 <= ancho_estado < 200
-    assert ancho_total < 1400
+    assert ancho_total < 1500
     # Los rótulos largos se conservan; solo se ajusta el ancho.
     assert arbol.heading("Dt_otra_seg", "text") == "Δt otra fuente (s)"
     assert arbol.heading("Dist_otra_km", "text") == \

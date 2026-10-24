@@ -176,6 +176,28 @@ def test_abrir_no_actualizados_tiene_aplicar(raiz_tk, cwd_tmp):
     raiz_tk.update()
 
 
+def test_no_actualizados_muestra_frontera_local_y_publicada(
+        raiz_tk, cwd_tmp, monkeypatch):
+    _escribir(cwd_tmp, "datos/atribucion_seiscomp.csv", _ATRIBUCION)
+    monkeypatch.setattr(
+        rs.fronteras, "frontera_mas_cercana",
+        lambda lat, lon: ("Perú", 34.9))
+    contenedor = _contenedor(raiz_tk)
+
+    assert rs.abrir_no_actualizados(contenedor, "seiscomp") is True
+    arbol = _buscar(contenedor, ttk.Treeview)
+    arbol.selection_set(arbol.get_children()[0])
+    arbol.event_generate("<<TreeviewSelect>>")
+    raiz_tk.update()
+
+    etiqueta = _buscar(
+        contenedor, ttk.Label,
+        lambda w: str(w.cget("text")).startswith("Frontera local:"))
+    assert etiqueta is not None
+    assert "Frontera local: Perú — 34.9 km" in etiqueta.cget("text")
+    assert "Frontera publicada: Perú — 34.9 km" in etiqueta.cget("text")
+
+
 def test_abrir_no_actualizados_sin_discrepancias(raiz_tk, cwd_tmp):
     _escribir(cwd_tmp, "datos/atribucion_seiscomp.csv",
               _ATRIBUCION_SIN_DISCREPANCIA)

@@ -151,6 +151,18 @@ def test_texto_parametros_evento_along_con_un_decimal():
 
 
 
+def test_texto_parametros_evento_muestra_frontera(monkeypatch):
+    monkeypatch.setattr(
+        plotear.fronteras, "frontera_mas_cercana",
+        lambda lat, lon: ("Perú", 34.9))
+    ev = {"fecha hora": "2026-01-01 00:00:00", "latitud": -18.0,
+          "longitud": -70.2, "prof": 30.0, "magnitud": 4.0, "tipo": "ML"}
+
+    texto = plotear._texto_parametros_evento(ev)
+
+    assert "frontera más cercana: Perú — 34.9 km" in texto
+
+
 def test_resumen_perfil_cuenta_altas():
     eventos = [{"latitud": 0, "longitud": 0, "revision": "Alta"},
                {"latitud": 0, "longitud": 0, "revision": "Baja"}]

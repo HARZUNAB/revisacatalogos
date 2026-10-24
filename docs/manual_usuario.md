@@ -269,6 +269,11 @@ el listado agrega cinco columnas y **no elimina ni reclasifica ningún evento**:
 - **«Δt otra fuente (s)»**: diferencia de hora con el candidato elegido.
 - **«Dist. otra fuente (km)»**: distancia con el candidato elegido.
 - **«Analista otra fuente»**: analista de esa solución.
+- **«Frontera»**: país y distancia a la frontera terrestre chilena más cercana
+  (`Perú — 34.9 km`, `Bolivia — 183.0 km`, `Argentina — 101.1 km`). Muestra
+  `—` cuando el evento está dentro de Chile, en mar chileno (aproximado a
+  200 millas náuticas de la costa) o no tiene coordenadas. Se calcula solo para
+  mostrar el dato: la app no publica ni despublica nada sola.
 
 La confirmación usa **|Δt| ≤ 6 s** y **|Δlat|, |Δlon| ≤ 0,5°**, y exige una
 sola solución candidata. La revisión usa **120 s / 2°** y solo avisa: nunca
@@ -301,6 +306,9 @@ SeisComp cuando su archivo de la ventana solo trae encabezado.
   mouse acerca o aleja alrededor del cursor; arrastrar mueve el mapa; «Centrar»
   recupera el evento sin cambiar el zoom y «Restablecer» vuelve a la vista
   nacional completa. También están los botones «+» y «−».
+- Sobre el mapa, **Frontera más cercana** muestra el país y la distancia del
+  evento seleccionado a la frontera terrestre chilena; `—` si está dentro de
+  Chile, en mar chileno o no tiene coordenadas.
 - Las columnas del listado se ajustan al contenido de cada dato y conservan los
   rótulos completos de los encabezados.
 
@@ -332,6 +340,12 @@ El botón **«Criterios de clasificación»**, sobre la tabla, resume estas regl
 clasificación es probabilística por cercanía y no reemplaza la comparación
 numérica de los parámetros: se calcula al abrir el listado con las atribuciones
 crudas de ambas fuentes y no se agrega a los CSV de `compara.py`.
+
+Al seleccionar una fila, sobre la tabla se muestra **Frontera local** y
+**Frontera publicada**, con el país y la distancia de cada ubicación a la
+frontera terrestre chilena. Si una de las dos está en mar chileno, esa parte
+muestra `—`. Así se puede decidir si el evento publicado corresponde o no, sin
+agregar dos columnas más a la tabla.
 
 La ventana crece al abrirse y al cambiar de fuente para mostrar todas sus
 columnas. Si no entra en la pantalla, use la barra horizontal.
