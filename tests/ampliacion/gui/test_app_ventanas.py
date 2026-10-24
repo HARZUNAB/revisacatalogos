@@ -725,6 +725,7 @@ def test_no_publicados_tiene_aplicar(app_factory, raiz_gui, cwd_tmp):
     top = _toplevel(raiz_gui, "No publicados")
     boton = _boton(top, "Aplicar")
     assert boton is not None
+    assert _boton(top, "Mostrar todo") is not None
     # Aplicar re-filtra sin error.
     boton.invoke()
     raiz_gui.update()

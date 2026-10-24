@@ -260,21 +260,15 @@ AYUDA_ACTIVIDAD = (
 # ventana.
 AYUDA_ANALISIS = (
     "Revisión rápida de todo el catálogo\n\n"
-    "Busca los eventos que tienen estaciones SIN ARRIBOS cercanas, es decir"
-    " estaciones dentro del umbral (por defecto, 50 km del epicentro) que no"
-    " fueron usadas en la solución del evento. Sirve para acotar la revisión:"
-    " solo hay que mirar los eventos que quedan en la lista.\n\n"
-    "Recorre TODO el catálogo, sin importar el filtro del panel.\n\n"
-    "Distingue la certeza de la deducción:\n\n"
-    "• Verificadas: hay formas de onda (SDS o tiempo real); la estación estaba"
-    " grabando y no se usó. Es una certeza.\n\n"
-    "• Indicios (±2 h): no hay ondas verificadas, pero la estación picó otros"
-    " eventos cerca en el tiempo. Es una deducción, no una prueba.\n\n"
-    "• Sin evidencia: no hay ondas ni actividad; puede estar caída o sin datos"
-    " (si no se exportó con --formas-onda, figura como «sin consultar»).\n\n"
-    "El análisis usa el CSV exportado: para tener verificadas hay que generarlo"
-    " con --formas-onda, o consultar las ondas on-demand en cada evento.\n\n"
-    "Doble clic en un evento de la lista abre sus parámetros y estaciones.")
+    "Lista los eventos con estaciones cercanas sin arribos (por defecto,"
+    " ≤ 50 km). Recorre todo el catálogo, sin el filtro del panel. Que falte"
+    " un arribo no prueba que la estación no haya grabado.\n\n"
+    "• Verificada: hay formas de onda; grabó y no se usó.\n"
+    "• Indicio: picó otros eventos dentro de ±2 h; es una deducción.\n"
+    "• Sin evidencia: ni ondas ni actividad; puede estar caída o sin datos.\n\n"
+    "Para confirmarlo, use «Consultar formas de onda» en el detalle del evento"
+    " o reexporte la ventana incluyendo formas de onda. Doble clic abre los"
+    " parámetros y las estaciones del evento.")
 
 
 def _ayuda_emergente(widget, texto):
@@ -3400,7 +3394,8 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
     - al_llenar(elegidas, mostradas): gancho tras cada llenado.
 
     Devuelve un diccionario con: arbol, estado, valores, elegidos, llenar,
-    fila_actual, marco_mini, barra, entradas, etiqueta_estado y boton_descarga.
+    fila_actual, marco_mini, barra, entradas, etiqueta_estado, boton_descarga y
+    boton_mostrar_todo.
     """
     import ttkbootstrap as ttk
     if cwd is None:
@@ -3511,6 +3506,12 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
         return _filtrar_listado(filas, valores, texto, mag_min,
                                 clave_mag=clave_mag, lat=lat, lon=lon,
                                 extra=extra)
+
+    def _mostrar_todo():
+        """Limpia todos los filtros y vuelve a listar el contenido completo."""
+        for caja in entradas.values():
+            caja.delete(0, "end")
+        _llenar()
 
     def _elegidos():
         return _ordenar_eventos(_filtrar(), estado["orden"], estado["desc"],
@@ -3633,6 +3634,14 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
         caja.bind("<Return>", _llenar)
     ttk.Button(barra, text="Aplicar", bootstyle="secondary",
                command=_llenar).pack(side="left", padx=(8, 0))
+    boton_mostrar_todo = None
+    if entradas:
+        boton_mostrar_todo = ttk.Button(
+            barra, text="Mostrar todo", bootstyle="secondary-outline",
+            command=_mostrar_todo)
+        boton_mostrar_todo.pack(side="left", padx=(6, 0))
+        _ayuda_emergente(boton_mostrar_todo,
+                         "Borra los filtros y muestra todas las filas.")
 
     for t in columnas:
         arbol.heading(t[0], text=t[1],
@@ -3645,8 +3654,9 @@ def abrir_tabla(contenedor, filas, columnas, valores, *,
             "fila_actual": _fila_actual, "marco_mini": marco_mini,
             "barra": barra, "entradas": entradas,
             "etiqueta_estado": etiqueta_estado,
-            "boton_descarga": boton_descarga, "seleccion": selector,
-            "boton_seleccion": boton_seleccion}
+            "boton_descarga": boton_descarga,
+            "boton_mostrar_todo": boton_mostrar_todo,
+            "seleccion": selector, "boton_seleccion": boton_seleccion}
 
 
 def abrir_catalogo(contenedor, ruta_csv, etiqueta_fuente=None, log=None,

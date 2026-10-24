@@ -106,6 +106,16 @@ def test_analizar_sin_arribos_sin_archivo(cwd_tmp):
     assert rs.analizar_sin_arribos("datos/no_existe.csv", [EVENTO]) == []
 
 
+def test_contexto_analisis_es_breve_y_claro():
+    texto = rs.AYUDA_ANALISIS
+
+    assert len(texto) < 700
+    assert "no prueba" in texto
+    assert "Verificada" in texto
+    assert "Indicio" in texto
+    assert "Sin evidencia" in texto
+
+
 # --------------------------------------------------------------------------
 # _ventana_analisis_rapido (ventana real)
 # --------------------------------------------------------------------------

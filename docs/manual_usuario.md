@@ -519,7 +519,9 @@ pestaña.
 
 Los filtros de texto, magnitud y coordenadas **no se aplican al escribir**: se
 escriben y se aplican con el botón **«Aplicar»** (o Enter en cualquier casilla).
-Así, con catálogos grandes, no se reconstruye la tabla en cada tecla.
+Así, con catálogos grandes, no se reconstruye la tabla en cada tecla. El botón
+**«Mostrar todo»**, junto a «Aplicar», borra todos los filtros y vuelve a listar
+el contenido completo; mantiene el orden actual.
 
 ### Pestaña de SeisComp
 
@@ -531,6 +533,7 @@ Controles de la barra superior:
 - **«magnitud mínima»**: filtra por magnitud.
 - **«Lat»** / **«Lon»**: filtran por latitud/longitud.
 - **«Aplicar»** (o Enter): aplica los filtros anteriores.
+- **«Mostrar todo»**: limpia los filtros y vuelve a listar todo el contenido.
 - **«Sismicidad histórica»**: agrega o quita ese fondo en la miniatura.
 - **«Análisis rápido»**: abre la revisión acotada de *sin arribos* (ver
   [sección 9](#9-análisis-rápido-de-sin-arribos)). Solo aparece si la

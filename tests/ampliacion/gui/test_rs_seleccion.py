@@ -16,6 +16,16 @@ import revisa_seiscomp as rs
 pytestmark = pytest.mark.gui
 
 
+def _boton(widget, texto):
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, ttk.Button) and hijo.cget("text") == texto:
+            return hijo
+        encontrado = _boton(hijo, texto)
+        if encontrado is not None:
+            return encontrado
+    return None
+
+
 def _arbol(raiz):
     arbol = ttk.Treeview(raiz, columns=("a",), show="headings")
     arbol.heading("a", text="A")
@@ -90,6 +100,42 @@ def test_seleccion_tabla_encabezado_marca_y_desmarca_visibles(raiz_tk):
     assert all(arbol.item(iid, "text") == "☐"
                for iid in arbol.get_children())
     assert sel.contar() == 0
+
+
+def test_mostrar_todo_limpia_los_filtros(raiz_tk):
+    filas = [
+        {"a": "uno", "mag": "5.0", "latitud": "-30", "longitud": "-70"},
+        {"a": "dos", "mag": "2.0", "latitud": "-40", "longitud": "-75"},
+    ]
+    columnas = [("a", "A", 80), ("mag", "Mag", 60),
+                ("latitud", "Lat", 60), ("longitud", "Lon", 60)]
+    valores = lambda fila: [fila["a"], fila["mag"], fila["latitud"],
+                            fila["longitud"]]
+    marco = ttk.Frame(raiz_tk)
+    marco.pack()
+
+    tabla = rs.abrir_tabla(
+        marco, filas, columnas, valores,
+        filtros=("texto", "mag", "latlon"), iid_por_id=False)
+    arbol = tabla["arbol"]
+    assert len(arbol.get_children()) == 2
+
+    tabla["entradas"]["texto"].insert(0, "uno")
+    tabla["entradas"]["mag"].insert(0, "4")
+    tabla["entradas"]["lat"].insert(0, "-30")
+    tabla["entradas"]["lon"].insert(0, "-70")
+    _boton(marco, "Aplicar").invoke()
+    raiz_tk.update()
+    assert len(arbol.get_children()) == 1
+
+    mostrar = _boton(marco, "Mostrar todo")
+    assert mostrar is not None
+    assert mostrar is tabla["boton_mostrar_todo"]
+    mostrar.invoke()
+    raiz_tk.update()
+
+    assert len(arbol.get_children()) == 2
+    assert all(not caja.get() for caja in tabla["entradas"].values())
 
 
 def test_abrir_tabla_descarga_solo_las_marcadas(raiz_tk, monkeypatch):

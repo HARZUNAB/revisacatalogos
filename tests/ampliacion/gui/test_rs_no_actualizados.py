@@ -169,6 +169,8 @@ def test_abrir_no_actualizados_tiene_aplicar(raiz_tk, cwd_tmp):
     boton = _buscar(contenedor, ttk.Button,
                     lambda w: w.cget("text") == "Aplicar")
     assert boton is not None
+    assert _buscar(contenedor, ttk.Button,
+                   lambda w: w.cget("text") == "Mostrar todo") is not None
     # Aplicar re-filtra sin error.
     boton.invoke()
     raiz_tk.update()
