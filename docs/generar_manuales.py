@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Genera manual_tecnico.docx y manual_usuario.docx en la raiz del proyecto.
+"""Generador legado de manual_tecnico.docx y manual_usuario.docx.
 
-Los documentos describen el funcionamiento ACTUAL del sistema RCS.
-Todo el contenido (constantes, firmas, rutas, mensajes) fue verificado contra
-el codigo fuente antes de redactarse.
+El generador vigente es docs/md_a_docx.py, que convierte los manuales .md.
+Este script se conserva solo por compatibilidad y no debe usarse para producir
+la documentacion actual.
 """
 import os
 
@@ -139,10 +139,11 @@ def generar_tecnico():
     parrafo(
         doc,
         "app.py es una aplicación de escritorio construida con ttkbootstrap sobre Tkinter. "
-        "No contiene lógica de negocio: su función es lanzar cada módulo como un subproceso, "
-        "capturar su salida estándar para mostrarla en la pestaña de registro, interpretar las "
-        "líneas de progreso que los módulos emiten, y recibir los resultados para incrustar "
-        "los mapas en un panel. Todos los cálculos se ejecutan en los subprocesos.",
+        "Tiene una separación parcial por capas: interfaz y orquestación, módulos de dominio "
+        "y procesos/datos. La GUI lanza los procesos pesados como subprocesos, captura su "
+        "salida para el registro y el progreso, y presenta los resultados, pero también "
+        "conserva lógica de presentación, filtros, orden y parte de la orquestación. "
+        "No implementa MVC formal ni un backend HTTP separado.",
     )
     parrafo(
         doc,

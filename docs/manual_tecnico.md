@@ -1,7 +1,7 @@
 # Manual técnico — RCS
 
 Arquitectura, scripts, interfaces y parámetros ajustables.
-Versión 1.14 — 19 de octubre de 2026.
+Versión 1.15 — 25 de octubre de 2026.
 
 Documento de referencia para quien mantiene o extiende el sistema. Para el uso
 diario, ver `manual_usuario.md`. El esquema de la base de datos está en
@@ -28,10 +28,22 @@ diario, ver `manual_usuario.md`. El esquema de la base de datos está en
 
 ## 1. Arquitectura general
 
-La aplicación es una **GUI de escritorio** (Tkinter + `ttkbootstrap`) que
-**orquesta** módulos de proceso, cada uno ejecutado como **subproceso**
-independiente. La GUI **no contiene lógica de negocio**: lanza cada script, lee
-su salida estándar para mostrar progreso y registro, y muestra los resultados.
+La aplicación es una **GUI de escritorio** (Tkinter + `ttkbootstrap`) con una
+**separación parcial por capas**:
+
+- **Interfaz y orquestación** (`app.py`, `solicita_catalogos.py`,
+  `revisa_seiscomp.py`, `plotear.py`, `descargas.py`): construye ventanas,
+  atiende eventos, lanza subprocesos y presenta los resultados.
+- **Dominio** (`comparacion.py`, `agencias.py`, `cruce_noact.py`,
+  `cruza_nopub.py`, `asigna_perfiles.py`, `sismicidad.py`, `fronteras.py`):
+  reúne cálculos y reglas reutilizables, en general independientes de Tk.
+- **Procesos y datos**: scripts ejecutados como subprocesos,
+  `traer_catalogos.py`, `exporta_ventana_seiscomp.py`, `rutas.py` y `prog.py`.
+  Acceden a red o base, ejecutan el pipeline y persisten CSV/JSON.
+
+**No se usa MVC formal ni un backend HTTP separado.** La interfaz también
+contiene lógica de presentación, filtros, orden y parte de la orquestación; por
+eso la separación es parcial, no una arquitectura de tres capas estricta.
 
 - **Directorio de trabajo**: los subprocesos se lanzan con
   `cwd=os.getcwd()`, así que las rutas relativas (`datos/`, `informes/`,
@@ -672,9 +684,11 @@ Las constantes de asociación (`UMBRAL_DIST_KM`, `UMBRAL_PERP_KM`,
 
 - **Diagnóstico de entorno**: `.venv/bin/python verifica_entorno.py` revisa el
   venv, los paquetes de `requirements.txt`, tkinter y la conexión a la base.
-- **Pruebas del revisor**: la suite pura/GUI se ejecuta con
-  `.venv/bin/python /tmp/opencode/verif_ventana_estaciones.py` (y las similares
-  `verif_no_picadas.py`, `verif_exportacion.py`). Cubren las funciones de lógica
-  sin pantalla y la construcción de las ventanas con `ttkbootstrap`.
+- **Suites automatizadas**:
+  ```bash
+  ./tests/correr.sh          # tests unitarios sin GUI ni base
+  ./tests/correr.sh gui      # interfaz real (necesita DISPLAY)
+  ./verificacion/correr.sh   # comprobaciones end-to-end
+  ```
 - **Capturas de los manuales**: `docs/capturas/generar_capturas.py` regenera las
   imágenes de `docs/img/` con datos de demostración.

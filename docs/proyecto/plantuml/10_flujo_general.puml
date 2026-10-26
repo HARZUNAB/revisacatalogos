@@ -1,0 +1,29 @@
+@startuml 10_flujo_general
+' Flujo general de RCS — recorrido completo para una persona nueva.
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam monochrome false
+skinparam ActivityBackgroundColor #eef4fb
+skinparam ActivityBorderColor #37628f
+skinparam ArrowColor #37628f
+title RCS en 5 pasos
+
+start
+:1. Solicitar catálogos
+(Seisan, eventquery y SeisComp);
+:2. Procesar y comparar
+(análisis por etapas);
+:3. Revisar eventos
+(dudosos, faltantes, no publicados);
+:4. Decidir
+(publicar, corregir o despublicar);
+:5. Descargar entregables
+(listados, informes y mapas);
+stop
+
+note right
+  El sistema no modifica los datos de origen.
+  Todo lo generado queda en archivos nuevos
+  dentro de la carpeta de ejecución.
+end note
+@enduml

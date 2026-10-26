@@ -40,8 +40,9 @@ deactivate APP
 APP --> U : paneles y listados listos
 
 note over APP, SCRIPT
-  Cada etapa corre como subproceso independiente
-  (cwd = directorio de ejecución). La GUI no contiene
-  lógica de negocio: lanza y muestra.
+  Cada etapa pesada corre como subproceso independiente
+  (cwd = directorio de ejecución). La GUI orquesta y
+  presenta; conserva lógica de presentación y parte de
+  la orquestación.
 end note
 @enduml

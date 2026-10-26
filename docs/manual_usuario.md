@@ -1,14 +1,14 @@
 # Manual de usuario — RCS
 
 Guía de operación para la revisión de publicaciones sísmicas.
-Versión 1.14 — 19 de octubre de 2026.
+Versión 1.15 — 25 de octubre de 2026.
 
 Este manual está pensado para una persona con conocimientos básicos de
 sismología que no necesita conocer el código. Explica, pantalla por pantalla,
 qué hace el sistema y qué significa cada botón. El detalle interno (scripts,
 parámetros, base de datos) está en el **`manual_tecnico.md`**.
 
-> Las versiones anteriores (1.1 a 1.13, de octubre de 2026) quedaron
+> Las versiones anteriores (1.1 a 1.14, de octubre de 2026) quedaron
 > archivadas en `docs/versiones/`. Este es el documento vigente.
 
 ---
@@ -48,6 +48,12 @@ responder preguntas concretas de control de calidad:
 Además arma **mapas** y un **panel de análisis** por perfil, y marca como
 **sospechosos** (posible mal localización) los eventos que no calzan con la
 placa ni con la sismicidad histórica.
+
+**En cinco pasos:** solicitar los catálogos, procesarlos, revisar los eventos
+dudosos o faltantes, decidir si se publica o corrige, y descargar los
+entregables.
+
+![RCS en 5 pasos](proyecto/img/10_flujo_general.png)
 
 El siguiente mapa resume **qué hace el sistema y dónde está cada cosa** (barra
 lateral, pestañas y ventanas):

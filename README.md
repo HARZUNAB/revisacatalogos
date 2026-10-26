@@ -3,12 +3,34 @@
 ## Documentación
 
 - `docs/manual_usuario.md` — manual de usuario (funciones, botones y capturas).
-- `docs/manual_tecnico.md` — manual técnico (scripts, interfaces y parámetros
-  ajustables).
+- `docs/manual_tecnico.md` — manual técnico (arquitectura, scripts, interfaces,
+  pruebas y parámetros ajustables).
+- `docs/proyecto/descripcion_revisacatalogos.md` — descripción del sistema,
+  requisitos, arquitectura y diseño con diagramas.
+- `docs/proyecto/tests_unitarios.md` — organización y cobertura de la suite.
 - `docs/esquema_seiscomp.md` / `docs/esquema_seiscomp.txt` — esquema de la base
   de SeisComp. `docs/esquema_seiscomp_mysql.sql` es la versión importable en
   MySQL Workbench (diagrama EER).
 - `docs/versiones/` — manuales anteriores archivados.
+- `docs/md_a_docx.py` — generador vigente de los `.docx` a partir de los `.md`.
+
+```bash
+.venv/bin/python docs/md_a_docx.py
+```
+
+La aplicación es una **GUI de escritorio** con separación parcial entre
+interfaz/orquestación, dominio y procesos. **No usa MVC** ni un backend HTTP
+separado.
+
+### RCS en 5 pasos
+
+1. Solicitar los catálogos del período.
+2. Procesarlos y compararlos.
+3. Revisar los eventos dudosos o faltantes.
+4. Decidir si se publica, corrige o despublica.
+5. Descargar los entregables.
+
+![RCS en 5 pasos](docs/proyecto/img/10_flujo_general.png)
 
 ## Tests
 

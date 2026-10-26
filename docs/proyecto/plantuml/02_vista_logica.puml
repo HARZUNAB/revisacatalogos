@@ -10,6 +10,7 @@ package "Interfaz (orquestación)" {
   component "app.py\nVentana principal" as APP
   component "solicita_catalogos.py\nVentana de solicitud" as SOL
   component "ajuste.py\nTamaño de ventanas" as AJU
+  component "descargas.py\nExportación de listados" as DESC
 }
 
 package "1. Solicitud y descarga" {
@@ -33,6 +34,7 @@ package "2. Procesamiento y análisis" {
 package "3. Revisión y comparación" {
   component "compara.py" as COM
   component "comparacion.py" as COMP <<shared>>
+  component "fronteras.py" as FRO <<shared>>
 }
 
 package "4. Revisión SeisComp" {
@@ -71,6 +73,10 @@ APP --> RSC
 APP --> PLOT
 APP ..> RUT : crea carpetas
 APP ..> PROG : @@PROGRESO@@
+APP ..> DESC : listados
+APP ..> FRO : frontera
+RSC ..> FRO : frontera
+PLOT ..> FRO : frontera
 GJ --> AP
 GJ --> SIS
 COM --> COMP

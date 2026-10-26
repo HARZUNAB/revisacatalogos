@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.1 — 19 de octubre de 2026.
+Versión 1.2 — 25 de octubre de 2026.
 
 ---
 
@@ -38,6 +38,9 @@ Los tests se agrupan por carpeta y, en algunos casos, por un **marcador** de
 pytest que permite incluirlos o excluirlos de la corrida. La corrida por defecto
 (`./tests/correr.sh`) usa el filtro `-m "not gui and not db"`.
 
+Estado actual de la suite: **643 tests no-GUI**, **239 GUI** y **36 de base de
+datos**. La suite `base/` sigue congelada en **232 tests**.
+
 | Grupo | Marcador | Corre en CI | Qué cubre |
 |---|---|---|---|
 | `base/` | — | sí | Suite entregada, congelada (232 tests). Módulos puros. |
@@ -69,6 +72,7 @@ CI (los grupos sin marcador) y otra no (`gui`/`db`).
 | `descargas.py` | modulos, gui | `modulos/test_descargas_archivos.py`, `modulos/test_descargas_interfaz.py`, `gui/test_descargas_dialogo.py`, `gui/test_descargas_widgets.py` | parcial |
 | `disponibilidad.py` | modulos | `modulos/test_disponibilidad.py` | sí |
 | `exporta_ventana_seiscomp.py` | base, bordes, db | `base/test_exporta_ventana_seiscomp.py`, `bordes/test_exporta_ventana_seiscomp_bordes.py`, `db/test_exporta_ventana_db.py` | parcial |
+| `fronteras.py` | modulos | `modulos/test_fronteras.py` | sí |
 | `generajson.py` | modulos | `modulos/test_generajson_args.py`, `modulos/test_generajson_distancia.py`, `modulos/test_generajson_analistas.py`, `modulos/test_generajson_procesar.py` | sí |
 | `plotear.py` | gui | `gui/test_plotear_helpers.py`, `gui/test_plotear_figuras.py`, `gui/test_plotear_panel.py`, `gui/test_plotear_abrir.py` | no |
 | `proc_query_harz_2.py` | scripts | `scripts/test_proc_query_harz_2_helpers.py` | sí |
@@ -77,7 +81,7 @@ CI (los grupos sin marcador) y otra no (`gui`/`db`).
 | `repetidos.py` | scripts | `scripts/test_repetidos_helpers.py` | sí |
 | `revisacollect.py` | scripts | `scripts/test_revisacollect_helpers.py` | sí |
 | `revisaexcluidos.py` | scripts | `scripts/test_revisaexcluidos_helpers.py` | sí |
-| `revisa_seiscomp.py` | base, bordes, gui | `base/test_revisa_seiscomp.py`, `bordes/test_revisa_seiscomp_bordes.py`, `gui/test_rs_panel.py`, `gui/test_rs_no_actualizados.py`, `gui/test_rs_detalle.py`, `gui/test_rs_estaciones.py`, `gui/test_rs_analisis.py`, `gui/test_rs_main.py` | parcial |
+| `revisa_seiscomp.py` | base, bordes, gui | `base/test_revisa_seiscomp.py`, `bordes/test_revisa_seiscomp_bordes.py`, `gui/test_rs_panel.py`, `gui/test_rs_no_actualizados.py`, `gui/test_rs_seleccion.py`, `gui/test_rs_detalle.py`, `gui/test_rs_estaciones.py`, `gui/test_rs_analisis.py`, `gui/test_rs_main.py` | parcial |
 | `revisaselect.py` | scripts | `scripts/test_revisaselect_helpers.py` | sí |
 | `rutas.py` | base, bordes | `base/test_rutas.py`, `bordes/test_rutas_bordes.py` | sí |
 | `seiscomp_a_parametros.py` | base, bordes | `base/test_seiscomp_a_parametros.py`, `bordes/test_seiscomp_a_parametros_bordes.py` | sí |
@@ -92,8 +96,9 @@ Todos los módulos del proyecto tienen al menos un test.
 La cobertura de la última ampliación incluye `test_disponibilidad.py` (parser de
 `scart`, fallback SDS→tiempo real, evidencia y mensajes de progreso),
 `test_rs_estaciones.py` (tooltip por fila y consulta on-demand con barra de
-progreso) y `test_rs_analisis.py` (tres contadores de evidencia: verificadas,
-indicios y sin evidencia).
+progreso), `test_rs_analisis.py` (tres contadores de evidencia), `test_fronteras.py`
+(distancia a la frontera terrestre y exclusión del mar chileno) y
+`test_rs_seleccion.py` (casillas y descarga de filas marcadas).
 
 ## 4. Arnés de regresión
 

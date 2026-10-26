@@ -23,11 +23,11 @@ skinparam NodeSep 18
 *** No actualizados · por perfil\nSeisan / SeisComp\n(solución de la fuente vs publicada)
 
 ** Barra lateral · CONSULTAR (ventanas)
-*** Catálogos\npestañas SeisComp / Seisan / eventquery\n(miniatura del perfil + detalle)
+*** Catálogos\npestañas SeisComp / Seisan / eventquery\n(filtros, Mostrar todo, miniatura y detalle)
 *** Repetidos\nlistado de duplicados por fuente
-*** No publicados · individual\nlistado; doble clic plotea planta + perfil
-*** No actualizados · individual\nlistado; doble clic compara fuente vs publicado
-*** Comparar agencias\nmapas y listados (EMSC / USGS / GFZ)
+*** No publicados · individual\nlistado + columna Frontera; doble clic plotea planta + perfil
+*** No actualizados · individual\nlistado; al seleccionar muestra Frontera local y publicada
+*** Comparar agencias\nmapas, listados y cobertura por agencia (EMSC / USGS / GFZ)
 
 ** Barra lateral · DESCARGAS
 *** Abrir carpeta\ndescargas/
@@ -42,6 +42,11 @@ left side
 *** Estaciones del evento (con arribos / sin arribos)
 *** Análisis rápido (estaciones sin arribos cercanas)
 *** Planta y perfil del evento
+
+** Decisión con apoyo de datos
+*** Columna Frontera: país y km al límite terrestre chileno
+*** Sin frontera en mar chileno (aprox. 200 mn de la costa)
+*** Mostrar todo limpia los filtros de los listados
 
 ** Mismo dato, dos vistas
 *** Por perfil (pestañas): contexto del conjunto

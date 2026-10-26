@@ -4,7 +4,7 @@
 
 H. Riquelme — OPA-CSN, Centro Sismológico Nacional, Universidad de Chile.
 
-Versión 1.4 — 19 de octubre de 2026.
+Versión 1.5 — 25 de octubre de 2026.
 
 ---
 
@@ -122,15 +122,23 @@ propone y ordena; el analista decide.
 
 ### 3.3 Patrón de arquitectura
 
-La aplicación separa tres responsabilidades:
+La aplicación tiene una separación **parcial** por capas:
 
-1. **Interfaz de orquestación** (`app.py`, Tkinter + `ttkbootstrap`): lanza cada
-   etapa como **subproceso independiente**, muestra el avance y el registro, y
-   presenta resultados. La GUI **no contiene lógica de negocio**.
-2. **Módulos de proceso** (un script por etapa): ejecutables de forma autónoma y
-   encadenables; leen y escriben archivos en el directorio de ejecución.
-3. **Capa de acceso a datos**: red (SSH/SCP) y base (SQL), aislada en módulos
-   propios (`traer_catalogos.py`, `exporta_ventana_seiscomp.py`).
+1. **Interfaz y orquestación** (`app.py`, `solicita_catalogos.py`,
+   `revisa_seiscomp.py`, `plotear.py`, `descargas.py`): construye ventanas,
+   atiende eventos, lanza etapas como **subprocesos independientes** y presenta
+   resultados. También contiene lógica de presentación, filtros, orden y parte
+   de la orquestación.
+2. **Dominio** (`comparacion.py`, `agencias.py`, `cruce_noact.py`,
+   `cruza_nopub.py`, `asigna_perfiles.py`, `sismicidad.py`, `fronteras.py`):
+   cálculos y reglas reutilizables, en general independientes de Tk.
+3. **Procesos y datos**: scripts ejecutables de forma autónoma y encadenable;
+   acceso a red (SSH/SCP) y base (SQL) en `traer_catalogos.py` y
+   `exporta_ventana_seiscomp.py`; rutas y persistencia en CSV/JSON.
+
+**No se usa MVC formal ni un backend HTTP separado.** La GUI y los módulos de
+dominio no están separados de forma estricta, por lo que no corresponde
+describirla como MVC.
 
 El **directorio de trabajo** es el directorio desde donde se invoca la
 aplicación; allí se resuelven las rutas relativas (`datos/`, `informes/`,
@@ -249,6 +257,18 @@ servidor de catálogos (Seisan), la base de SeisComp y las APIs de agencias.
 
 ![Diagrama de contexto de RCS](img/01_contexto.png)
 
+#### 5.1.1 RCS en 5 pasos
+
+Para alguien que se acerca por primera vez, el recorrido completo es:
+
+1. **Solicitar los catálogos** del período (Seisan, eventquery y SeisComp).
+2. **Procesar y comparar** los catálogos.
+3. **Revisar** los eventos dudosos, faltantes o con parámetros distintos.
+4. **Decidir** si se publica, corrige o despublica cada caso.
+5. **Descargar** los listados y entregables.
+
+![RCS en 5 pasos](img/10_flujo_general.png)
+
 ### 5.2 Vistas de arquitectura (modelo 4+1)
 
 Se documenta la arquitectura con el modelo **4+1**: cuatro vistas
@@ -257,7 +277,8 @@ complementarias y los escenarios que las validan.
 #### 5.2.1 Vista lógica
 
 Organiza el sistema en los seis módulos de la Sección 4, más la interfaz de
-orquestación y las capas compartidas (`rutas.py`, `prog.py`, `comparacion.py`).
+orquestación y las capas compartidas (`rutas.py`, `prog.py`, `comparacion.py`,
+`fronteras.py`).
 
 ![Vista lógica: módulos y dependencias](img/02_vista_logica.png)
 
@@ -265,7 +286,9 @@ orquestación y las capas compartidas (`rutas.py`, `prog.py`, `comparacion.py`).
 
 Describe la dinámica de una corrida: `app.py` lanza cada script del pipeline
 como subproceso y recibe, por la salida estándar, las líneas de progreso
-(`@@PROGRESO@@`). La GUI no ejecuta lógica de negocio.
+(`@@PROGRESO@@`). La GUI orquesta y presenta; los cálculos pesados corren en los
+subprocesos, aunque la interfaz conserva lógica de presentación y parte de la
+orquestación.
 
 ![Vista de procesos: un ciclo de «Procesar catálogos»](img/03_vista_procesos.png)
 
@@ -346,8 +369,8 @@ La verificación del sistema se apoya en **dos niveles** complementarios:
 - `tests/` — **tests unitarios** (pytest) de las funciones puras y de la
   interfaz, sin pantalla, base ni red en la corrida por defecto. Son rápidos y
   constituyen la red de seguridad para desarrollar y refactorizar. En la corrida
-  por defecto suman **538 tests**; a eso se agregan los grupos que sí necesitan
-  pantalla o base (**146** de interfaz y **36** de base de datos). El detalle está
+  por defecto suman **643 tests**; a eso se agregan los grupos que sí necesitan
+  pantalla o base (**239** de interfaz y **36** de base de datos). El detalle está
   en el Anexo D.
 - `verificacion/` — **comprobaciones end-to-end** (no tests unitarios) que
   ejercitan la aplicación de punta a punta: lógica de exportación, integración con
@@ -381,8 +404,8 @@ La suite de verificación se ejecutó completa sobre el sistema tras la
 reorganización del proyecto, con **23/23 comprobaciones OK** (10 offline + 13
 GUI, 0 fallas).
 
-La suite de **tests unitarios** corre completa y en verde: **538 tests** en la
-corrida por defecto, más los **146** de interfaz y los **36** de base de datos
+La suite de **tests unitarios** corre completa y en verde: **643 tests** en la
+corrida por defecto, más los **239** de interfaz y los **36** de base de datos
 (ver Anexo D).
 
 ---
@@ -392,9 +415,10 @@ corrida por defecto, más los **146** de interfaz y los **36** de base de datos
 - La herramienta reemplaza un control manual y disperso por un flujo único,
   reproducible y auditable, que va de la obtención de catálogos a los
   entregables.
-- La separación **GUI orquestadora / módulos de proceso / capa de datos**
-  resultó clave para mantener y extender el sistema: cada etapa es un script
-  autónomo y la interfaz solo lanza y presenta.
+- La separación **parcial** entre GUI orquestadora, módulos de dominio y capa de
+  procesos/datos resultó clave para mantener y extender el sistema: cada etapa
+  pesada es un script autónomo, aunque la interfaz conserva lógica de
+  presentación y parte de la orquestación.
 - El uso de **caché releída** y de **entregables explícitos** reduce el trabajo
   repetido y evita dejar archivos que nadie pidió.
 - La comparación **numérica con tolerancias** y la **trazabilidad** (registro,
@@ -470,7 +494,7 @@ resumen así:
 
 La suite de **tests unitarios** (pytest) vive en `tests/` y se documenta en
 `docs/proyecto/tests_unitarios.md` (versión `.docx` en
-`docs/versiones/tests_unitarios_v1.0_2026-10-15.docx`): grupos y marcadores,
+`docs/versiones/tests_unitarios_v1.2_2026-10-25.docx`): grupos y marcadores,
 índice módulo → grupo → archivo, arnés de regresión y cómo correrla. El índice
 de cobertura resumido está además en `tests/COBERTURA.md` y las convenciones en
 `tests/README.md`.
