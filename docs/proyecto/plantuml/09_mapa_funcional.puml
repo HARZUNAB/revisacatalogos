@@ -43,10 +43,11 @@ left side
 *** Análisis rápido (estaciones sin arribos cercanas)
 *** Planta y perfil del evento
 
-** Decisión con apoyo de datos
+** Análisis para apoyar decisiones
 *** Columna Frontera: país y km al límite terrestre chileno
 *** Sin frontera en mar chileno (aprox. 200 mn de la costa)
 *** Mostrar todo limpia los filtros de los listados
+*** La app no publica, corrige ni despublica: solo entrega información
 
 ** Mismo dato, dos vistas
 *** Por perfil (pestañas): contexto del conjunto

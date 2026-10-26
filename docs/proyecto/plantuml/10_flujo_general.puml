@@ -15,15 +15,18 @@ start
 (análisis por etapas);
 :3. Revisar eventos
 (dudosos, faltantes, no publicados);
-:4. Decidir
-(publicar, corregir o despublicar);
+:4. Analizar la información
+para decidir acciones
+(publicar, corregir o despublicar fuera de RCS);
 :5. Descargar entregables
 (listados, informes y mapas);
 stop
 
 note right
-  El sistema no modifica los datos de origen.
-  Todo lo generado queda en archivos nuevos
-  dentro de la carpeta de ejecución.
+  RCS no publica, corrige ni despublica.
+  Solo entrega el análisis para que el analista decida.
+  Tampoco modifica los datos de origen: todo lo
+  generado queda en archivos nuevos en la carpeta
+  de ejecución.
 end note
 @enduml

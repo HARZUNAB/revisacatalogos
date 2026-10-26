@@ -264,7 +264,9 @@ Para alguien que se acerca por primera vez, el recorrido completo es:
 1. **Solicitar los catálogos** del período (Seisan, eventquery y SeisComp).
 2. **Procesar y comparar** los catálogos.
 3. **Revisar** los eventos dudosos, faltantes o con parámetros distintos.
-4. **Decidir** si se publica, corrige o despublica cada caso.
+4. **Usar la información para decidir** si corresponde publicar, corregir o
+   despublicar. Esa acción se realiza fuera de RCS; la app solo entrega el
+   análisis.
 5. **Descargar** los listados y entregables.
 
 ![RCS en 5 pasos](img/10_flujo_general.png)

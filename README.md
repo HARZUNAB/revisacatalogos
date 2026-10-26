@@ -27,7 +27,8 @@ separado.
 1. Solicitar los catálogos del período.
 2. Procesarlos y compararlos.
 3. Revisar los eventos dudosos o faltantes.
-4. Decidir si se publica, corrige o despublica.
+4. Usar el análisis para decidir acciones sobre la publicación
+   (RCS no publica, corrige ni despublica).
 5. Descargar los entregables.
 
 ![RCS en 5 pasos](docs/proyecto/img/10_flujo_general.png)

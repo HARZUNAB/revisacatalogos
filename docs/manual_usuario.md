@@ -50,8 +50,9 @@ Además arma **mapas** y un **panel de análisis** por perfil, y marca como
 placa ni con la sismicidad histórica.
 
 **En cinco pasos:** solicitar los catálogos, procesarlos, revisar los eventos
-dudosos o faltantes, decidir si se publica o corrige, y descargar los
-entregables.
+dudosos o faltantes, usar la información para decidir acciones sobre la
+publicación y descargar los entregables. RCS informa y ordena; no publica,
+corrige ni despublica por sí sola.
 
 ![RCS en 5 pasos](proyecto/img/10_flujo_general.png)
 
@@ -350,8 +351,9 @@ crudas de ambas fuentes y no se agrega a los CSV de `compara.py`.
 Al seleccionar una fila, sobre la tabla se muestra **Frontera local** y
 **Frontera publicada**, con el país y la distancia de cada ubicación a la
 frontera terrestre chilena. Si una de las dos está en mar chileno, esa parte
-muestra `—`. Así se puede decidir si el evento publicado corresponde o no, sin
-agregar dos columnas más a la tabla.
+muestra `—`. Así el analista puede decidir si el evento publicado corresponde o
+no, sin agregar dos columnas más a la tabla. RCS solo entrega el dato: no
+publica, corrige ni despublica.
 
 La ventana crece al abrirse y al cambiar de fuente para mostrar todas sus
 columnas. Si no entra en la pantalla, use la barra horizontal.
